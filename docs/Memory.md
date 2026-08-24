@@ -78,6 +78,7 @@
 - [x] Added hybrid product ranking with indexed SQL constraints, local feature-hash embeddings, optional pgvector cosine similarity, and HNSW indexing.
 - [x] Added standalone price and composite active/category/price PostgreSQL indexes; local indexed SQL search benchmarked at 14.02 ms median and 16.81 ms maximum across 20 warm queries.
 - [x] Added an optional pgvector setup command so hosts without server extension binaries remain fully operational through SQL fallback.
+- [x] Installed pgvector 0.8.6 for local Windows PostgreSQL 18, enabled the database extension, backfilled catalog embeddings, and verified the HNSW cosine index with a live hybrid product search.
 - [x] Applied merchant optimization and analytics migrations successfully to PostgreSQL.
 - [x] Added environment-driven production hosts/origins/database settings, WhiteNoise static serving, proxy/SSL/cookie/HSTS security settings, and `DATABASE_URL` support.
 - [x] Added Vercel SPA routing plus Render/Gunicorn deployment manifests.
@@ -139,7 +140,7 @@
 - `backend/Procfile` and `backend/render.yaml` (Complete — Gunicorn/Render deployment)
 
 ## 5. Deployment Notes
-- The local Windows PostgreSQL server does not provide pgvector binaries, so it uses the verified indexed SQL fallback. Managed hosts with the extension create the HNSW table during migration; after installing pgvector locally, run `python manage.py setup_pgvector`.
+- The local Windows PostgreSQL 18 server now provides pgvector 0.8.6. The `vector` extension, 128-dimensional product embedding table, and HNSW cosine index are active and backfilled; indexed SQL fallback remains available for hosts without the extension.
 - The host does not expose a native Linux Node.js runtime; React syntax validation uses the installed Windows Node runtime. Local development still requires Node 18+.
 - Per current workflow preference, no Vite production build was run for this task; all frontend sources passed parser validation and declared dependencies are installed.
 - Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
