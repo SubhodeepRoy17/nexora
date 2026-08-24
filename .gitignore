@@ -1,0 +1,57 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.*
+
+# Local AI/editor configuration
+.agents/
+.codex/
+.vscode/
+.idea/
+*.code-workspace
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+staticfiles/
+*.sqlite3
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+coverage/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+~$*

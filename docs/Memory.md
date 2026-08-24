@@ -1,0 +1,149 @@
+# Project Memory & Progress Tracker - Nexora
+
+## 1. Project State Overview
+- **Current Phase:** Phase 5 — COMPLETE (Agentic Analytics & Production Polish)
+- **Active Task:** All planned implementation phases complete
+- **Overall Progress:** 100% COMPLETE
+- **Last Updated:** 2026-08-24
+
+### Phase Completion
+- [x] Phase 1 — Foundation & Merchant Catalog (100%)
+- [x] Phase 2 — Groq AI Buyer Agent Engine (100%)
+- [x] Phase 3 — Recommendation Engine & Interactive UI (100%)
+- [x] Phase 4 — Razorpay Transaction Loop & Webhooks (100%)
+- [x] Phase 5 — Agentic Merchant Analytics & Polish (100%)
+
+## 2. Completed Milestones
+- [x] Defined PRD, Architecture, Rules, and Execution Phases.
+- [x] Defined tech stack: Django, React, PostgreSQL, Groq, Razorpay.
+- [x] Defined Merchant Analytics & AI Agent interaction boundaries.
+- [x] Initialized the Vite + React frontend with Tailwind CSS and Lucide React.
+- [x] Implemented the Nexora design system: Slate 950, Cyber Violet, Electric Emerald, Inter, JetBrains Mono, and animated glow treatments.
+- [x] Built the responsive B2C AI Buyer Chat shell with conversation history, mock agent-thinking state, recommendation cards, spec badges, suggested prompts, and functional mock replies.
+- [x] Built the explicit human-in-the-loop approval modal with mock order state progression and no payment side effects.
+- [x] Built the responsive B2B Merchant Dashboard shell with KPI cards, searchable inventory table, stock status badges, catalog health, and live-style Agent Transaction Timeline.
+- [x] Added centralized mock data for products, agent responses, inventory, analytics, transactions, and order states.
+- [x] Added an in-app Buyer/Merchant view switch for demonstrating both experiences without routing or backend dependencies.
+- [x] Refactored the B2C experience into dedicated chat components under `frontend/src/components/chat/`.
+- [x] Added structured multi-scenario keyboard shopping data with merchant, review, wireless, hot-swap, switch, battery, layout, and pricing fields.
+- [x] Added natural staged agent progress across intent parsing, merchant search, and review comparison before recommendations render.
+- [x] Added a simulated Razorpay checkout lifecycle: explicit approval, session opening, authorization, verification, and `Paid & Executed` confirmation.
+- [x] Added timer cleanup and disabled in-flight submissions to prevent overlapping mock agent runs.
+- [x] Verified the refined frontend with a successful Vite production build (1,587 modules transformed).
+- [x] Refactored the B2B experience into a tabbed Overview, Inventory, and Agent Insights workspace.
+- [x] Added merchant performance metrics for revenue, AI appearances, agent conversions, and win/loss ratio.
+- [x] Added local catalog management with stock and agent-visibility toggles, inline price editing, product create/edit forms, and rich JSON spec inspection.
+- [x] Added automatic structured metadata and search-tag generation for catalog product forms.
+- [x] Added live-style agent recommendation audit events with match reasons, buyer references, and completed/lost outcomes.
+- [x] Added lost-conversion intelligence for competitor pricing, stock gaps, and incomplete specification metadata.
+- [x] Added React Router application paths for Buyer Chat, Merchant Overview, Inventory, and Agent Analytics.
+- [x] Added a shared responsive top navbar with Buyer/Merchant mode switching and live Agent Network status.
+- [x] Added a versioned global application store persisted through local storage for chat history, catalog edits, mock orders, and audit events.
+- [x] Connected approved B2C mock orders to the B2B Agent Timeline so completed purchases appear immediately in merchant audit state.
+- [x] Completed responsive navigation and global transition/glow refinements across Buyer and Merchant layouts.
+- [x] **Phase 1 complete: frontend shell and mock interactive workflows are ready for backend integration.**
+- [x] Initialized the Django `nexora_core` backend and scaffolded merchants, agents, and orders apps.
+- [x] Added PostgreSQL-only environment configuration, DRF, and Vite development CORS support.
+- [x] Implemented Merchant and Product models with indexed catalog fields, API-key generation, and structured JSON data.
+- [x] Added strict Pydantic validation for specifications and normalized array validation for search tags.
+- [x] Added DRF serializers, CRUD ModelViewSets, admin registrations, and `/api/merchants/products/` routing.
+- [x] Generated `apps/merchants/migrations/0001_initial.py` and confirmed Django system checks pass.
+- [x] Applied the initial catalog schema to PostgreSQL and confirmed the live connection with a validated merchant product record.
+- [x] Added a strict Pydantic `ProductSearchSchema` and Groq-compatible `search_merchant_products` tool definition.
+- [x] Implemented bounded Django ORM catalog search for price, category, rating, keywords, and JSON specifications.
+- [x] Implemented the two-stage Groq buyer-agent flow: tool-call intent parsing followed by grounded comparative recommendations.
+- [x] Added strict final response validation, one repair retry, catalog fact grounding, and high-level audit stages without exposing hidden chain-of-thought.
+- [x] Added deterministic ORM keyword/price fallback behavior for Groq configuration, rate-limit, API, and malformed-output failures.
+- [x] Added `POST /api/agents/search/` with request validation and catalog-unavailable handling.
+- [x] Added four passing agent unit tests for strict tool schemas, budget extraction, and recommendation grounding.
+- [x] Added UUID-based Order and AgentTransactionAudit models with explicit payment/conversion status lifecycles.
+- [x] Added server-authoritative amount calculation, stock validation, and `POST /api/orders/create/` Razorpay order initialization.
+- [x] Added raw-body HMAC webhook verification at `POST /api/orders/webhook/razorpay/` with explicit CSRF exemption.
+- [x] Added atomic, idempotent `payment.captured` processing with order/product row locks, amount/currency validation, stock decrement, and purchase audit creation.
+- [x] Added failed-payment audit handling without inventory mutation.
+- [x] Generated `apps/orders/migrations/0001_initial.py` and confirmed no pending model changes.
+- [x] Added Razorpay and order-route tests; combined agent/order suite now passes 9 tests.
+- [x] Added a centralized Axios client with configurable API base URL, normalized DRF response adapters, actionable errors, and a lazy Razorpay Checkout SDK loader.
+- [x] Replaced B2C scenario responses with live `POST /api/agents/search/` requests and dynamic in-flight agent progress states.
+- [x] Grounded recommendation cards in live Django/Groq response fields, including database product IDs required by checkout.
+- [x] Replaced simulated checkout progression with server-side order creation and Razorpay Checkout initialization after explicit buyer approval.
+- [x] Changed the client success state to `Order Placed`; authoritative `PAID` status, inventory decrement, and merchant conversion events remain webhook-controlled.
+- [x] Replaced merchant inventory mock state with paginated `GET /api/merchants/products/` data and connected catalog edits to DRF create/patch operations.
+- [x] Added read-only `GET /api/orders/audits/` and five-second merchant dashboard polling for recommendation and webhook conversion activity.
+- [x] Removed fabricated live timeline events and stale catalog/audit persistence from the active frontend workflow.
+- [x] Added the `apps.analytics` backend with recommendation impression and price/stock lost-opportunity event models.
+- [x] Added `GET /api/merchants/analytics/` with merchant scoping, paid conversion attribution, seven-day trends, revenue, and actionable loss aggregation.
+- [x] Connected buyer-agent recommendation results to non-blocking analytics event recording while keeping webhook audits authoritative for conversions.
+- [x] Added the live `AgentAnalytics.jsx` merchant view with impressions, paid conversions, conversion rate, revenue, trend badges, and Lost Deals Insights.
+- [x] Added hybrid product ranking with indexed SQL constraints, local feature-hash embeddings, optional pgvector cosine similarity, and HNSW indexing.
+- [x] Added standalone price and composite active/category/price PostgreSQL indexes; local indexed SQL search benchmarked at 14.02 ms median and 16.81 ms maximum across 20 warm queries.
+- [x] Added an optional pgvector setup command so hosts without server extension binaries remain fully operational through SQL fallback.
+- [x] Applied merchant optimization and analytics migrations successfully to PostgreSQL.
+- [x] Added environment-driven production hosts/origins/database settings, WhiteNoise static serving, proxy/SSL/cookie/HSTS security settings, and `DATABASE_URL` support.
+- [x] Added Vercel SPA routing plus Render/Gunicorn deployment manifests.
+- [x] Passed Django production deployment checks, migration drift checks, WhiteNoise collection, 10 focused backend tests, and syntax parsing for all 24 frontend source files.
+
+## 3. Frontend Component Tracker
+- `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
+- `frontend/src/pages/MerchantDashboard.jsx` (Complete — live catalog and audit polling integration)
+- `frontend/src/components/ProductCard.jsx` (Complete)
+- `frontend/src/components/ApprovalModal.jsx` (Complete — mock only)
+- `frontend/src/components/Brand.jsx` (Complete)
+- `frontend/src/components/ViewSwitcher.jsx` (Complete)
+- `frontend/src/data/mockData.js` (Complete)
+- `frontend/src/components/chat/ChatInput.jsx` (Complete)
+- `frontend/src/components/chat/AgentThinkingStep.jsx` (Complete)
+- `frontend/src/components/chat/ProductRecommendationCard.jsx` (Complete)
+- `frontend/src/components/chat/CheckoutModal.jsx` (Complete — Razorpay order and Checkout SDK integration)
+- `frontend/src/mock/chatData.js` (Complete — structured response scenarios)
+- `frontend/src/pages/merchant/DashboardOverview.jsx` (Complete)
+- `frontend/src/components/merchant/ProductInventoryTable.jsx` (Complete — live DRF catalog CRUD controls)
+- `frontend/src/components/merchant/AddProductModal.jsx` (Complete — generated metadata preview)
+- `frontend/src/components/merchant/AgentTimelineFeed.jsx` (Complete — server-backed activity stream)
+- `frontend/src/components/merchant/AgentAnalyticsCard.jsx` (Complete)
+- `frontend/src/mock/merchantData.js` (Complete — inventory, audits, funnel, and conversion metrics)
+- `frontend/src/components/common/Navbar.jsx` (Complete — global mode navigation)
+- `frontend/src/context/NexoraContext.jsx` (Complete — persisted chat plus server-backed catalog/audit state)
+- `frontend/src/services/api.js` (Complete — Axios APIs, adapters, errors, and Razorpay loader)
+- `frontend/src/App.jsx` (Complete — global route map)
+- `frontend/src/pages/merchant/AgentAnalytics.jsx` (Complete — live merchant analytics and lost-deal insights)
+- `frontend/vercel.json` (Complete — Vite SPA deep-link routing)
+
+## 4. Backend Component Tracker
+- `backend/nexora_core/settings.py` (Complete — PostgreSQL and production security/static configuration)
+- `backend/apps/merchants/models.py` (Complete — catalog schema, SQL indexes, and optional semantic index model)
+- `backend/apps/merchants/schemas.py` (Complete — strict specification/tag validation)
+- `backend/apps/merchants/serializers.py` (Complete)
+- `backend/apps/merchants/views.py` (Complete — initial unauthenticated CRUD prototype)
+- `backend/apps/merchants/migrations/0001_initial.py` (Applied)
+- `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
+- `backend/apps/agents/` (Complete — Groq agent and structured search engine)
+- `backend/apps/orders/` (Complete — Razorpay lifecycle and verified webhooks)
+- `backend/apps/agents/tools.py` (Complete — hybrid SQL/pgvector catalog search and fallback)
+- `backend/apps/agents/services.py` (Complete — Groq orchestration and grounded response contract)
+- `backend/apps/agents/prompts.py` (Complete — tool and recommendation guardrails)
+- `backend/apps/agents/views.py` (Complete — initial unauthenticated search endpoint)
+- `backend/apps/agents/tests.py` (Complete — 4 passing unit tests)
+- `backend/apps/orders/models.py` (Complete — initial Order/Audit lifecycle)
+- `backend/apps/orders/services.py` (Complete — Razorpay client and precise INR subunit conversion)
+- `backend/apps/orders/views.py` (Complete — checkout initialization endpoint)
+- `backend/apps/orders/webhooks.py` (Complete — verified, idempotent payment event handling)
+- `backend/apps/orders/migrations/0001_initial.py` (Applied)
+- `backend/apps/orders/tests.py` (Complete — 5 passing unit/route tests)
+- `backend/apps/orders/serializers.py` (Complete — enriched merchant timeline audit payload)
+- `backend/apps/orders/views.py` (Complete — read-only paginated audit feed)
+- `backend/apps/analytics/models.py` (Complete — impressions and lost opportunities)
+- `backend/apps/analytics/services.py` (Complete — merchant aggregation and tracking)
+- `backend/apps/analytics/views.py` (Complete — analytics API)
+- `backend/apps/analytics/migrations/0001_initial.py` (Applied)
+- `backend/Procfile` and `backend/render.yaml` (Complete — Gunicorn/Render deployment)
+
+## 5. Deployment Notes
+- The local Windows PostgreSQL server does not provide pgvector binaries, so it uses the verified indexed SQL fallback. Managed hosts with the extension create the HNSW table during migration; after installing pgvector locally, run `python manage.py setup_pgvector`.
+- The host does not expose a native Linux Node.js runtime; React syntax validation uses the installed Windows Node runtime. Local development still requires Node 18+.
+- Per current workflow preference, no Vite production build was run for this task; all frontend sources passed parser validation and declared dependencies are installed.
+- Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
+- Groq defaults to `llama-3.3-70b-versatile` through `GROQ_MODEL`; provider and Razorpay production credentials remain environment-managed.
+- Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate the affected Groq key and database password before continuing, even though the real `.env` remains gitignored.
+- Implementation is complete; each deployed environment must still register its public Razorpay webhook URL and perform a test-mode payment before accepting live traffic. The browser callback intentionally never marks an order paid.
+- Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
