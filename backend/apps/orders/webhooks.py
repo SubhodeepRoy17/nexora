@@ -4,14 +4,14 @@ import logging
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from razorpay.errors import SignatureVerificationError
 from razorpay.utility.utility import Utility
 
-from apps.merchants.models import Product
-
-from .models import AgentTransactionAudit, Order
+from .lifecycle import LifecycleError, consume_reservations, release_reservations, transition_order
+from .models import AgentTransactionAudit, MoneyActionAudit, Order
 from .services import amount_to_subunits
 
 
@@ -19,10 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class WebhookPayloadError(ValueError):
-    pass
-
-
-class InsufficientStockError(RuntimeError):
     pass
 
 
@@ -36,87 +32,135 @@ def _payment_entity(payload: dict) -> dict:
     return payment
 
 
+def _money_audit(order, *, action, outcome, reason_code, summary, metadata):
+    quote = order.quote
+    primary = quote.items.first()
+    MoneyActionAudit.objects.create(
+        session=quote.session,
+        quote=quote,
+        approval=getattr(quote, "approval", None),
+        order=order,
+        merchant=primary.merchant,
+        buyer=order.buyer,
+        action=action,
+        outcome=outcome,
+        reason_code=reason_code,
+        summary=summary,
+        metadata=metadata,
+    )
+
+
 @transaction.atomic
 def _capture_payment(payment: dict, webhook_signature: str) -> tuple[Order, bool]:
     razorpay_order_id = payment.get("order_id")
     payment_id = payment.get("id")
     if not razorpay_order_id or not payment_id:
         raise WebhookPayloadError("Payment identifiers are missing")
-
     try:
-        order = Order.objects.select_for_update().select_related("product__merchant").get(
-            razorpay_order_id=razorpay_order_id
+        order = (
+            Order.objects.select_for_update(of=("self",))
+            .select_related("quote__session")
+            .prefetch_related("quote__items__merchant", "items__merchant", "reservations")
+            .get(razorpay_order_id=razorpay_order_id)
         )
     except Order.DoesNotExist as exc:
         raise WebhookPayloadError("Unknown Razorpay order") from exc
 
-    if order.status == Order.Status.PAID:
+    if order.status in {Order.Status.PAID, Order.Status.REFUND_PENDING}:
         if order.razorpay_payment_id != payment_id:
             raise WebhookPayloadError("Order is already linked to another payment")
         return order, False
-    if order.status == Order.Status.CANCELLED:
-        raise WebhookPayloadError(f"Order cannot transition from {order.status} to PAID")
-
-    if payment.get("status") != "captured" or payment.get("currency") != "INR":
-        raise WebhookPayloadError("Payment is not a captured INR payment")
+    if payment.get("status") != "captured" or payment.get("currency") != order.currency:
+        raise WebhookPayloadError("Payment is not a captured payment in the order currency")
     if payment.get("amount") != amount_to_subunits(order.total_amount):
         raise WebhookPayloadError("Payment amount does not match the local order")
 
-    product = Product.objects.select_for_update().get(pk=order.product_id)
-    if product.stock_quantity < order.quantity:
-        raise InsufficientStockError("Captured order exceeds available stock")
-
-    product.stock_quantity -= order.quantity
-    product.save(update_fields=["stock_quantity", "updated_at"])
-
-    order.status = Order.Status.PAID
     order.razorpay_payment_id = payment_id
     order.razorpay_signature = webhook_signature
-    order.save(
-        update_fields=[
-            "status",
-            "razorpay_payment_id",
-            "razorpay_signature",
-            "updated_at",
-        ]
-    )
-    AgentTransactionAudit.objects.get_or_create(
-        order=order,
-        conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED,
-        defaults={
-            "merchant": product.merchant,
-            "agent_thought_summary": (
-                "Verified Razorpay payment captured; stock decremented and merchant purchase recorded."
-            ),
+    order.save(update_fields=["razorpay_payment_id", "razorpay_signature", "updated_at"])
+    try:
+        consumed = consume_reservations(order)
+    except LifecycleError:
+        transition_order(order, Order.Status.REFUND_PENDING)
+        _money_audit(
+            order,
+            action=MoneyActionAudit.Action.MONEY_BLOCKED,
+            outcome="REFUND_PENDING",
+            reason_code="CAPTURE_WITHOUT_RESERVATION",
+            summary="A verified late capture arrived after inventory release and requires bounded refund handling.",
+            metadata={"signature_verified": True, "inventory_mutated": False},
+        )
+        return order, True
+
+    transition_order(order, Order.Status.PAID)
+    for merchant_id in {item.merchant_id for item in order.items.all()}:
+        AgentTransactionAudit.objects.get_or_create(
+            order=order,
+            merchant_id=merchant_id,
+            conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED,
+            defaults={
+                "agent_thought_summary": (
+                    "Verified Razorpay capture consumed reserved inventory exactly once."
+                )
+            },
+        )
+    _money_audit(
+        order,
+        action=MoneyActionAudit.Action.PAYMENT_CAPTURED,
+        outcome="PAID",
+        reason_code="WEBHOOK_VERIFIED",
+        summary="Verified Razorpay capture consumed the existing reservation; no second stock deduction occurred.",
+        metadata={
+            "signature_verified": True,
+            "reservation_consumed": consumed,
+            "inventory_mutated_at_capture": False,
         },
     )
     return order, True
 
 
 @transaction.atomic
-def _fail_payment(payment: dict) -> None:
+def _fail_payment(payment: dict) -> bool:
     razorpay_order_id = payment.get("order_id")
     if not razorpay_order_id:
-        return
+        return False
     try:
-        order = Order.objects.select_for_update().select_related("product__merchant").get(
-            razorpay_order_id=razorpay_order_id
+        order = (
+            Order.objects.select_for_update(of=("self",))
+            .select_related("quote__session")
+            .prefetch_related("quote__items__merchant", "items__merchant", "reservations")
+            .get(razorpay_order_id=razorpay_order_id)
         )
     except Order.DoesNotExist:
-        return
-    if order.status != Order.Status.PENDING:
-        return
-    order.status = Order.Status.FAILED
+        return False
+    if order.status != Order.Status.PAYMENT_PENDING:
+        return False
+    released = release_reservations(order)
     order.razorpay_payment_id = payment.get("id") or None
-    order.save(update_fields=["status", "razorpay_payment_id", "updated_at"])
-    AgentTransactionAudit.objects.get_or_create(
-        order=order,
-        conversion_status=AgentTransactionAudit.ConversionStatus.REJECTED,
-        defaults={
-            "merchant": order.product.merchant,
-            "agent_thought_summary": "Razorpay reported a failed payment attempt; inventory was unchanged.",
+    order.save(update_fields=["razorpay_payment_id", "updated_at"])
+    transition_order(order, Order.Status.PAYMENT_FAILED)
+    for merchant_id in {item.merchant_id for item in order.items.all()}:
+        AgentTransactionAudit.objects.get_or_create(
+            order=order,
+            merchant_id=merchant_id,
+            conversion_status=AgentTransactionAudit.ConversionStatus.REJECTED,
+            defaults={
+                "agent_thought_summary": "Verified payment failure released reserved inventory exactly once."
+            },
+        )
+    _money_audit(
+        order,
+        action=MoneyActionAudit.Action.PAYMENT_FAILED,
+        outcome="FAILED",
+        reason_code="PAYMENT_FAILED",
+        summary="Razorpay reported payment failure; active reservations were released exactly once.",
+        metadata={
+            "signature_verified": True,
+            "reservation_released": released,
+            "inventory_available_again": released,
         },
     )
+    return True
 
 
 @csrf_exempt
@@ -128,18 +172,15 @@ def razorpay_webhook(request):
         return JsonResponse({"detail": "Webhook verification is not configured."}, status=503)
     if not signature:
         return JsonResponse({"detail": "Missing Razorpay signature."}, status=400)
-
     try:
         raw_body = request.body.decode("utf-8")
     except UnicodeDecodeError:
         return JsonResponse({"detail": "Webhook body must be valid UTF-8."}, status=400)
-
     try:
         Utility().verify_webhook_signature(raw_body, signature, webhook_secret)
     except SignatureVerificationError:
         logger.warning("Rejected Razorpay webhook with an invalid signature")
         return JsonResponse({"detail": "Invalid webhook signature."}, status=400)
-
     try:
         payload = json.loads(raw_body)
     except json.JSONDecodeError:
@@ -153,15 +194,13 @@ def razorpay_webhook(request):
                 {
                     "status": "processed" if processed else "already_processed",
                     "order_id": str(order.order_id),
+                    "order_status": order.status,
                 }
             )
         if event == "payment.failed":
-            _fail_payment(_payment_entity(payload))
-            return JsonResponse({"status": "processed"})
+            processed = _fail_payment(_payment_entity(payload))
+            return JsonResponse({"status": "processed" if processed else "already_processed"})
     except WebhookPayloadError as exc:
         return JsonResponse({"detail": str(exc)}, status=400)
-    except InsufficientStockError:
-        logger.error("Captured Razorpay payment could not be fulfilled because stock is unavailable")
-        return JsonResponse({"detail": "Captured payment requires manual stock reconciliation."}, status=409)
 
-    return JsonResponse({"status": "ignored", "event": event})
+    return JsonResponse({"status": "ignored", "event": event, "received_at": timezone.now().isoformat()})

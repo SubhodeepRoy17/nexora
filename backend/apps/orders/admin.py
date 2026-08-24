@@ -1,14 +1,20 @@
 from django.contrib import admin
 
-from .models import AgentTransactionAudit, Order
+from .models import Cart, Order, OrderItem, Quote, StockReservation, AgentTransactionAudit
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ["order_id", "product", "buyer_email", "quantity", "total_amount", "status", "created_at"]
+    list_display = ["order_id", "buyer_email", "total_amount", "status", "reservation_expires_at", "created_at"]
     list_filter = ["status", "created_at"]
     search_fields = ["order_id", "buyer_email", "razorpay_order_id", "razorpay_payment_id"]
     readonly_fields = ["order_id", "razorpay_signature", "created_at", "updated_at"]
+
+
+admin.site.register(Cart)
+admin.site.register(Quote)
+admin.site.register(OrderItem)
+admin.site.register(StockReservation)
 
 
 @admin.register(AgentTransactionAudit)

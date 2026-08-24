@@ -5,8 +5,9 @@ import ChatInput from '../components/chat/ChatInput'
 import CheckoutModal from '../components/chat/CheckoutModal'
 import ProductRecommendationCard from '../components/chat/ProductRecommendationCard'
 import { useNexora } from '../context/NexoraContext'
+import { useAuth } from '../context/AuthContext'
 import { initialChatMessages, presetQueries } from '../mock/chatData'
-import { getApiError, searchProducts, toRecommendationProduct } from '../services/api'
+import { getApiError, searchProducts, toAddOnProduct, toRecommendationProduct } from '../services/api'
 
 const liveThinkingSteps = [
   { id: 'parse', label: 'Parsing intent', detail: 'Extracting budget, use case, and required features' },
@@ -20,6 +21,7 @@ function AgentMark({ active = false }) {
 
 export default function BuyerChat() {
   const { buyerMessages: messages, setBuyerMessages: setMessages } = useNexora()
+  const { user } = useAuth()
   const [input, setInput] = useState('')
   const [activeRun, setActiveRun] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -73,8 +75,12 @@ export default function BuyerChat() {
     try {
       const { data } = await searchProducts(query, controller.signal)
       if (requestRef.current !== controller) return
-      const products = (data.recommendations ?? []).map(toRecommendationProduct)
-      const fallbackUsed = (data.thought_process ?? []).some((step) => step.toLowerCase().includes('groq unavailable'))
+      let products = (data.recommendations ?? []).map(toRecommendationProduct)
+      const addOns = (data.add_on_suggestions ?? []).map(toAddOnProduct)
+      if (products.length && addOns.length) {
+        products = [{ ...products[0], addOns }, ...products.slice(1)]
+      }
+      const fallbackUsed = data.provider_source === 'FALLBACK'
       setMessages((current) => [...current, {
         id: messageId + 1,
         role: 'agent',
@@ -105,8 +111,8 @@ export default function BuyerChat() {
     setMessages((current) => [...current, {
       id: Date.now(),
       role: 'agent',
-      text: `Order placed for ${product.name}. Razorpay accepted the payment response; the verified webhook will finalize the paid status and merchant inventory update.`,
-      evidence: `ORDER PLACED · ${order.order_id}`,
+      text: `Payment verified for ${product.name}. The backend consumed the reserved inventory exactly once after Razorpay's signed webhook confirmed the capture.`,
+      evidence: `PAID · ${order.order_id}`,
       time: 'Now',
       status: 'placed',
     }])
@@ -134,8 +140,8 @@ export default function BuyerChat() {
         <div className="mt-auto space-y-1 border-t border-slate-800 pt-4">
           <button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-slate-500 transition hover:text-slate-300"><HelpCircle size={15} /> Help & feedback</button>
           <div className="flex items-center gap-3 rounded-xl px-3 py-3">
-            <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-600 text-[10px] font-bold">AK</div>
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-200">Aarav Kapoor</p><p className="font-mono text-[9px] text-slate-600">Personal account</p></div>
+            <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-600 text-[10px] font-bold">{user?.display_name?.slice(0, 2).toUpperCase() ?? 'GU'}</div>
+            <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-200">{user?.display_name ?? 'Guest buyer'}</p><p className="font-mono text-[9px] text-slate-600">{user ? 'Verified session' : 'Search only · sign in to buy'}</p></div>
             <ChevronDown size={13} className="text-slate-600" />
           </div>
         </div>

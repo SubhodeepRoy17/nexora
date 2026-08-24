@@ -73,7 +73,7 @@ export default function ProductInventoryTable({ products, onToggleActive, onTogg
           </table>
           {!filtered.length && <div className="grid h-44 place-items-center text-xs text-slate-600">No products match this view.</div>}
         </div>
-        <footer className="flex items-center justify-between border-t border-slate-800 px-5 py-3"><p className="font-mono text-[8px] text-slate-600">{filtered.length} OF {products.length} PRODUCTS · LOCAL MOCK STATE</p><p className="text-[9px] text-slate-500"><span className="text-emerald-400">{products.filter((product) => product.active).length}</span> visible to agents</p></footer>
+        <footer className="flex items-center justify-between border-t border-slate-800 px-5 py-3"><p className="font-mono text-[8px] text-slate-600">{filtered.length} OF {products.length} PRODUCTS · OWNER-SCOPED API</p><p className="text-[9px] text-slate-500"><span className="text-emerald-400">{products.filter((product) => product.active).length}</span> visible to agents</p></footer>
       </section>
       <SpecViewer product={specProduct} onClose={() => setSpecProduct(null)} />
     </>

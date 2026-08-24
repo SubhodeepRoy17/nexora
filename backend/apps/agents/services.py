@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Any
 
+from django.conf import settings
 from groq import APIError, Groq
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -42,12 +43,119 @@ class ProductRecommendation(BaseModel):
     tradeoffs: list[str] = Field(default_factory=list, max_length=5)
 
 
+class AddOnSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    relationship_id: int
+    primary_product_id: int
+    product_id: int
+    title: str = Field(min_length=1, max_length=255)
+    merchant: str = Field(min_length=1, max_length=200)
+    relationship_type: str
+    offer_label: str = Field(default="", max_length=120)
+    incremental_cost: float = Field(ge=0)
+    stock_quantity: int = Field(ge=1)
+    key_specs: dict[str, Any] = Field(default_factory=dict)
+    compatibility: dict[str, Any] = Field(default_factory=dict)
+    constraint_evidence: list[str] = Field(default_factory=list, max_length=5)
+    benefit: str = Field(min_length=1, max_length=800)
+    trade_off: str = Field(default="", max_length=500)
+
+
 class BuyerAgentResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     thought_process: list[str] = Field(min_length=1, max_length=8)
+    primary_recommendation_id: int | None = None
     recommendations: list[ProductRecommendation] = Field(default_factory=list, max_length=5)
+    add_on_suggestions: list[AddOnSuggestion] = Field(default_factory=list, max_length=3)
     summary_reasoning: str = Field(min_length=1, max_length=1500)
+
+
+def _compatibility_matches(relationship) -> bool:
+    rules = relationship.compatibility or {}
+    required_specs = rules.get("source_specs", {})
+    if not isinstance(required_specs, dict):
+        return False
+    source_specs = relationship.source_product.specifications or {}
+    return all(source_specs.get(key) == value for key, value in required_specs.items())
+
+
+def _attach_growth_suggestions(
+    response: BuyerAgentResponse, constraints: dict[str, Any] | None = None
+) -> BuyerAgentResponse:
+    if not response.recommendations or settings.GROWTH_MAX_ADDON_OFFERS == 0:
+        return response.model_copy(
+            update={
+                "primary_recommendation_id": (
+                    response.recommendations[0].product_id if response.recommendations else None
+                ),
+                "add_on_suggestions": [],
+            }
+        )
+    from apps.merchants.models import ProductRelationship
+
+    primary_id = response.recommendations[0].product_id
+    primary_price = response.recommendations[0].price
+    constraints = constraints or {}
+    max_price = constraints.get("max_price")
+    relationships = ProductRelationship.objects.select_related(
+        "source_product__merchant", "related_product__merchant"
+    ).filter(
+        source_product_id=primary_id,
+        relationship_type__in=[
+            ProductRelationship.Kind.ACCESSORY,
+            ProductRelationship.Kind.COMPLEMENT,
+            ProductRelationship.Kind.BUNDLE,
+        ],
+        is_active=True,
+        source_product__is_active=True,
+        related_product__is_active=True,
+        related_product__stock_quantity__gt=0,
+    ).order_by("priority", "id")
+    suggestions = []
+    for relationship in relationships:
+        if not _compatibility_matches(relationship):
+            continue
+        product = relationship.related_product
+        if max_price is not None and primary_price + float(product.price) > float(max_price):
+            continue
+        constraint_evidence = [
+            f"Compatibility checked against {len((relationship.compatibility or {}).get('source_specs', {}))} source specification rule(s)."
+        ]
+        if max_price is not None:
+            constraint_evidence.append(
+                f"Primary plus add-on remains within the stated ₹{float(max_price):.2f} basket limit."
+            )
+        suggestions.append(
+            AddOnSuggestion(
+                relationship_id=relationship.id,
+                primary_product_id=primary_id,
+                product_id=product.id,
+                title=product.title,
+                merchant=product.merchant.name,
+                relationship_type=relationship.relationship_type,
+                offer_label=relationship.offer_label,
+                incremental_cost=float(product.price),
+                stock_quantity=product.stock_quantity,
+                key_specs=product.specifications,
+                compatibility=relationship.compatibility,
+                constraint_evidence=constraint_evidence,
+                benefit=relationship.benefit,
+                trade_off=relationship.trade_off,
+            )
+        )
+        if len(suggestions) >= settings.GROWTH_MAX_ADDON_OFFERS:
+            break
+    # Re-validate the complete deterministic output at the same boundary as model output.
+    return BuyerAgentResponse.model_validate(
+        response.model_copy(
+            update={
+                "primary_recommendation_id": primary_id,
+                "add_on_suggestions": suggestions,
+            }
+        ).model_dump()
+    )
 
 
 def _groq_client() -> Groq:
@@ -280,7 +388,13 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
                 max_price=arguments.max_price,
                 category=arguments.category,
             )
-            return _empty_response("Parsed intent and searched active merchant inventory.").model_dump(mode="json")
+            result = _empty_response("Parsed intent and searched active merchant inventory.").model_dump(mode="json")
+            result["_audit_context"] = {
+                "provider_source": "GROQ",
+                "parsed_constraints": arguments.model_dump(mode="json"),
+                "catalog_candidate_ids": [],
+            }
+            return result
 
         messages.extend(
             [
@@ -293,7 +407,10 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
                 },
             ]
         )
-        response = _parse_recommendations(client, messages, candidates)
+        response = _attach_growth_suggestions(
+            _parse_recommendations(client, messages, candidates),
+            arguments.model_dump(mode="json"),
+        )
         recommended_ids = {item.product_id for item in response.recommendations}
         recommended_candidates = [item for item in candidates if item["id"] in recommended_ids]
         _record_search(
@@ -303,7 +420,27 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
             max_price=arguments.max_price,
             category=arguments.category,
         )
-        return response.model_dump(mode="json")
+        result = response.model_dump(mode="json")
+        result["_audit_context"] = {
+            "provider_source": "GROQ",
+            "parsed_constraints": arguments.model_dump(mode="json"),
+            "catalog_candidate_ids": [candidate["id"] for candidate in candidates],
+        }
+        return result
     except (APIError, AgentServiceError, ValidationError, json.JSONDecodeError, ValueError) as exc:
         reason = "provider request failed" if isinstance(exc, APIError) else "configuration or provider output error"
-        return _fallback_response(prompt, reason).model_dump(mode="json")
+        response = _attach_growth_suggestions(
+            _fallback_response(prompt, reason),
+            {"max_price": extract_max_price(prompt)},
+        )
+        result = response.model_dump(mode="json")
+        result["_audit_context"] = {
+            "provider_source": "FALLBACK",
+            "parsed_constraints": {
+                "search_query": prompt,
+                "max_price": extract_max_price(prompt),
+                "limit": 5,
+            },
+            "catalog_candidate_ids": [item.product_id for item in response.recommendations],
+        }
+        return result

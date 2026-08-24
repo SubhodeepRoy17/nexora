@@ -57,6 +57,7 @@ export default function ProductRecommendationCard({ product, featured = false, o
           <button type="button" onClick={() => onApprove(product)} className="focus-ring flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3 py-2.5 text-[11px] font-semibold text-white shadow-lg shadow-indigo-950/60 transition hover:bg-indigo-400">Approve & Buy <ArrowUpRight size={13} /></button>
         </div>
         <p className="mt-3 flex items-center gap-1.5 font-mono text-[8px] text-slate-600"><Bluetooth size={10} /> {product.specs.layout} · {product.specs.keycaps}</p>
+        {product.addOns?.length > 0 && <p className="mt-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-2.5 py-2 text-[9px] text-indigo-300">{product.addOns.length} compatible optional add-on{product.addOns.length === 1 ? '' : 's'} · nothing added automatically</p>}
         <p className="mt-2 flex items-center gap-1.5 font-mono text-[8px] text-slate-500"><ShieldCheck size={10} className="text-emerald-400" /> {product.delivery}</p>
       </div>
     </article>

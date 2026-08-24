@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -26,10 +27,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "apps.accounts.apps.AccountsConfig",
     "apps.merchants.apps.MerchantsConfig",
     "apps.agents.apps.AgentsConfig",
     "apps.orders.apps.OrdersConfig",
     "apps.analytics.apps.AnalyticsConfig",
+    "apps.commerce.apps.CommerceConfig",
 ]
 
 MIDDLEWARE = [
@@ -130,12 +133,57 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
 SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
 
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["apps.accounts.authentication.SessionAuthentication401"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "nexora_core.pagination.BoundedPageNumberPagination",
     "PAGE_SIZE": 25,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.getenv("THROTTLE_ANON_RATE", "120/hour"),
+        "user": os.getenv("THROTTLE_USER_RATE", "1000/hour"),
+        "auth": os.getenv("THROTTLE_AUTH_RATE", "10/minute"),
+        "auth_read": os.getenv("THROTTLE_AUTH_READ_RATE", "60/minute"),
+        "agent_search": os.getenv("THROTTLE_AGENT_SEARCH_RATE", "30/minute"),
+        "order_create": os.getenv("THROTTLE_ORDER_CREATE_RATE", "10/minute"),
+        "health": os.getenv("THROTTLE_HEALTH_RATE", "120/minute"),
+        "commerce_catalog": os.getenv("THROTTLE_COMMERCE_CATALOG_RATE", "120/minute"),
+    },
+}
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(1_048_576)))
+CSRF_FAILURE_VIEW = "apps.accounts.csrf.csrf_failure"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"security_json": {"()": "nexora_core.logging.JsonSecurityFormatter"}},
+    "handlers": {"security_console": {"class": "logging.StreamHandler", "formatter": "security_json"}},
+    "loggers": {"nexora.security": {"handlers": ["security_console"], "level": "INFO", "propagate": False}},
 }
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+
+# Phase 7 money-action guardrails. These conservative limits are shown to the
+# buyer with every quote and are enforced again at approval and order creation.
+MONEY_SUPPORTED_CURRENCY = os.getenv("MONEY_SUPPORTED_CURRENCY", "INR").upper()
+MONEY_MAX_ITEM_QUANTITY = int(os.getenv("MONEY_MAX_ITEM_QUANTITY", "5"))
+MONEY_MAX_ORDER_VALUE = Decimal(os.getenv("MONEY_MAX_ORDER_VALUE", "100000.00"))
+MONEY_QUOTE_TTL_SECONDS = int(os.getenv("MONEY_QUOTE_TTL_SECONDS", "600"))
+MONEY_APPROVAL_TTL_SECONDS = int(os.getenv("MONEY_APPROVAL_TTL_SECONDS", "300"))
+MONEY_DECISION_TOKEN_TTL_SECONDS = int(os.getenv("MONEY_DECISION_TOKEN_TTL_SECONDS", "1800"))
+MONEY_REQUIRE_RAZORPAY_TEST_MODE = os.getenv(
+    "MONEY_REQUIRE_RAZORPAY_TEST_MODE", "True"
+).lower() in {"1", "true", "yes", "on"}
+ORDER_RESERVATION_TTL_SECONDS = int(os.getenv("ORDER_RESERVATION_TTL_SECONDS", "900"))
+ORDER_MAX_CART_ITEMS = int(os.getenv("ORDER_MAX_CART_ITEMS", "10"))
+GROWTH_MAX_ADDON_OFFERS = min(3, max(0, int(os.getenv("GROWTH_MAX_ADDON_OFFERS", "2"))))

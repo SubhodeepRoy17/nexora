@@ -1,60 +1,166 @@
 # System Architecture & File Structure - Nexora
 
 ## 1. Tech Stack
-- **Frontend:** React (Vite), TailwindCSS, Axios / TanStack Query
-- **Backend:** Python (Django, Django REST Framework, Celery / Redis)
-- **Database:** PostgreSQL (with `pgvector` for semantic search)
-- **LLM Provider:** Groq (LLaMA 3/3.1 via Groq API)
-- **Payment Gateway:** Razorpay API
-- **Deployment:** Vercel (Frontend), Render / Railway (Backend + PostgreSQL)
 
-## 2. Application Flow
-[User Prompt] -> [React Frontend] -> [Django API]
-|
-[Groq Agent] <-> [PgVector / SQL Search]
-|
-[Recommendation Payload] -> [User Approval]
-|
-[Razorpay Payment Modal] -> [Webhook Verification]
-|
-[Order Created] -> [Merchant Dashboard Event Push]
+- **Frontend:** React (Vite), TailwindCSS, Axios
+- **Backend:** Python, Django, Django REST Framework
+- **Database:** PostgreSQL with `pgvector`
+- **LLM Provider:** Groq with validated tool calling and deterministic fallback
+- **Payment Gateway:** Razorpay API and signed webhooks
+- **Deployment:** Vercel frontend, Render/Railway backend, managed PostgreSQL
 
-## 3. Folder & File Structure
+## 2. Identity and Trust Boundaries
+
+- Django session cookies are the browser authentication credential. They are `HttpOnly`, `Secure` outside development, and configurable for same-site or cross-site deployment.
+- React bootstraps identity and a CSRF token from `GET /api/auth/me/`. Every unsafe browser request sends the token in `X-CSRFToken` and includes credentials.
+- `POST /api/auth/login/` is CSRF-protected before authentication. Login rotates the session and CSRF token. `POST /api/auth/logout/` requires an authenticated session and CSRF validation.
+- A `Merchant` has exactly one Django user owner. Merchant profile, product, audit, order, and analytics querysets derive scope from `request.user`; client-provided merchant IDs never grant access.
+- Buyers may call bounded catalog-agent search without authentication. Every result is persisted as an `AgentSession` and grounded `RecommendationDecision`; its signed decision token can be claimed only through a verified buyer session.
+- `ProductRelationship` stores merchant-owned accessory, complement, substitute, bundle, compatibility, benefit, trade-off, and optional offer-label facts. The growth service evaluates these relationships deterministically and Pydantic-validates a maximum of `GROWTH_MAX_ADDON_OFFERS`; LLM output cannot invent an add-on.
+- Every displayed add-on creates a durable `GrowthOffer` impression. Its signed token binds session, decision, and product. The authenticated buyer records one explicit accept or reject before an accepted offer can enter a cart.
+- Checkout is cart- and quote-bound. `CartItem`, `QuoteItem`, and `OrderItem` support multi-product baskets while snapshotting product title, merchant, unit price, quantity, and line total. A short-lived `ApprovalGrant` is signed for the exact aggregate quote.
+- `Product.stock_quantity` means currently available stock. Entering `PAYMENT_PENDING` locks products in deterministic order and deducts an exact `StockReservation`; capture consumes that reservation without a second deduction, while eligible failure/cancellation/expiry restores it once.
+- Razorpay webhooks remain outside browser session/CSRF authentication and are trusted only after raw-body HMAC verification.
+
+## 3. Application Flow
+
+```text
+Public buyer prompt
+  -> throttled POST /api/agents/search/
+  -> validated Groq tool call or deterministic fallback
+  -> active catalog search in PostgreSQL/pgvector
+  -> grounded recommendations
+  -> deterministic compatibility/budget/availability rules
+  -> zero to GROWTH_MAX_ADDON_OFFERS optional suggestions
+  -> durable AgentSession + RecommendationDecision correlation
+  -> durable GrowthOffer impression -> explicit ACCEPTED / REJECTED response
+  -> authenticated buyer creates a multi-line cart from signed decisions
+  -> server snapshots an exact expiring Quote + QuoteItems
+  -> deterministic policy checks currency, quantity, value, merchant/product state,
+     stock, price, expiry, and Razorpay test mode
+  -> buyer sees exact amount, explanation, trade-offs, expiry, and limits
+  -> explicit confirmation + Idempotency-Key issues a short-lived ApprovalGrant
+  -> payment-order Idempotency-Key + signed grant
+  -> lock products -> revalidate -> snapshot OrderItems -> reserve available stock
+  -> PAYMENT_PENDING order + exact Razorpay test order
+  -> Razorpay Checkout
+  -> signed Razorpay webhook
+  -> consume existing reservations exactly once -> PAID (no capture-time deduction)
+  -> paid OrderItem.growth_offer attributes exact incremental add-on revenue
+  -> immutable MoneyActionAudit trace for allowed, blocked, and webhook outcomes
+  -> buyer-scoped receipt and owner-scoped merchant timeline
 ```
+
+An external buyer uses the same trust boundary through the published contract:
+
+```text
+/.well-known/nexora-commerce.json
+  -> versioned public catalog + JSON Schema/OpenAPI
+  -> external client selects public product IDs
+  -> authenticated, idempotent server-side quote
+  -> exact quote presented to human
+  -> explicit single-use approval grant
+  -> policy revalidation + atomic stock reservation
+  -> Razorpay test Checkout handoff
+  -> authoritative order polling -> verified webhook settlement
+```
+
+The reference client imports no Django models or private services. External-agent calls do not bypass Phase 7 policy, buyer ownership, approval, expiry, idempotency, or webhook authority.
+
+## 4. API Access Matrix
+
+| Surface | Access | Server-enforced scope |
+| --- | --- | --- |
+| `GET /api/health/` | Public, throttled | No business data |
+| `GET /api/auth/me/` | Public/session-aware, throttled | Current session only |
+| `POST /api/auth/login/` | Public, CSRF-protected, throttled | Submitted credentials |
+| `POST /api/auth/logout/` | Authenticated + CSRF | Current session only |
+| `POST /api/agents/search/` | Public, throttled | Active, in-stock discovery catalog |
+| `GET /.well-known/nexora-commerce.json` | Public | Versioned capabilities and policy/schema links |
+| `GET /api/commerce/v1/catalog/*` | Public, throttled, read-only | Active, in-stock public catalog fields only |
+| `GET /api/commerce/v1/openapi.json` and `/schemas/*` | Public | Machine contract only |
+| `POST /api/commerce/v1/quotes/` | Authenticated buyer + idempotency key | Server-selected current catalog facts and buyer session |
+| `POST /api/commerce/v1/quotes/{id}/approve/` | Authenticated buyer + idempotency key | Exact buyer-owned, unexpired quote |
+| `POST /api/commerce/v1/checkout-orders/` | Authenticated buyer + idempotency key | Single-use approval, policy revalidation, exact reservation |
+| `GET /api/commerce/v1/orders/{id}/` | Authenticated | Buyer-owned authoritative status |
+| `POST /api/agents/growth-offers/{id}/respond/` | Authenticated buyer | Signed offer from the buyer's session; one final accept/reject |
+| `/api/merchants/` | Merchant only | Owned merchant profile |
+| `/api/merchants/products/` | Merchant only | Products owned by current merchant |
+| `/api/merchants/product-relationships/` | Merchant only | Relationships whose source and target are owned by current merchant |
+| `GET /api/merchants/analytics/` | Merchant only | Current merchant; query IDs ignored |
+| `GET /api/orders/audits/` | Merchant only | Current merchant |
+| `GET /api/orders/` | Authenticated | Buyer-owned orders or merchant-owned product orders |
+| `POST /api/orders/carts/` | Authenticated, throttled | Signed decisions belonging to one buyer session |
+| `POST /api/orders/carts/{id}/quote/` | Authenticated | Buyer-owned draft cart |
+| `POST /api/orders/quotes/` | Authenticated, throttled | Signed recommendation and current buyer |
+| `POST /api/orders/quotes/{id}/approve/` | Authenticated + idempotency key | Exact buyer-owned active quote |
+| `POST /api/orders/create/` | Authenticated + idempotency key, throttled | Signed approval, server total, atomic reservation |
+| `GET /api/orders/{id}/` | Authenticated | Buyer-owned or merchant-item-owned order |
+| `POST /api/orders/{id}/cancel/` | Authenticated buyer | Eligible buyer-owned order; releases active hold |
+| `GET /api/orders/money-audits/` | Authenticated | Buyer-owned or merchant-owned trace events |
+| `POST /api/orders/webhook/razorpay/` | Razorpay signature | Matching local Razorpay order |
+
+Missing identity returns 401, an authenticated but disallowed role returns 403, an object outside an owned queryset returns 404, and exceeded DRF limits return 429.
+
+## 5. Order State and Inventory Invariants
+
+```text
+DRAFT -> QUOTED -> APPROVED -> PAYMENT_PENDING -> PAID
+                                  |      |          |
+                                  |      |          -> REFUND_PENDING -> REFUNDED
+                                  |      -> PAYMENT_FAILED
+                                  -> CANCELLED / EXPIRED
+```
+
+- Terminal or backward transitions are rejected with `ILLEGAL_STATE_TRANSITION`.
+- Product rows are locked in ascending primary-key order. All lines are checked before any deduction, preventing partial reservation and reducing deadlock risk.
+- An active reservation owns units already removed from available stock. `ACTIVE -> CONSUMED` never changes stock; `ACTIVE -> RELEASED/EXPIRED` adds the units back once.
+- A verified capture after release enters `REFUND_PENDING` with an immutable audit instead of claiming fulfillment.
+- Idempotency records are unique per buyer, operation, and key. Exact retries reconstruct the same grant/order; conflicting reuse returns `IDEMPOTENCY_CONFLICT`.
+- Migration `orders.0004` backfills legacy `QuoteItem` and `OrderItem` snapshots. Legacy unreserved pending orders become `PAYMENT_FAILED`; paid and cancelled history remains intact.
+
+## 6. Growth Attribution Invariants
+
+- Relationship CRUD requires both products to be active, the target to be in stock, the products to differ, structured compatibility to be a JSON object, and both products to belong to the authenticated merchant.
+- Only `ACCESSORY`, `COMPLEMENT`, and `BUNDLE` links may become add-ons; `SUBSTITUTE` remains discovery metadata. Invalid, inactive, incompatible, over-budget, or out-of-stock links produce no offer.
+- An add-on decision cannot enter a cart without its matching accepted `GrowthOffer`. Each offer can enter at most one cart, and rejected offers cannot be replayed as accepted cart lines.
+- Quote and order snapshots retain the growth-offer correlation. A paid attachment exists only when Razorpay's verified webhook marks the containing order `PAID`.
+- Analytics expose real and synthetic segments independently. Paid add-on revenue is a recorded attribution total and is never described as causal revenue lift.
+
+## 7. Folder and File Structure
+
+```text
 nexora/
 ├── backend/
 │   ├── manage.py
-│   ├── nexora_core/          # Django project settings
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
+│   ├── nexora_core/          # Settings, URLs, bounded pagination, logging
 │   ├── apps/
-│   │   ├── agents/           # Groq integration, tools, prompts
-│   │   │   ├── services.py   # LLM agent logic
-│   │   │   ├── tools.py      # Structured search function tools
-│   │   │   └── prompts.py    # System prompts
-│   │   ├── merchants/        # Products, stock, catalog API
-│   │   │   ├── models.py
-│   │   │   ├── views.py
-│   │   │   └── serializers.py
-│   │   ├── orders/           # Checkout, Razorpay integration
-│   │   │   ├── models.py
-│   │   │   ├── views.py
-│   │   │   └── webhooks.py
-│   │   └── analytics/        # Agent conversion insights
+│   │   ├── accounts/         # Session auth, CSRF, roles, demo account seeding
+│   │   ├── agents/           # Groq orchestration, sessions, grounded decisions
+│   │   ├── merchants/        # Owned merchant profile and product catalog
+│   │   ├── orders/           # Carts, state machine, reservations, expiry, Razorpay
+│   │   ├── commerce/         # Public v1 capability, catalog, schemas, and adapters
+│   │   └── analytics/        # Owner-scoped conversion insights
+│   ├── examples/             # HTTP-only reference external AI buyer
 │   └── requirements.txt
 ├── frontend/
-│   ├── package.json
 │   ├── src/
-│   │   ├── components/       # Reusable UI (Chat, Product Cards)
-│   │   ├── pages/            # Buyer UI & Merchant Dashboard
-│   │   │   ├── BuyerChat.jsx
-│   │   │   ├── MerchantDashboard.jsx
-│   │   │   └── Inventory.jsx
-│   │   ├── services/         # Axios API clients & Razorpay helper
-│   │   ├── context/          # Auth & Chat State
-│   │   ├── App.jsx
-│   │   └── main.jsx
+│   │   ├── components/auth/  # Protected merchant route boundary
+│   │   ├── context/          # Session/CSRF and application state
+│   │   ├── pages/            # Buyer, login, and merchant experiences
+│   │   └── services/         # Credentialed Axios and Razorpay loader
 │   └── vite.config.js
-└── docs/                     # Project Markdown Files
+└── docs/
 ```
+
+## 8. Deployment Security Notes
+
+- Prefer serving frontend and API under the same registrable site. If they are on different sites, use HTTPS and set `SESSION_COOKIE_SAMESITE=None` and `CSRF_COOKIE_SAMESITE=None`; browsers that block third-party cookies may still require a same-site reverse proxy or custom subdomains.
+- Keep `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` explicit. Wildcard origins are not used for credentialed requests.
+- Public and authenticated rates, request-body limits, and maximum page size are environment-configurable and bounded server-side.
+- Security events are JSON logged with event, outcome, user ID, client IP, and safe reason code. Passwords, tokens, secrets, and full buyer emails are excluded.
+- `MONEY_*` limits are environment-configurable but default conservatively. Buildathon deployments reject non-`rzp_test_` keys when test-mode enforcement is enabled.
+- `MoneyActionAudit` stores concise evidence and policy results, never prompts containing secrets or hidden chain-of-thought. Its model and queryset reject mutation/deletion through the application ORM.
+- `python manage.py expire_checkouts` is safe to retry and must run at least every five minutes. The Render Blueprint declares a UTC cron job; another platform may invoke the same finite command from its scheduler.
+- Agent commerce v1 uses cursor pagination capped at 50 and public conditional caching. Catalog serialization excludes credentials, buyers, private analytics, inactive inventory, and internal search vectors.
+- The published interface is a Nexora-native contract. It does not claim conformance with ACP, AP2, x402, UAP, or another third-party protocol.

@@ -1,9 +1,9 @@
 # Project Memory & Progress Tracker - Nexora
 
 ## 1. Project State Overview
-- **Current Phase:** Phase 5 — COMPLETE (Agentic Analytics & Production Polish)
-- **Active Task:** All planned implementation phases complete
-- **Overall Progress:** 100% COMPLETE
+- **Current Phase:** Phase 10 — COMPLETE (Agent-Readable Catalog and External AI Buyer Contract)
+- **Active Task:** Ready to begin Phase 11 — Evaluation Harness and Regression Quality Gates
+- **Overall Progress:** Phases 1-10 complete; submission roadmap continues through Phase 16
 - **Last Updated:** 2026-08-24
 
 ### Phase Completion
@@ -12,6 +12,11 @@
 - [x] Phase 3 — Recommendation Engine & Interactive UI (100%)
 - [x] Phase 4 — Razorpay Transaction Loop & Webhooks (100%)
 - [x] Phase 5 — Agentic Merchant Analytics & Polish (100%)
+- [x] Phase 6 — Identity, Tenant Isolation, and API Security (100%)
+- [x] Phase 7 — Explainable, Bounded, and Approval-Gated Money Actions (100%)
+- [x] Phase 8 — Cart, Inventory Reservation, and Complete Order Lifecycle (100%)
+- [x] Phase 9 — Grounded Upsell/Cross-Sell Revenue Growth Loop (100%)
+- [x] Phase 10 — Agent-Readable Catalog and External AI Buyer Contract (100%)
 
 ## 2. Completed Milestones
 - [x] Defined PRD, Architecture, Rules, and Execution Phases.
@@ -82,6 +87,60 @@
 - [x] Added environment-driven production hosts/origins/database settings, WhiteNoise static serving, proxy/SSL/cookie/HSTS security settings, and `DATABASE_URL` support.
 - [x] Added Vercel SPA routing plus Render/Gunicorn deployment manifests.
 - [x] Passed Django production deployment checks, migration drift checks, WhiteNoise collection, 10 focused backend tests, and syntax parsing for all 24 frontend source files.
+- [x] Added a one-to-one authenticated owner for every Merchant, including a data migration that assigns unusable legacy owners without embedding credentials.
+- [x] Added buyer ownership to new Order records and derived checkout email/identity exclusively from the authenticated Django session.
+- [x] Added CSRF-protected Django session login/logout plus session-aware current-user bootstrap endpoints with rotated CSRF tokens.
+- [x] Added explicit buyer/merchant role payloads, a custom session authentication challenge for consistent 401 responses, and server-side merchant role permissions.
+- [x] Scoped merchant profiles, products, audits, orders, and analytics to `request.user`; client merchant IDs can no longer grant access or assign product ownership.
+- [x] Kept only buyer catalog-agent search and health/auth bootstrap public; protected checkout and all merchant business APIs.
+- [x] Added bounded pagination, a 1 MiB request default, environment-configurable DRF throttles, generic credential errors, and JSON security-event logging without secrets or full emails.
+- [x] Added an idempotent `seed_demo_accounts` command whose usernames, emails, passwords, and merchant name are required from environment variables.
+- [x] Added React session/CSRF bootstrap, login/logout, role-protected merchant routes, expired-session handling, authenticated buyer checkout, and live account/merchant identity rendering.
+- [x] Removed client-authoritative merchant IDs and checkout buyer email, and removed buyer email from Razorpay order notes and merchant audit API payloads.
+- [x] Added owner/session migrations and applied them to local PostgreSQL successfully.
+- [x] Added 9 Phase 6 identity/security tests covering CSRF login, 401/403 boundaries, public search, cross-merchant IDOR protection, server-assigned ownership, analytics/audit/order scoping, authenticated checkout identity, rate limiting, and idempotent demo seeding.
+- [x] Passed all 19 backend tests, migration drift checks, Django system checks, and the Vite production build (1,655 modules transformed) after Phase 6.
+- [x] Added durable UUID-correlated `AgentSession`, `RecommendationDecision`, `Quote`, `ApprovalGrant`, and immutable `MoneyActionAudit` records spanning intent through webhook outcome.
+- [x] Persisted parsed request constraints, candidate/recommendation IDs, grounded explanations, trade-offs, catalog snapshots, provider source, concise summaries, and timestamps without hidden chain-of-thought.
+- [x] Added deterministic non-LLM money policy checks with stable reason codes for currency, quantity, value, merchant/product state, stock, quote expiry, price drift, and Razorpay test mode.
+- [x] Added environment-configurable conservative quantity, value, quote, approval, decision-token, currency, and test-mode limits and disclosed them before approval.
+- [x] Replaced direct checkout with an exact server-side quote plus short-lived, signed, buyer-bound, single-use approval grant.
+- [x] Revalidated price, stock, expiry, ownership, token integrity, policy limits, and test mode under database locks immediately before Razorpay initialization.
+- [x] Added sanitized buyer/merchant `GET /api/orders/money-audits/` scoping and a merchant intent-to-settlement timeline without secrets or full buyer email addresses.
+- [x] Added a deterministic frontend safety demonstration for an over-limit quantity; it produces a reason-coded blocked audit without a Razorpay order, order record, stock mutation, or paid event.
+- [x] Added Phase 7 adversarial coverage for tampering, replay, expiry, cross-buyer access, price/stock changes, quantity/value limits, accidental live mode, application-level audit immutability, and audit tenancy.
+- [x] Passed all 28 backend tests, Django checks, migration drift checks, and the Vite production build (1,655 modules transformed) after Phase 7.
+- [x] Added buyer-owned `Cart`/`CartItem` aggregates plus multi-line `QuoteItem` and immutable `OrderItem` price, quantity, product, merchant, and line-total snapshots.
+- [x] Added migration `orders.0004` with historical quote/order line backfill, preserved paid/cancelled history, and conservative migration of legacy unreserved pending orders to `PAYMENT_FAILED`.
+- [x] Added explicit order states and a validated transition service spanning draft, quoted, approved, payment pending, paid, failed, cancelled, expired, refund pending, and refunded outcomes.
+- [x] Added atomic `StockReservation` creation under deterministically ordered PostgreSQL product row locks; available stock is deducted at reservation rather than capture.
+- [x] Added exactly-once reservation consumption on verified capture and exactly-once stock release on payment failure, cancellation, or expiry.
+- [x] Added late-capture safety: a verified capture without an active reservation enters `REFUND_PENDING` instead of claiming fulfillment.
+- [x] Added cart creation/quote, idempotent approval/payment creation, authoritative order list/detail, and eligible cancellation endpoints with buyer/merchant scoping.
+- [x] Added buyer/operation/key uniqueness and payload fingerprints so exact retries return the same grant/order and conflicting reuse returns `IDEMPOTENCY_CONFLICT`.
+- [x] Added idempotent `expire_checkouts` processing, a management command, a five-minute Render cron declaration, and local/deployment scheduler documentation.
+- [x] Rebuilt checkout around quantity review, exact line totals, quote countdown, explicit approval checkbox, stock reservation, cancellation, and bounded order-status polling.
+- [x] Removed browser settlement authority: Razorpay callbacks show pending verification, and only backend `PAID` status renders payment success.
+- [x] Added Phase 8 tests for a real two-thread reservation race, expiry/release retry, cancellation retry, approval/payment idempotency, conflicts, webhook retries, illegal transitions, multi-product orders, and historical price preservation.
+- [x] Passed all 33 backend tests, Django checks, migration drift checks, local migration/expiry command execution, and the Vite production build (1,655 modules transformed) after Phase 8.
+- [x] Added merchant-owned `ProductRelationship` CRUD for accessories, complements, substitutes, bundles, structured compatibility, grounded benefit/trade-off text, optional offer labels, priority, and active state.
+- [x] Enforced same-merchant ownership, distinct products, active source/target state, in-stock targets, and JSON-object compatibility at model and serializer boundaries.
+- [x] Added deterministic, Pydantic-validated add-on selection capped by `GROWTH_MAX_ADDON_OFFERS`; incompatible, inactive, out-of-stock, over-budget, and missing relationships correctly produce no offer.
+- [x] Added durable `GrowthOffer` lineage from agent session and primary/add-on decisions through signed offer tokens, explicit authenticated accept/reject responses, cart/quote/order items, and paid webhook state.
+- [x] Prevented automatic attachment: add-on decisions cannot enter a cart without their matching accepted offer, and rejected offers cannot be added or silently reversed.
+- [x] Rebuilt buyer checkout to show exact incremental cost, compatibility/constraint evidence, benefit, trade-off, and equal “Add to quote” / “No thanks” controls with no preselection or savings/urgency claim.
+- [x] Preserved Phase 7/8 approval safety: selected basket lines are re-quoted server-side and require a fresh exact approval before stock reservation or Razorpay initialization.
+- [x] Replaced merchant overview growth mocks with owner-scoped backend metrics and added real-only incremental revenue, honest paid-attachment denominators, top complements, rejected offers, compatibility gaps, and a separate synthetic segment.
+- [x] Added the versioned `docs/evaluation/growth_scenarios.json` set covering relevant accept/reject and appropriate incompatible, out-of-stock, and no-relationship no-offer decisions.
+- [x] Added Phase 9 tests proving tenant-scoped relationship CRUD, deterministic eligibility/no-offer behavior, explicit rejection safety, and a webhook-confirmed paid ₹500 add-on attributed exactly once without a causal-lift claim.
+- [x] Applied migrations `merchants.0004`, `agents.0002`, `orders.0005`, and `orders.0006`; passed all 38 backend tests, Django checks, migration drift checks, and the Windows Node 22 Vite production build (1,654 modules transformed) after Phase 9.
+- [x] Published `/.well-known/nexora-commerce.json` with contract/API versions, absolute capability URLs, INR and policy limits, authentication, idempotency, checkout handoff, stable errors, and explicit protocol-positioning metadata.
+- [x] Added a read-only agent catalog for eligible products and merchants with structured specifications, availability, compatibility/offers, timestamps, bounded filters, opaque cursor pagination, and ETag/Last-Modified validation.
+- [x] Published an OpenAPI 3.1 document and strict draft 2020-12 Catalog Product JSON Schema while excluding buyer data, credentials, analytics, internal embeddings, inactive inventory, and all mutation routes.
+- [x] Added an authenticated external-agent quote adapter that records correlation lineage and reuses the Phase 7-9 policy, exact quote, single-use approval, idempotent Razorpay test handoff, reservation, and authoritative order-status machinery.
+- [x] Added a standard-library reference AI buyer that uses only advertised HTTP APIs, pauses for exact human confirmation, opens Razorpay test Checkout, and polls webhook-authoritative status.
+- [x] Added Phase 10 contract, cache, authorization, mutation-denial, retry/conflict, schema, and live HTTP reference-client coverage in `apps.commerce`.
+- [x] Applied `orders.0007`; passed all 45 backend tests, Django checks, migration drift checks, Python compilation, diff validation, and the Windows Node 22 Vite production build (1,654 modules transformed) after Phase 10.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
@@ -94,56 +153,66 @@
 - `frontend/src/components/chat/ChatInput.jsx` (Complete)
 - `frontend/src/components/chat/AgentThinkingStep.jsx` (Complete)
 - `frontend/src/components/chat/ProductRecommendationCard.jsx` (Complete)
-- `frontend/src/components/chat/CheckoutModal.jsx` (Complete — Razorpay order and Checkout SDK integration)
+- `frontend/src/components/chat/CheckoutModal.jsx` (Complete — optional add-on decisions, multi-line quote, exact approval, reservation/cancellation, authoritative polling, and Razorpay integration)
 - `frontend/src/mock/chatData.js` (Complete — structured response scenarios)
-- `frontend/src/pages/merchant/DashboardOverview.jsx` (Complete)
+- `frontend/src/pages/merchant/DashboardOverview.jsx` (Complete — live backend performance and honest growth attribution)
 - `frontend/src/components/merchant/ProductInventoryTable.jsx` (Complete — live DRF catalog CRUD controls)
+- `frontend/src/components/merchant/ProductRelationshipManager.jsx` (Complete — relationship/offer create, read, pause/resume, and delete controls)
 - `frontend/src/components/merchant/AddProductModal.jsx` (Complete — generated metadata preview)
 - `frontend/src/components/merchant/AgentTimelineFeed.jsx` (Complete — server-backed activity stream)
 - `frontend/src/components/merchant/AgentAnalyticsCard.jsx` (Complete)
-- `frontend/src/mock/merchantData.js` (Complete — inventory, audits, funnel, and conversion metrics)
+- `frontend/src/mock/merchantData.js` (Legacy only — no longer used by the live merchant overview/growth path)
 - `frontend/src/components/common/Navbar.jsx` (Complete — global mode navigation)
 - `frontend/src/context/NexoraContext.jsx` (Complete — persisted chat plus server-backed catalog/audit state)
+- `frontend/src/context/AuthContext.jsx` (Complete — session/CSRF bootstrap, login/logout, and expiry handling)
+- `frontend/src/components/auth/ProtectedRoute.jsx` (Complete — authenticated merchant role boundary)
+- `frontend/src/pages/Login.jsx` (Complete — accessible buyer/merchant sign-in flow)
 - `frontend/src/services/api.js` (Complete — Axios APIs, adapters, errors, and Razorpay loader)
 - `frontend/src/App.jsx` (Complete — global route map)
-- `frontend/src/pages/merchant/AgentAnalytics.jsx` (Complete — live merchant analytics and lost-deal insights)
+- `frontend/src/pages/merchant/AgentAnalytics.jsx` (Complete — live search, loss, add-on, denominator, and compatibility-gap analytics)
 - `frontend/vercel.json` (Complete — Vite SPA deep-link routing)
 
 ## 4. Backend Component Tracker
 - `backend/nexora_core/settings.py` (Complete — PostgreSQL and production security/static configuration)
-- `backend/apps/merchants/models.py` (Complete — catalog schema, SQL indexes, and optional semantic index model)
+- `backend/apps/accounts/` (Complete — session authentication, CSRF endpoints, merchant permission, security logging, and demo account seeding)
+- `backend/nexora_core/pagination.py` (Complete — client page-size support capped at 100 records)
+- `backend/nexora_core/logging.py` (Complete — structured security-event JSON formatter)
+- `backend/apps/merchants/models.py` (Complete — catalog, relationship/compatibility schema, SQL indexes, and optional semantic index model)
 - `backend/apps/merchants/schemas.py` (Complete — strict specification/tag validation)
 - `backend/apps/merchants/serializers.py` (Complete)
 - `backend/apps/merchants/views.py` (Complete — initial unauthenticated CRUD prototype)
 - `backend/apps/merchants/migrations/0001_initial.py` (Applied)
 - `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
-- `backend/apps/agents/` (Complete — Groq agent and structured search engine)
-- `backend/apps/orders/` (Complete — Razorpay lifecycle and verified webhooks)
+- `backend/apps/agents/` (Complete — Groq engine, durable decisions, deterministic growth suggestions, and explicit offer responses)
+- `backend/apps/orders/` (Complete — multi-line carts/orders, state machine, reservations, idempotency, expiry worker, immutable trace, Razorpay lifecycle, and verified webhooks)
 - `backend/apps/agents/tools.py` (Complete — hybrid SQL/pgvector catalog search and fallback)
 - `backend/apps/agents/services.py` (Complete — Groq orchestration and grounded response contract)
 - `backend/apps/agents/prompts.py` (Complete — tool and recommendation guardrails)
 - `backend/apps/agents/views.py` (Complete — initial unauthenticated search endpoint)
 - `backend/apps/agents/tests.py` (Complete — 4 passing unit tests)
-- `backend/apps/orders/models.py` (Complete — initial Order/Audit lifecycle)
+- `backend/apps/orders/models.py` (Complete — cart/quote/order aggregates, snapshots, reservations, idempotency, and audits)
 - `backend/apps/orders/services.py` (Complete — Razorpay client and precise INR subunit conversion)
 - `backend/apps/orders/views.py` (Complete — checkout initialization endpoint)
-- `backend/apps/orders/webhooks.py` (Complete — verified, idempotent payment event handling)
+- `backend/apps/orders/webhooks.py` (Complete — verified reservation consumption/release and retry-safe payment events)
 - `backend/apps/orders/migrations/0001_initial.py` (Applied)
-- `backend/apps/orders/tests.py` (Complete — 5 passing unit/route tests)
+- `backend/apps/orders/tests.py` (Complete — policy, ownership, lifecycle, webhook, idempotency, and PostgreSQL concurrency coverage)
 - `backend/apps/orders/serializers.py` (Complete — enriched merchant timeline audit payload)
 - `backend/apps/orders/views.py` (Complete — read-only paginated audit feed)
 - `backend/apps/analytics/models.py` (Complete — impressions and lost opportunities)
-- `backend/apps/analytics/services.py` (Complete — merchant aggregation and tracking)
+- `backend/apps/analytics/services.py` (Complete — merchant search/loss aggregation plus real/synthetic paid add-on attribution)
 - `backend/apps/analytics/views.py` (Complete — analytics API)
+- `backend/apps/commerce/` (Complete — public v1 discovery, safe catalog, machine schemas, transaction adapters, and contract tests)
+- `backend/examples/reference_ai_buyer.py` (Complete — external HTTP-only discover-to-checkout client)
 - `backend/apps/analytics/migrations/0001_initial.py` (Applied)
 - `backend/Procfile` and `backend/render.yaml` (Complete — Gunicorn/Render deployment)
 
 ## 5. Deployment Notes
-- The local Windows PostgreSQL server does not provide pgvector binaries, so it uses the verified indexed SQL fallback. Managed hosts with the extension create the HNSW table during migration; after installing pgvector locally, run `python manage.py setup_pgvector`.
-- The host does not expose a native Linux Node.js runtime; React syntax validation uses the installed Windows Node runtime. Local development still requires Node 18+.
-- Per current workflow preference, no Vite production build was run for this task; all frontend sources passed parser validation and declared dependencies are installed.
+- The local Windows PostgreSQL 18 server now provides pgvector 0.8.6. The `vector` extension, semantic table, and HNSW index are installed and verified; indexed SQL fallback remains available for hosts without server binaries.
+- The WSL Node.js runtime is 18.19 and cannot parse the installed Vite version; production builds use the installed Windows Node 22.20 runtime and pass.
 - Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
 - Groq defaults to `llama-3.3-70b-versatile` through `GROQ_MODEL`; provider and Razorpay production credentials remain environment-managed.
 - Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate the affected Groq key and database password before continuing, even though the real `.env` remains gitignored.
-- Implementation is complete; each deployed environment must still register its public Razorpay webhook URL and perform a test-mode payment before accepting live traffic. The browser callback intentionally never marks an order paid.
+- Phase 10 is complete; Phases 11-16 remain before submission readiness. The external-client acceptance is proven to a mocked-provider `PAYMENT_PENDING` handoff; each deployed environment must still register its public Razorpay webhook URL and perform a real Razorpay test-mode payment. The browser callback intentionally never marks an order paid.
 - Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
+- Local `check --deploy` reports the expected development-only warnings because `.env` intentionally has `DEBUG=True`, HTTP redirects/HSTS disabled, and non-secure cookies. Render production values enable HTTPS, secure cookies, redirects, and HSTS.
+- Credentialed cross-site sessions require `SameSite=None` over HTTPS. Prefer same-site frontend/API domains or a reverse proxy because browser third-party-cookie blocking can override cookie configuration.

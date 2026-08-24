@@ -6,7 +6,32 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
+  withCredentials: true,
 })
+
+let csrfToken = ''
+
+export function setCsrfToken(value) {
+  csrfToken = value ?? ''
+}
+
+api.interceptors.request.use((config) => {
+  const method = (config.method ?? 'get').toLowerCase()
+  if (csrfToken && !['get', 'head', 'options', 'trace'].includes(method)) {
+    config.headers['X-CSRFToken'] = csrfToken
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('nexora:auth-expired'))
+    }
+    return Promise.reject(error)
+  },
+)
 
 export function getApiError(error, fallback = 'Something went wrong. Please try again.') {
   const payload = error?.response?.data
@@ -21,21 +46,45 @@ export function getApiError(error, fallback = 'Something went wrong. Please try 
 }
 
 export const searchProducts = (query, signal) => api.post('agents/search/', { query }, { signal })
+export const respondToGrowthOffer = ({ offerId, offerToken, accepted }) => api.post(
+  `agents/growth-offers/${offerId}/respond/`,
+  { offer_token: offerToken, accepted },
+)
 
-export const createOrder = ({ productId, quantity = 1, buyerEmail }) => api.post('orders/create/', {
-  product_id: Number(productId),
-  quantity,
-  buyer_email: buyerEmail,
+export const getCurrentUser = () => api.get('auth/me/')
+export const loginAccount = ({ username, password }) => api.post('auth/login/', { username, password })
+export const logoutAccount = () => api.post('auth/logout/')
+
+export const newIdempotencyKey = (prefix = 'nexora') => `${prefix}-${crypto.randomUUID()}`
+export const createCart = (items) => api.post('orders/carts/', { items })
+export const createCartQuote = (cartId) => api.post(`orders/carts/${cartId}/quote/`, {})
+export const createQuote = ({ decisionId, decisionToken, quantity = 1 }) => api.post('orders/quotes/', {
+  decision_id: decisionId, decision_token: decisionToken, quantity,
 })
+export const approveQuote = (quoteId, idempotencyKey) => api.post(
+  `orders/quotes/${quoteId}/approve/`,
+  { confirmed: true },
+  { headers: { 'Idempotency-Key': idempotencyKey } },
+)
+export const createOrder = ({ quoteId, approvalToken, idempotencyKey }) => api.post(
+  'orders/create/',
+  { quote_id: quoteId, approval_token: approvalToken },
+  { headers: { 'Idempotency-Key': idempotencyKey } },
+)
+export const getOrder = (orderId, signal) => api.get(`orders/${orderId}/`, { signal })
+export const getOrders = (signal) => api.get('orders/', { signal })
+export const cancelOrder = (orderId) => api.post(`orders/${orderId}/cancel/`, {})
 
 export const getProducts = (signal) => api.get('merchants/products/', { signal })
 export const patchProduct = (productId, payload) => api.patch(`merchants/products/${productId}/`, payload)
 export const createProduct = (payload) => api.post('merchants/products/', payload)
+export const getProductRelationships = (signal) => api.get('merchants/product-relationships/', { signal })
+export const createProductRelationship = (payload) => api.post('merchants/product-relationships/', payload)
+export const patchProductRelationship = (relationshipId, payload) => api.patch(`merchants/product-relationships/${relationshipId}/`, payload)
+export const deleteProductRelationship = (relationshipId) => api.delete(`merchants/product-relationships/${relationshipId}/`)
 export const getAgentAudits = (signal) => api.get('orders/audits/', { signal })
-export const getMerchantAnalytics = (merchantId, signal) => api.get('merchants/analytics/', {
-  params: merchantId ? { merchant: merchantId } : undefined,
-  signal,
-})
+export const getMoneyAudits = (signal) => api.get('orders/money-audits/', { signal })
+export const getMerchantAnalytics = (signal) => api.get('merchants/analytics/', { signal })
 
 export function extractResults(payload) {
   return Array.isArray(payload) ? payload : payload?.results ?? []
@@ -68,6 +117,8 @@ export function toRecommendationProduct(recommendation) {
     tradeoffs: recommendation.tradeoffs ?? [],
     category: recommendation.category ?? '',
     rating: Number(recommendation.rating ?? 0),
+    decisionId: recommendation.decision_id,
+    decisionToken: recommendation.decision_token,
     specs: {
       ...specifications,
       layout: specifications.layout ?? 'Not specified',
@@ -77,6 +128,27 @@ export function toRecommendationProduct(recommendation) {
       battery: batteryLabel(specifications),
       keycaps: specifications.keycaps ?? 'Not specified',
     },
+  }
+}
+
+export function toAddOnProduct(suggestion) {
+  return {
+    id: Number(suggestion.product_id),
+    name: suggestion.title,
+    merchant: { name: suggestion.merchant, verified: true },
+    price: Number(suggestion.incremental_cost),
+    stock: `${suggestion.stock_quantity} in stock`,
+    relationshipType: suggestion.relationship_type,
+    offerLabel: suggestion.offer_label,
+    compatibility: suggestion.compatibility ?? {},
+    constraintEvidence: suggestion.constraint_evidence ?? [],
+    benefit: suggestion.benefit,
+    tradeOff: suggestion.trade_off,
+    specs: suggestion.key_specs ?? {},
+    offerId: suggestion.offer_id,
+    offerToken: suggestion.offer_token,
+    decisionId: suggestion.decision_id,
+    decisionToken: suggestion.decision_token,
   }
 }
 
@@ -125,8 +197,8 @@ export function toTimelineEvent(audit) {
     id: `evt-${audit.id}`,
     agent: 'Nexora Agent',
     type: status === 'PURCHASED' ? 'converted' : status === 'REJECTED' ? 'lost' : 'recommended',
-    product: audit.product_title,
-    buyer: maskBuyer(audit.buyer_email),
+    product: audit.product_titles?.join(', ') || audit.product_title || 'Basket',
+    buyer: audit.buyer_reference ?? maskBuyer(),
     reason: audit.agent_thought_summary,
     time: relativeTime(audit.created_at),
     score: null,
@@ -135,7 +207,24 @@ export function toTimelineEvent(audit) {
   }
 }
 
-export function toProductPayload(product, fallbackMerchantId) {
+export function toMoneyTimelineEvent(audit) {
+  const blocked = audit.outcome === 'BLOCKED' || audit.outcome === 'FAILED'
+  const paid = audit.action === 'PAYMENT_CAPTURED'
+  return {
+    id: `money-${audit.audit_id}`,
+    agent: 'Nexora Guardrail',
+    type: paid ? 'converted' : blocked ? 'lost' : 'recommended',
+    product: audit.product_title ?? 'Money action',
+    buyer: audit.buyer_reference,
+    reason: `${audit.summary} [${audit.reason_code}]`,
+    time: relativeTime(audit.created_at),
+    score: null,
+    amount: paid ? Number(audit.approved_amount) : null,
+    orderId: audit.order,
+  }
+}
+
+export function toProductPayload(product) {
   const rawBattery = String(product.specs?.battery_life ?? '')
   const batteryHours = Number.parseFloat(rawBattery.replace(/[^0-9.]/g, ''))
   const connectivity = String(product.specs?.wireless ?? '')
@@ -144,7 +233,6 @@ export function toProductPayload(product, fallbackMerchantId) {
     .filter(Boolean)
 
   return {
-    merchant: product.merchantId ?? fallbackMerchantId,
     title: product.name,
     description: product.description ?? '',
     category: product.category,
