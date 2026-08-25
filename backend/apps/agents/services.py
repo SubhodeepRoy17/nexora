@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Any
 
+import httpx
 from django.conf import settings
 from google import genai
 from google.genai import errors as genai_errors
@@ -20,7 +21,9 @@ from .tools import (
 )
 
 
-DEFAULT_GEMINI_MODEL = "gemini-3.7-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_GEMINI_REQUEST_TIMEOUT_MS = 25_000
+DEFAULT_GEMINI_RETRY_ATTEMPTS = 1
 MAX_TOOL_ATTEMPTS = 2
 MAX_OUTPUT_ATTEMPTS = 2
 logger = logging.getLogger(__name__)
@@ -165,14 +168,39 @@ def _gemini_client() -> genai.Client:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise AgentServiceError("GEMINI_API_KEY is not configured")
+    timeout_ms = min(
+        30_000,
+        max(10_000, int(os.getenv("GEMINI_REQUEST_TIMEOUT_MS", DEFAULT_GEMINI_REQUEST_TIMEOUT_MS))),
+    )
+    retry_attempts = min(
+        2,
+        max(1, int(os.getenv("GEMINI_RETRY_ATTEMPTS", DEFAULT_GEMINI_RETRY_ATTEMPTS))),
+    )
     return genai.Client(
         api_key=api_key,
-        http_options=genai_types.HttpOptions(timeout=20_000),
+        http_options=genai_types.HttpOptions(
+            timeout=timeout_ms,
+            retry_options=genai_types.HttpRetryOptions(
+                attempts=retry_attempts,
+                initial_delay=0.25,
+                max_delay=1.0,
+                exp_base=2.0,
+                jitter=0.1,
+                http_status_codes=[408, 429, 500, 502, 503, 504],
+            ),
+        ),
     )
 
 
 def _model_name() -> str:
     return os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+
+
+def _thinking_config() -> genai_types.ThinkingConfig:
+    level = os.getenv("GEMINI_THINKING_LEVEL", "low").strip().lower()
+    if level not in {"low", "medium", "high"}:
+        level = "low"
+    return genai_types.ThinkingConfig(thinking_level=level)
 
 
 def _extract_tool_call(client: genai.Client, user_prompt: str) -> ProductSearchSchema:
@@ -194,6 +222,10 @@ def _extract_tool_call(client: genai.Client, user_prompt: str) -> ProductSearchS
             contents=user_prompt + retry_instruction,
             config=genai_types.GenerateContentConfig(
                 system_instruction=BUYER_AGENT_SYSTEM_PROMPT,
+                thinking_config=_thinking_config(),
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
                 tools=[tool],
                 tool_config=genai_types.ToolConfig(
                     function_calling_config=genai_types.FunctionCallingConfig(
@@ -243,6 +275,10 @@ def _parse_recommendations(
             contents=base_prompt + correction,
             config=genai_types.GenerateContentConfig(
                 system_instruction=RECOMMENDATION_SYSTEM_PROMPT,
+                thinking_config=_thinking_config(),
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
                 response_mime_type="application/json",
                 response_json_schema=BuyerAgentResponse.model_json_schema(),
                 max_output_tokens=1800,
@@ -344,9 +380,16 @@ def _evidence_reason(candidate: dict[str, Any], constraints: ProductSearchSchema
     return "Catalog evidence: " + "; ".join(evidence) + ".", tradeoffs
 
 
-def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
-    constraints = deterministic_search_arguments(user_prompt)
-    candidates = fallback_product_search(user_prompt)
+def _fallback_response(
+    user_prompt: str,
+    reason: str,
+    *,
+    constraints: ProductSearchSchema | None = None,
+    candidates: list[dict[str, Any]] | None = None,
+) -> BuyerAgentResponse:
+    constraints = constraints or deterministic_search_arguments(user_prompt)
+    if candidates is None:
+        candidates = fallback_product_search(user_prompt)
     if not candidates:
         _record_search(
             user_prompt,
@@ -377,11 +420,18 @@ def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
         )
     response = BuyerAgentResponse(
         thought_process=[
-            "Used the deterministic intent parser and bounded catalog retriever.",
-            f"Filtered active inventory and ranked {len(candidates)} candidate products.",
+            "Parsed the requested product type, budget, and explicit constraints.",
+            f"Checked active inventory and ranked {len(candidates)} matching catalog products.",
         ],
         recommendations=recommendations,
-        summary_reasoning="These fallback results are deterministic catalog matches. Review specifications before approval.",
+        summary_reasoning=(
+            f"I found {len(recommendations)} active, in-stock catalog "
+            f"option{'s' if len(recommendations) != 1 else ''}"
+            f"{' in ' + constraints.category if constraints.category else ''}"
+            f"{' within your ₹' + format(constraints.max_price, ',.0f') + ' budget' if constraints.max_price is not None else ''}. "
+            "They are ranked using verified price, availability, rating, and product specifications; "
+            "compare the evidence and trade-offs before approving one."
+        ),
     )
     _record_search(
         user_prompt,
@@ -393,7 +443,7 @@ def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
 
 
 def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
-    """Parse buyer intent, execute a bounded catalog tool, and compare grounded results."""
+    """Retrieve deterministically, then use one bounded Gemini comparison pass."""
 
     prompt = user_prompt.strip()
     if not prompt:
@@ -401,31 +451,29 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
     if len(prompt) > 2_000:
         raise ValueError("user_prompt cannot exceed 2,000 characters")
 
+    client = None
+    arguments = deterministic_search_arguments(prompt)
+    candidates = search_merchant_products(arguments)
+    if not candidates:
+        _record_search(
+            prompt,
+            [],
+            "FALLBACK",
+            max_price=arguments.max_price,
+            category=arguments.category,
+        )
+        result = _empty_response(
+            "Parsed the intent and searched active, in-stock merchant inventory."
+        ).model_dump(mode="json")
+        result["_audit_context"] = {
+            "provider_source": "FALLBACK",
+            "parsed_constraints": arguments.model_dump(mode="json"),
+            "catalog_candidate_ids": [],
+        }
+        return result
+
     try:
         client = _gemini_client()
-        arguments = _extract_tool_call(client, prompt)
-        candidates = search_merchant_products(arguments)
-        if not candidates:
-            # Model-extracted optional specs can be too strict for a small catalog. Retry with
-            # only deterministic hard constraints before declaring that no product exists.
-            relaxed_arguments = deterministic_search_arguments(prompt)
-            candidates = search_merchant_products(relaxed_arguments)
-            if candidates:
-                arguments = relaxed_arguments
-            else:
-                _record_search(
-                    prompt, [], "GEMINI", max_price=arguments.max_price, category=arguments.category
-                )
-                result = _empty_response(
-                    "Parsed the intent and searched active, in-stock merchant inventory."
-                ).model_dump(mode="json")
-                result["_audit_context"] = {
-                    "provider_source": "GEMINI",
-                    "parsed_constraints": arguments.model_dump(mode="json"),
-                    "catalog_candidate_ids": [],
-                }
-                return result
-
         response = _attach_growth_suggestions(
             _parse_recommendations(client, prompt, candidates),
             arguments.model_dump(mode="json"),
@@ -446,7 +494,13 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
             "catalog_candidate_ids": [candidate["id"] for candidate in candidates],
         }
         return result
-    except (genai_errors.APIError, AgentServiceError, ValidationError, ValueError) as exc:
+    except (
+        genai_errors.APIError,
+        httpx.HTTPError,
+        AgentServiceError,
+        ValidationError,
+        ValueError,
+    ) as exc:
         logger.warning("Gemini buyer-agent fallback after %s", type(exc).__name__)
         reason = (
             "provider request failed"
@@ -454,7 +508,12 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
             else "configuration or provider output error"
         )
         response = _attach_growth_suggestions(
-            _fallback_response(prompt, reason),
+            _fallback_response(
+                prompt,
+                reason,
+                constraints=arguments,
+                candidates=candidates,
+            ),
             {"max_price": extract_max_price(prompt)},
         )
         result = response.model_dump(mode="json")
@@ -464,3 +523,10 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
             "catalog_candidate_ids": [item.product_id for item in response.recommendations],
         }
         return result
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:
+                logger.debug("Gemini client cleanup failed.", exc_info=True)

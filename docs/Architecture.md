@@ -5,7 +5,7 @@
 - **Frontend:** React (Vite), TailwindCSS, Axios
 - **Backend:** Python, Django, Django REST Framework
 - **Database:** PostgreSQL with `pgvector`; Neon-compatible `DATABASE_URL` query options preserve TLS and channel binding
-- **LLM:** Gemini 3.7 Flash through the official Google Gen AI SDK, with validated function calling, structured outputs, catalog grounding, and deterministic fallback
+- **LLM:** Gemini 3.5 Flash-Lite through the official Google Gen AI SDK, with low-latency thinking, structured outputs, catalog grounding, and deterministic fallback
 - **Payment Gateway:** Razorpay API and signed webhooks
 - **Deployment:** Vercel frontend, Oregon Render backend/workers, Neon PostgreSQL 18 in AWS US West 2 (Oregon)
 

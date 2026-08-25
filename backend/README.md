@@ -69,10 +69,15 @@ Merchant relationship/offer CRUD is available at `http://localhost:8000/api/merc
 
 The buyer-agent endpoint accepts `{"query": "..."}` at
 `http://localhost:8000/api/agents/search/`. It uses Google's Gemini API for
-structured tool calling when `GEMINI_API_KEY` is configured and
-falls back to deterministic ORM retrieval if the provider is unavailable or
-over-constrains the catalog. `GEMINI_MODEL` selects the model and defaults to
-the stable `gemini-3.7-flash` endpoint.
+grounded comparison and wording when `GEMINI_API_KEY` is configured. Hard
+constraints and candidate retrieval remain deterministic, avoiding a slow
+model round trip before catalog access; provider failures reuse those same
+candidates for immediate fallback. `GEMINI_MODEL` selects the model and defaults to
+the stable, latency-optimized `gemini-3.5-flash-lite` endpoint. Interactive provider calls are bounded
+by `GEMINI_REQUEST_TIMEOUT_MS` (default 25000) and `GEMINI_RETRY_ATTEMPTS`
+(default 1), so a transient Gemini failure reaches deterministic retrieval
+before the buyer request expires. `GEMINI_THINKING_LEVEL` defaults to `low`
+for latency-sensitive catalog tool calls and accepts `low`, `medium`, or `high`.
 Each response includes a UUID `conversation_id`. Logged-in buyers can list and
 open only their own history at `GET /api/agents/conversations/` and
 `GET /api/agents/conversations/{id}/`. Anonymous searches receive a short-lived,

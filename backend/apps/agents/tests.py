@@ -6,6 +6,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from google.genai import errors as genai_errors
 from pydantic import ValidationError
 from rest_framework.test import APIClient
 
@@ -16,11 +17,15 @@ from .services import (
     BuyerAgentResponse,
     ProductRecommendation,
     _extract_tool_call,
+    _fallback_response,
     _ground_recommendations,
+    _gemini_client,
     _model_name,
     _parse_recommendations,
+    _thinking_config,
+    run_buyer_agent,
 )
-from .tools import ProductSearchSchema, fallback_product_search
+from .tools import ProductSearchSchema, deterministic_search_arguments, fallback_product_search
 
 
 class ProductSearchSchemaTests(SimpleTestCase):
@@ -37,6 +42,35 @@ class ProductSearchSchemaTests(SimpleTestCase):
         fallback_product_search("wireless keyboard under ₹8,000")
         arguments = search_mock.call_args.args[0]
         self.assertEqual(arguments.max_price, 8000)
+
+    def test_deterministic_parser_handles_natural_backpack_budget_phrase(self):
+        arguments = deterministic_search_arguments("Backpack under worth of 6000")
+
+        self.assertEqual(arguments.category, "Laptop Backpacks")
+        self.assertEqual(arguments.max_price, 6000)
+
+    @patch("apps.agents.services._record_search")
+    @patch("apps.agents.services.fallback_product_search")
+    def test_fallback_summary_describes_matches_instead_of_provider_failure(
+        self, product_search, _record_search
+    ):
+        product_search.return_value = [{
+            "id": 7,
+            "title": "Quiet Keyboard",
+            "merchant": {"name": "Catalog Merchant"},
+            "price": "7499.00",
+            "category": "Keyboards",
+            "stock_quantity": 4,
+            "rating": 4.8,
+            "specifications": {"layout": "75%"},
+        }]
+
+        response = _fallback_response("quiet keyboard under 8000", "provider request failed")
+
+        self.assertIn("active, in-stock catalog option", response.summary_reasoning.lower())
+        self.assertIn("in keyboards", response.summary_reasoning.lower())
+        self.assertIn("₹8,000 budget", response.summary_reasoning)
+        self.assertNotIn("fallback", response.summary_reasoning.lower())
 
 
 class RecommendationGroundingTests(SimpleTestCase):
@@ -78,7 +112,71 @@ class GeminiProviderTests(SimpleTestCase):
     def test_model_name_uses_gemini_environment(self):
         self.assertEqual(_model_name(), "gemini-test-model")
 
+    @patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "low"})
+    def test_latency_sensitive_search_uses_low_thinking(self):
+        self.assertEqual(_thinking_config().thinking_level.value, "LOW")
+
+    @patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "unsupported"})
+    def test_invalid_thinking_level_fails_safe_to_low(self):
+        self.assertEqual(_thinking_config().thinking_level.value, "LOW")
+
+    @patch("apps.agents.services.genai.Client")
+    @patch.dict(
+        os.environ,
+        {
+            "GEMINI_API_KEY": "test-only-key",
+            "GEMINI_REQUEST_TIMEOUT_MS": "25000",
+            "GEMINI_RETRY_ATTEMPTS": "1",
+        },
+    )
+    def test_client_has_bounded_interactive_timeout_and_retries(self, client_class):
+        _gemini_client()
+
+        options = client_class.call_args.kwargs["http_options"]
+        self.assertEqual(options.timeout, 25000)
+        self.assertEqual(options.retry_options.attempts, 1)
+
+    @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._fallback_response")
+    @patch("apps.agents.services._gemini_client")
+    def test_server_error_returns_deterministic_fallback(
+        self, client_factory, fallback_response, product_search
+    ):
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=lambda **kwargs: (_ for _ in ()).throw(
+                    genai_errors.ServerError(503, {"message": "provider unavailable"})
+                )
+            ),
+            close=lambda: None,
+        )
+        client_factory.return_value = client
+        product_search.return_value = [{
+            "id": 7,
+            "title": "Backpack",
+            "merchant": {"name": "Catalog Merchant"},
+            "price": "4299.00",
+            "category": "Laptop Backpacks",
+            "stock_quantity": 4,
+            "rating": 4.8,
+            "specifications": {},
+        }]
+        fallback_response.return_value = BuyerAgentResponse(
+            thought_process=["Used deterministic retrieval."],
+            recommendations=[],
+            summary_reasoning="The catalog fallback completed safely.",
+        )
+
+        result = run_buyer_agent("Backpack under worth of 6000")
+
+        self.assertEqual(result["_audit_context"]["provider_source"], "FALLBACK")
+        self.assertEqual(result["summary_reasoning"], "The catalog fallback completed safely.")
+        self.assertEqual(
+            fallback_response.call_args.kwargs["candidates"], product_search.return_value
+        )
+
     def test_gemini_function_call_is_strictly_validated(self):
+        captured = {}
         response = SimpleNamespace(
             function_calls=[
                 SimpleNamespace(
@@ -87,17 +185,22 @@ class GeminiProviderTests(SimpleTestCase):
                 )
             ]
         )
-        client = SimpleNamespace(
-            models=SimpleNamespace(generate_content=lambda **kwargs: response)
-        )
+        def generate_content(**kwargs):
+            captured.update(kwargs)
+            return response
+
+        client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
 
         arguments = _extract_tool_call(client, "quiet keyboard under ₹8,000")
 
         self.assertEqual(arguments.search_query, "quiet keyboard")
         self.assertEqual(arguments.max_price, 8000)
         self.assertEqual(arguments.limit, 3)
+        self.assertEqual(captured["config"].thinking_config.thinking_level.value, "LOW")
+        self.assertTrue(captured["config"].automatic_function_calling.disable)
 
     def test_gemini_structured_output_is_grounded_in_catalog(self):
+        captured = {}
         model_payload = {
             "thought_process": ["Compared the supplied catalog candidates."],
             "primary_recommendation_id": 7,
@@ -113,9 +216,11 @@ class GeminiProviderTests(SimpleTestCase):
             "summary_reasoning": "One grounded match.",
         }
         response = SimpleNamespace(text=json.dumps(model_payload))
-        client = SimpleNamespace(
-            models=SimpleNamespace(generate_content=lambda **kwargs: response)
-        )
+        def generate_content(**kwargs):
+            captured.update(kwargs)
+            return response
+
+        client = SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
         candidates = [{
             "id": 7,
             "title": "Live Keyboard",
@@ -132,6 +237,8 @@ class GeminiProviderTests(SimpleTestCase):
         self.assertEqual(parsed.recommendations[0].title, "Live Keyboard")
         self.assertEqual(parsed.recommendations[0].merchant, "Live Merchant")
         self.assertEqual(parsed.recommendations[0].price, 7999.0)
+        self.assertEqual(captured["config"].thinking_config.thinking_level.value, "LOW")
+        self.assertTrue(captured["config"].automatic_function_calling.disable)
 
 
 class CatalogRecallTests(TestCase):
@@ -162,6 +269,7 @@ class CatalogRecallTests(TestCase):
         )
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["title"], "Quiet Code Keyboard")
+
 
 
 class ConversationPrivacyTests(TestCase):

@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/'
+export const AGENT_SEARCH_TIMEOUT_MS = 55000
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -50,7 +51,7 @@ export const searchProducts = (query, signal, conversation = {}) => api.post('ag
   query,
   ...(conversation.conversationId ? { conversation_id: conversation.conversationId } : {}),
   ...(conversation.conversationToken ? { conversation_token: conversation.conversationToken } : {}),
-}, { signal })
+}, { signal, timeout: AGENT_SEARCH_TIMEOUT_MS })
 export const getChatSessions = (signal) => api.get('agents/conversations/', { signal })
 export const getChatSession = (conversationId, signal) => api.get(`agents/conversations/${conversationId}/`, { signal })
 export const deleteChatSession = (conversationId) => api.delete(`agents/conversations/${conversationId}/`)

@@ -19,7 +19,7 @@ SEARCH_STOP_WORDS = {
     "a", "an", "and", "at", "below", "best", "bring", "buy", "compare", "details",
     "for", "find", "from", "give", "in", "list", "looking", "me", "most", "need",
     "of", "options", "or", "please", "prefer", "prioritize", "result", "show", "than",
-    "that", "the", "to", "under", "want", "what", "with",
+    "that", "the", "to", "under", "value", "want", "what", "with", "worth",
 }
 CATEGORY_ALIASES = {
     "keyboard": "Keyboards",
@@ -30,6 +30,8 @@ CATEGORY_ALIASES = {
     "phones": "Smartphones",
     "smartphone": "Smartphones",
     "smartphones": "Smartphones",
+    "backpack": "Laptop Backpacks",
+    "backpacks": "Laptop Backpacks",
     "tablet": "Tablets",
     "tablets": "Tablets",
 }
@@ -172,7 +174,9 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
 def extract_max_price(user_prompt: str) -> float | None:
     compact_prompt = user_prompt.replace(",", "")
     budget_match = re.search(
-        r"(?:under|below|less than|max(?:imum)?|budget(?: of)?)\s*(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(k|l|lakh)?",
+        r"(?:under|below|less than|max(?:imum)?|budget(?: of)?)\s*"
+        r"(?:(?:worth|value|price|priced)\s*(?:of|at)?\s*)?"
+        r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(k|l|lakh)?",
         compact_prompt,
         flags=re.IGNORECASE,
     )
