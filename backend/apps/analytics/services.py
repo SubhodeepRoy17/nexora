@@ -8,8 +8,9 @@ from django.db import DatabaseError
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 
-from apps.merchants.models import Product
-from apps.orders.models import AgentTransactionAudit
+from apps.agents.models import GrowthOffer
+from apps.merchants.models import Product, ProductRelationship
+from apps.orders.models import AgentTransactionAudit, Order, OrderItem
 
 from .models import AgentSearchImpression, LostOpportunity
 
@@ -102,7 +103,7 @@ def merchant_analytics_payload(merchant_id: int | None = None) -> dict[str, Any]
     previous_start = current_start - timedelta(days=ANALYTICS_WINDOW_DAYS)
 
     impressions = AgentSearchImpression.objects.all()
-    audits = AgentTransactionAudit.objects.select_related("order", "order__product")
+    audits = AgentTransactionAudit.objects.select_related("order")
     losses = LostOpportunity.objects.all()
     if merchant_id is not None:
         impressions = impressions.filter(merchant_id=merchant_id)
@@ -113,7 +114,10 @@ def merchant_analytics_payload(merchant_id: int | None = None) -> dict[str, Any]
     purchased = audits.filter(conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED)
     purchased_orders = purchased.values("order_id").distinct().count()
     conversion_rate = round((purchased_orders / total_impressions) * 100, 2) if total_impressions else 0.0
-    revenue = purchased.aggregate(total=Sum("order__total_amount"))["total"] or Decimal("0")
+    paid_items = OrderItem.objects.filter(order__status=Order.Status.PAID)
+    if merchant_id is not None:
+        paid_items = paid_items.filter(merchant_id=merchant_id)
+    revenue = paid_items.aggregate(total=Sum("line_total"))["total"] or Decimal("0")
 
     current_impressions = impressions.filter(created_at__gte=current_start).count()
     previous_impressions = impressions.filter(created_at__gte=previous_start, created_at__lt=current_start).count()
@@ -149,12 +153,87 @@ def merchant_analytics_payload(merchant_id: int | None = None) -> dict[str, Any]
             }
         )
 
+    relationships = ProductRelationship.objects.select_related(
+        "source_product", "related_product"
+    ).all()
+    offers = GrowthOffer.objects.select_related(
+        "relationship__source_product", "product"
+    ).all()
+    if merchant_id is not None:
+        relationships = relationships.filter(source_product__merchant_id=merchant_id)
+        offers = offers.filter(product__merchant_id=merchant_id)
+
+    def growth_segment(is_synthetic: bool) -> dict[str, Any]:
+        scoped_offers = offers.filter(is_synthetic=is_synthetic)
+        impressions_count = scoped_offers.count()
+        accepted_count = scoped_offers.filter(response=GrowthOffer.Response.ACCEPTED).count()
+        rejected_count = scoped_offers.filter(response=GrowthOffer.Response.REJECTED).count()
+        responded_count = accepted_count + rejected_count
+        attached_items = paid_items.filter(
+            growth_offer__isnull=False,
+            growth_offer__is_synthetic=is_synthetic,
+        )
+        paid_attached = attached_items.values("growth_offer_id").distinct().count()
+        incremental_revenue = attached_items.aggregate(total=Sum("line_total"))["total"] or Decimal("0")
+        return {
+            "offer_impressions": impressions_count,
+            "accepted_offers": accepted_count,
+            "rejected_offers": rejected_count,
+            "responded_offers": responded_count,
+            "accept_rate_percent": round((accepted_count / responded_count) * 100, 2)
+            if responded_count else 0.0,
+            "paid_attached_offers": paid_attached,
+            "paid_attachment_rate_percent": round((paid_attached / impressions_count) * 100, 2)
+            if impressions_count else 0.0,
+            "incremental_paid_revenue": str(incremental_revenue),
+            "denominators": {
+                "accept_rate": "accepted / (accepted + rejected)",
+                "paid_attachment_rate": "paid attached offers / offer impressions",
+            },
+        }
+
+    top_complements = list(
+        paid_items.filter(growth_offer__isnull=False, growth_offer__is_synthetic=False)
+        .values(
+            "growth_offer__relationship__source_product__title",
+            "product_id",
+            "product_title",
+            "growth_offer__relationship__relationship_type",
+        )
+        .annotate(paid_attachments=Count("growth_offer_id", distinct=True), revenue=Sum("line_total"))
+        .order_by("-paid_attachments", "-revenue")[:5]
+    )
+    rejected_offers = list(
+        offers.filter(response=GrowthOffer.Response.REJECTED, is_synthetic=False)
+        .values("product_id", "product__title", "relationship__relationship_type")
+        .annotate(rejections=Count("offer_id"))
+        .order_by("-rejections")[:5]
+    )
+    compatibility_gaps = list(
+        relationships.filter(is_active=True)
+        .filter(Q(related_product__is_active=False) | Q(related_product__stock_quantity=0))
+        .values("source_product_id", "source_product__title")
+        .annotate(gap_count=Count("id"))
+        .order_by("-gap_count")[:5]
+    )
+
     return {
         "window_days": ANALYTICS_WINDOW_DAYS,
         "total_agent_impressions": total_impressions,
         "agent_conversions": purchased_orders,
         "agent_conversion_rate": conversion_rate,
         "agent_attributed_revenue": str(revenue),
+        "growth": {
+            "real": growth_segment(False),
+            "synthetic": growth_segment(True),
+            "top_converting_complements": top_complements,
+            "rejected_offers": rejected_offers,
+            "compatibility_gaps": compatibility_gaps,
+            "attribution_note": (
+                "Incremental revenue is recorded attribution for buyer-approved add-on lines on paid orders; "
+                "it is not a causal lift estimate."
+            ),
+        },
         "lost_opportunities": {
             "total": losses.count(),
             "breakdown": lost_breakdown,

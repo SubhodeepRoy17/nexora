@@ -21,14 +21,15 @@ def amount_to_subunits(amount: Decimal) -> int:
 
 
 def create_razorpay_order(client: razorpay.Client, order) -> dict:
+    item_count = order.items.count() if hasattr(order, "items") else 1
     payload = {
         "amount": amount_to_subunits(order.total_amount),
         "currency": "INR",
         "receipt": f"nxr_{order.order_id.hex[:24]}",
         "notes": {
             "local_order_id": str(order.order_id),
-            "product_id": str(order.product_id),
-            "buyer_email": order.buyer_email,
+            "item_count": str(item_count),
+            "buyer_id": str(order.buyer_id) if order.buyer_id else "legacy",
         },
     }
     return client.order.create(data=payload)

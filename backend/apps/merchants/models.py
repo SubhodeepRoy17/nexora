@@ -1,6 +1,9 @@
+import re
 import secrets
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.exceptions import ValidationError
 from django.db import DatabaseError, models
 from pgvector.django import VectorField
 
@@ -13,6 +16,11 @@ def generate_api_key() -> str:
 
 
 class Merchant(models.Model):
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="merchant_profile",
+    )
     name = models.CharField(max_length=200)
     email = models.EmailField(unique=True)
     api_key = models.CharField(max_length=64, unique=True, default=generate_api_key, editable=False)
@@ -43,6 +51,10 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     specifications = models.JSONField(default=dict, validators=[validate_specifications])
     tags = models.JSONField(default=list, validators=[validate_tags])
+    source_name = models.CharField(max_length=120, blank=True)
+    source_url = models.URLField(max_length=500, blank=True)
+    source_license = models.CharField(max_length=80, blank=True)
+    is_demo = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -97,3 +109,74 @@ class ProductEmbedding(models.Model):
     class Meta:
         managed = False
         db_table = "merchants_product_embedding"
+
+
+class ProductRelationship(models.Model):
+    class Kind(models.TextChoices):
+        ACCESSORY = "ACCESSORY", "Accessory"
+        COMPLEMENT = "COMPLEMENT", "Complement"
+        SUBSTITUTE = "SUBSTITUTE", "Substitute"
+        BUNDLE = "BUNDLE", "Bundle"
+
+    source_product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="outgoing_relationships"
+    )
+    related_product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="incoming_relationships"
+    )
+    relationship_type = models.CharField(max_length=16, choices=Kind.choices, db_index=True)
+    compatibility = models.JSONField(default=dict)
+    benefit = models.CharField(max_length=500)
+    trade_off = models.CharField(max_length=500, blank=True)
+    offer_label = models.CharField(max_length=120, blank=True)
+    priority = models.PositiveSmallIntegerField(default=100)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["priority", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_product", "related_product", "relationship_type"],
+                name="unique_product_relationship",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(source_product=models.F("related_product")),
+                name="relationship_products_differ",
+            ),
+        ]
+        indexes = [models.Index(fields=["source_product", "is_active", "priority"])]
+
+    def clean(self):
+        super().clean()
+        if self.source_product_id == self.related_product_id:
+            raise ValidationError({"related_product": "A product cannot link to itself."})
+        if self.source_product_id and self.related_product_id:
+            if self.source_product.merchant_id != self.related_product.merchant_id:
+                raise ValidationError(
+                    {"related_product": "Relationships may only link products owned by the same merchant."}
+                )
+            if self.is_active and (
+                not self.source_product.is_active or not self.related_product.is_active
+            ):
+                raise ValidationError("Both linked products must be active.")
+            if self.is_active and self.related_product.stock_quantity < 1:
+                raise ValidationError({"related_product": "The linked product must be in stock."})
+        if not isinstance(self.compatibility, dict):
+            raise ValidationError({"compatibility": "Compatibility must be a JSON object."})
+        if self.offer_label and (
+            "%" in self.offer_label
+            or re.search(
+                r"\b(save|discount|off|limited|hurry|urgent|expires?|today only)\b",
+                self.offer_label,
+                flags=re.IGNORECASE,
+            )
+        ):
+            raise ValidationError(
+                {"offer_label": "Offer labels cannot claim savings, discounts, scarcity, or urgency."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

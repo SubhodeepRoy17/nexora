@@ -1,0 +1,41 @@
+{
+  "version": "phase9-v1",
+  "synthetic": true,
+  "scenarios": [
+    {
+      "id": "compatible-travel-case-accept",
+      "intent": "USB-C keyboard for frequent travel",
+      "primary_facts": {"connector": "usb-c", "category": "Keyboards"},
+      "relationship": "COMPLEMENT",
+      "compatibility": {"source_specs": {"connector": "usb-c"}},
+      "expected": "offer",
+      "buyer_response": "ACCEPTED"
+    },
+    {
+      "id": "compatible-travel-case-reject",
+      "intent": "USB-C keyboard, already own a case",
+      "primary_facts": {"connector": "usb-c", "category": "Keyboards"},
+      "relationship": "COMPLEMENT",
+      "expected": "offer",
+      "buyer_response": "REJECTED"
+    },
+    {
+      "id": "incompatible-connector-no-offer",
+      "intent": "Bluetooth-only keyboard",
+      "primary_facts": {"connector": "bluetooth"},
+      "compatibility": {"source_specs": {"connector": "usb-c"}},
+      "expected": "no_offer"
+    },
+    {
+      "id": "out-of-stock-addon-no-offer",
+      "intent": "USB-C keyboard and optional protection",
+      "addon_stock": 0,
+      "expected": "no_offer"
+    },
+    {
+      "id": "no-relationship-no-offer",
+      "intent": "Standalone monitor with no validated links",
+      "expected": "no_offer"
+    }
+  ]
+}

@@ -1,27 +1,32 @@
-from rest_framework import permissions, viewsets
+from rest_framework import viewsets
 
-from .models import Merchant, Product
-from .serializers import MerchantSerializer, ProductSerializer
+from apps.accounts.permissions import IsMerchantUser
+
+from .models import Merchant, Product, ProductRelationship
+from .serializers import MerchantSerializer, ProductRelationshipSerializer, ProductSerializer
 
 
 class MerchantViewSet(viewsets.ModelViewSet):
-    queryset = Merchant.objects.prefetch_related("products").all()
     serializer_class = MerchantSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsMerchantUser]
+    http_method_names = ["get", "put", "patch", "head", "options"]
+
+    def get_queryset(self):
+        return Merchant.objects.prefetch_related("products").filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsMerchantUser]
 
     def get_queryset(self):
-        queryset = Product.objects.select_related("merchant").all()
-        merchant_id = self.request.query_params.get("merchant")
+        queryset = Product.objects.select_related("merchant").filter(merchant__owner=self.request.user)
         category = self.request.query_params.get("category")
         is_active = self.request.query_params.get("is_active")
 
-        if merchant_id:
-            queryset = queryset.filter(merchant_id=merchant_id)
         if category:
             queryset = queryset.filter(category__iexact=category)
         if is_active is not None:
@@ -31,3 +36,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             elif normalized in {"false", "0"}:
                 queryset = queryset.filter(is_active=False)
         return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(merchant=self.request.user.merchant_profile)
+
+
+class ProductRelationshipViewSet(viewsets.ModelViewSet):
+    serializer_class = ProductRelationshipSerializer
+    permission_classes = [IsMerchantUser]
+
+    def get_queryset(self):
+        return ProductRelationship.objects.select_related(
+            "source_product", "related_product"
+        ).filter(source_product__merchant__owner=self.request.user)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, RefreshCw, Target, TrendingDown } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, RefreshCw, Target, TrendingDown } from 'lucide-react'
 import { getApiError, getMerchantAnalytics } from '../../services/api'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value ?? 0))
@@ -12,14 +12,14 @@ const metricConfig = [
   { key: 'agent_attributed_revenue', label: 'Agent revenue', icon: CircleDollarSign, format: money, color: 'emerald' },
 ]
 
-export default function AgentAnalytics({ merchantId }) {
+export default function AgentAnalytics() {
   const [state, setState] = useState({ data: null, loading: true, error: '' })
 
   useEffect(() => {
     const controller = new AbortController()
     const load = async () => {
       try {
-        const { data } = await getMerchantAnalytics(merchantId, controller.signal)
+      const { data } = await getMerchantAnalytics(controller.signal)
         setState({ data, loading: false, error: '' })
       } catch (error) {
         if (!controller.signal.aborted) setState((current) => ({ ...current, loading: false, error: getApiError(error, 'Unable to load merchant analytics.') }))
@@ -31,13 +31,17 @@ export default function AgentAnalytics({ merchantId }) {
       window.clearInterval(poll)
       controller.abort()
     }
-  }, [merchantId])
+  }, [])
 
   if (state.loading && !state.data) return <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5 font-mono text-[9px] text-indigo-300"><RefreshCw size={13} className="mr-2 inline animate-spin" /> CALCULATING LIVE AGENT ATTRIBUTION…</div>
   if (state.error && !state.data) return <div className="rounded-2xl border border-[#DC143C]/30 bg-[#DC143C]/10 p-5 text-[11px] text-rose-300">{state.error}</div>
 
   const analytics = state.data
   const losses = analytics?.lost_opportunities?.breakdown ?? []
+  const growth = analytics?.growth?.real ?? {}
+  const topComplements = analytics?.growth?.top_converting_complements ?? []
+  const rejectedOffers = analytics?.growth?.rejected_offers ?? []
+  const compatibilityGaps = analytics?.growth?.compatibility_gaps ?? []
 
   return (
     <div>
@@ -55,6 +59,13 @@ export default function AgentAnalytics({ merchantId }) {
           )
         })}
       </div>
+
+      <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-slate-950/20">
+        <header><div className="flex items-center gap-2"><Link2 size={16} className="text-emerald-400" /><h2 className="text-sm font-semibold text-white">Buyer-approved add-on attribution</h2></div><p className="mt-1 text-[10px] text-slate-500">Real interactions only. Synthetic scenario data is reported separately and excluded below.</p></header>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><article className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4"><p className="font-mono text-[8px] text-slate-500">INCREMENTAL PAID REVENUE</p><p className="mt-2 text-xl font-semibold text-emerald-300">{money(growth.incremental_paid_revenue)}</p><p className="mt-1 text-[8px] text-slate-600">Recorded add-on lines; not causal lift</p></article><article className="rounded-xl border border-slate-800 p-4"><p className="font-mono text-[8px] text-slate-500">PAID ATTACHMENT RATE</p><p className="mt-2 text-xl font-semibold text-white">{Number(growth.paid_attachment_rate_percent ?? 0).toFixed(2)}%</p><p className="mt-1 text-[8px] text-slate-600">{number(growth.paid_attached_offers)} paid / {number(growth.offer_impressions)} impressions</p></article><article className="rounded-xl border border-slate-800 p-4"><p className="font-mono text-[8px] text-slate-500">EXPLICIT ACCEPTS</p><p className="mt-2 text-xl font-semibold text-white">{number(growth.accepted_offers)}</p><p className="mt-1 text-[8px] text-slate-600">{Number(growth.accept_rate_percent ?? 0).toFixed(2)}% of responded offers</p></article><article className="rounded-xl border border-slate-800 p-4"><p className="font-mono text-[8px] text-slate-500">EXPLICIT REJECTS</p><p className="mt-2 text-xl font-semibold text-white">{number(growth.rejected_offers)}</p><p className="mt-1 text-[8px] text-slate-600">Rejection is recorded without checkout impact</p></article></div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-3"><div className="rounded-xl border border-slate-800 p-4"><p className="flex items-center gap-2 text-[10px] font-semibold text-white"><ArrowUpRight size={13} className="text-emerald-400" /> Top converting complements</p>{topComplements.map((item) => <p key={`${item.product_id}-${item.product_title}`} className="mt-3 text-[9px] text-slate-400">{item.product_title} · {item.paid_attachments} paid · {money(item.revenue)}</p>)}{!topComplements.length && <p className="mt-3 text-[9px] text-slate-600">No paid add-on yet.</p>}</div><div className="rounded-xl border border-slate-800 p-4"><p className="flex items-center gap-2 text-[10px] font-semibold text-white"><PackageX size={13} className="text-rose-400" /> Rejected offers</p>{rejectedOffers.map((item) => <p key={`${item.product_id}-${item.product__title}`} className="mt-3 text-[9px] text-slate-400">{item.product__title} · {item.rejections} rejected</p>)}{!rejectedOffers.length && <p className="mt-3 text-[9px] text-slate-600">No rejected offers yet.</p>}</div><div className="rounded-xl border border-slate-800 p-4"><p className="flex items-center gap-2 text-[10px] font-semibold text-white"><Puzzle size={13} className="text-amber-400" /> Compatibility gaps</p>{compatibilityGaps.map((item) => <p key={item.source_product_id} className="mt-3 text-[9px] text-slate-400">{item.source_product__title} · {item.gap_count} unavailable link{item.gap_count === 1 ? '' : 's'}</p>)}{!compatibilityGaps.length && <p className="mt-3 text-[9px] text-slate-600">No inactive or out-of-stock linked products.</p>}</div></div>
+        <p className="mt-4 text-[9px] leading-relaxed text-slate-500">{analytics?.growth?.attribution_note}</p>
+      </section>
 
       <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-slate-950/20">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex items-center gap-2"><TrendingDown size={16} className="text-rose-400" /><h2 className="text-sm font-semibold text-white">Lost Deals Insights</h2></div><p className="mt-1 text-[10px] text-slate-500">Actionable price and inventory gaps observed in real buyer searches.</p></div><span className="w-fit rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1.5 font-mono text-[8px] text-rose-400">{number(analytics?.lost_opportunities?.total)} OPPORTUNITIES</span></header>

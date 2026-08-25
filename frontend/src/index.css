@@ -1,32 +1,95 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  * { @apply border-slate-800; }
-  html { @apply scroll-smooth bg-slate-950 antialiased; }
-  body { @apply m-0 min-w-[320px] bg-slate-950 font-sans text-slate-50; }
+  * { @apply border-slate-300; }
+  html { @apply scroll-smooth bg-[#f6f5f1] antialiased; }
+  body { @apply m-0 min-w-[320px] overflow-x-hidden bg-[#f6f5f1] font-sans text-slate-950; }
   button, input { @apply outline-none; }
   button { -webkit-tap-highlight-color: transparent; }
-  ::selection { @apply bg-indigo-500/30 text-white; }
+  ::selection { @apply bg-violet-500/25 text-violet-950; }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-700; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-400; }
 }
 
 @layer components {
   .glass-panel { @apply border border-slate-800/90 bg-slate-900/70 backdrop-blur-xl; }
-  .focus-ring { @apply focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950; }
+  .focus-ring { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white; }
   .mono-label { @apply font-mono text-[10px] font-medium uppercase tracking-[0.16em]; }
+}
+
+.landing-grid,
+.login-grid {
+  background-image:
+    linear-gradient(rgba(71, 85, 105, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71, 85, 105, 0.09) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.landing-grid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(246,245,241,.8), transparent 20%, transparent 80%, rgba(246,245,241,.8));
+}
+
+.landing-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  opacity: .65;
+  pointer-events: none;
+}
+
+.landing-orb-one {
+  width: 32rem;
+  height: 32rem;
+  right: -12rem;
+  top: -15rem;
+  background: radial-gradient(circle, rgba(139,92,246,.32), rgba(139,92,246,0) 68%);
+}
+
+.landing-orb-two {
+  width: 24rem;
+  height: 24rem;
+  left: -14rem;
+  bottom: -12rem;
+  background: radial-gradient(circle, rgba(52,211,153,.2), rgba(52,211,153,0) 68%);
+}
+
+@keyframes landing-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.landing-grid > div {
+  animation: landing-rise .7s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .app-grid {
   background-image:
-    linear-gradient(rgba(99, 102, 241, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.025) 1px, transparent 1px);
+    linear-gradient(rgba(71, 85, 105, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71, 85, 105, 0.06) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+
+.product-grid {
+  background-image:
+    linear-gradient(rgba(71, 85, 105, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71, 85, 105, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.merchant-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 .thinking-border {
