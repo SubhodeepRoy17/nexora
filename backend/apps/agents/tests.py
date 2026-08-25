@@ -1,3 +1,6 @@
+import json
+import os
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -9,7 +12,14 @@ from rest_framework.test import APIClient
 from apps.merchants.models import Merchant, Product
 
 from .models import AgentSession, ChatConversation
-from .services import BuyerAgentResponse, ProductRecommendation, _ground_recommendations
+from .services import (
+    BuyerAgentResponse,
+    ProductRecommendation,
+    _extract_tool_call,
+    _ground_recommendations,
+    _model_name,
+    _parse_recommendations,
+)
 from .tools import ProductSearchSchema, fallback_product_search
 
 
@@ -61,6 +71,67 @@ class RecommendationGroundingTests(SimpleTestCase):
         self.assertEqual(grounded.recommendations[0].title, "Keychron K2 Pro")
         self.assertEqual(grounded.recommendations[0].price, 7999.0)
         self.assertEqual(grounded.recommendations[0].stock_quantity, 0)
+
+
+class GeminiProviderTests(SimpleTestCase):
+    @patch.dict(os.environ, {"GEMINI_MODEL": "gemini-test-model"})
+    def test_model_name_uses_gemini_environment(self):
+        self.assertEqual(_model_name(), "gemini-test-model")
+
+    def test_gemini_function_call_is_strictly_validated(self):
+        response = SimpleNamespace(
+            function_calls=[
+                SimpleNamespace(
+                    name="search_merchant_products",
+                    args={"search_query": "quiet keyboard", "max_price": 8000, "limit": 3},
+                )
+            ]
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(generate_content=lambda **kwargs: response)
+        )
+
+        arguments = _extract_tool_call(client, "quiet keyboard under ₹8,000")
+
+        self.assertEqual(arguments.search_query, "quiet keyboard")
+        self.assertEqual(arguments.max_price, 8000)
+        self.assertEqual(arguments.limit, 3)
+
+    def test_gemini_structured_output_is_grounded_in_catalog(self):
+        model_payload = {
+            "thought_process": ["Compared the supplied catalog candidates."],
+            "primary_recommendation_id": 7,
+            "recommendations": [{
+                "product_id": 7,
+                "title": "Invented title",
+                "merchant": "Invented merchant",
+                "price": 1,
+                "match_score": 90,
+                "reason": "Matches the request.",
+            }],
+            "add_on_suggestions": [],
+            "summary_reasoning": "One grounded match.",
+        }
+        response = SimpleNamespace(text=json.dumps(model_payload))
+        client = SimpleNamespace(
+            models=SimpleNamespace(generate_content=lambda **kwargs: response)
+        )
+        candidates = [{
+            "id": 7,
+            "title": "Live Keyboard",
+            "merchant": {"name": "Live Merchant"},
+            "price": "7999.00",
+            "category": "Keyboards",
+            "stock_quantity": 4,
+            "rating": 4.8,
+            "specifications": {"layout": "75%"},
+        }]
+
+        parsed = _parse_recommendations(client, "quiet keyboard", candidates)
+
+        self.assertEqual(parsed.recommendations[0].title, "Live Keyboard")
+        self.assertEqual(parsed.recommendations[0].merchant, "Live Merchant")
+        self.assertEqual(parsed.recommendations[0].price, 7999.0)
 
 
 class CatalogRecallTests(TestCase):

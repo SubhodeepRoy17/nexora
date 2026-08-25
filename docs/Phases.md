@@ -5,8 +5,8 @@
 - Create Merchant Product models with structured JSON specifications.
 - Build basic Merchant Dashboard CRUD interface for catalog and stock management.
 
-## Phase 2: Groq AI Buyer Agent Engine
-- Integrate Groq API with structured tool-calling.
+## Phase 2: Gemini AI Buyer Agent Engine
+- Integrate the Gemini API with structured function calling.
 - Build intent parsing service (Extracting category, budget, specs from user input).
 - Implement PostgreSQL database query matching (SQL + basic semantic filtering).
 - Build the conversational Chat UI with real-time agent reasoning steps.

@@ -187,7 +187,7 @@ export default function BuyerChat() {
         id: messageId + 1,
         role: 'agent',
         text: data.summary_reasoning,
-        evidence: `${products.length} LIVE CATALOG MATCH${products.length === 1 ? '' : 'ES'}${fallbackUsed ? ' · DETERMINISTIC RETRIEVAL' : ' · OPEN-MODEL GROUNDED'}`,
+        evidence: `${products.length} LIVE CATALOG MATCH${products.length === 1 ? '' : 'ES'}${fallbackUsed ? ' · DETERMINISTIC RETRIEVAL' : ' · GEMINI GROUNDED'}`,
         products,
         time: 'Now',
       }])

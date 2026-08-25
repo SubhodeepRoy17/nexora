@@ -33,10 +33,10 @@ services:
         sync: false
       - key: POSTGRES_SSLMODE
         value: require
-      - key: GROQ_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      - key: OPEN_MODEL_NAME
-        value: openai/gpt-oss-20b
+      - key: GEMINI_MODEL
+        value: gemini-3.7-flash
       - key: GROWTH_MAX_ADDON_OFFERS
         value: "2"
       - key: RAZORPAY_KEY_ID

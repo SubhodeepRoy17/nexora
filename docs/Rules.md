@@ -1,7 +1,7 @@
 # Project Rules & Boundaries - Nexora
 
 ## 1. Allowed Technologies & Libraries
-- **Backend:** Django REST Framework, `groq` Python SDK, `psycopg2-binary`, `razorpay`, `pydantic`.
+- **Backend:** Django REST Framework, official `google-genai` Python SDK, `psycopg2-binary`, `razorpay`, `pydantic`.
 - **Frontend:** React (Vite), `tailwindcss`, `@lucide/react`, `axios`, `@tanstack/react-query`.
 - **Database:** PostgreSQL only (use `pgvector` extension for vector embeddings).
 
@@ -11,7 +11,7 @@
 - **NO Direct Database Mutations from Agent:** LLMs must call structured Django DRF internal services or functions, never raw SQL.
 
 ## 3. Boundary & Error Handling Standards
-- **Open-model fallback:** GPT-OSS output is strictly validated. If hosted inference fails or produces an empty over-constrained query, retry with deterministic hard constraints and SQL/pgvector ranking.
+- **Provider fallback:** Gemini function arguments and recommendation output are strictly validated. If hosted inference fails or produces an empty over-constrained query, retry with deterministic hard constraints and SQL/pgvector ranking.
 - **Structured Output Safety:** Enforce `pydantic` schemas on all LLM JSON outputs. Reject and retry if JSON parsing fails.
 - **Razorpay Webhooks:** Always verify Razorpay signatures server-side before updating order states in PostgreSQL.
 - **Conversation privacy:** Logged-in conversation history is always buyer-owned. Anonymous continuation requires a matching signed token, guest conversations have no public list/detail API, and guest transcripts must never be persisted in shared browser storage.

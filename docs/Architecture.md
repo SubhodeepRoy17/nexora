@@ -5,7 +5,7 @@
 - **Frontend:** React (Vite), TailwindCSS, Axios
 - **Backend:** Python, Django, Django REST Framework
 - **Database:** PostgreSQL with `pgvector`; Neon-compatible `DATABASE_URL` query options preserve TLS and channel binding
-- **LLM:** Apache-2.0 open-weight GPT-OSS through a Groq inference endpoint, with validated tool calling and deterministic fallback
+- **LLM:** Gemini 3.7 Flash through the official Google Gen AI SDK, with validated function calling, structured outputs, catalog grounding, and deterministic fallback
 - **Payment Gateway:** Razorpay API and signed webhooks
 - **Deployment:** Vercel frontend, Oregon Render backend/workers, Neon PostgreSQL 18 in AWS US West 2 (Oregon)
 
@@ -27,7 +27,7 @@
 ```text
 Public buyer prompt
   -> throttled POST /api/agents/search/
-  -> validated open-model tool call or deterministic fallback
+  -> validated Gemini function call or deterministic fallback
   -> active catalog search in PostgreSQL/pgvector
   -> grounded recommendations
   -> deterministic compatibility/budget/availability rules
@@ -143,7 +143,7 @@ nexora/
 │   ├── nexora_core/          # Settings, URLs, bounded pagination, logging
 │   ├── apps/
 │   │   ├── accounts/         # Session auth, CSRF, roles, demo account seeding
-│   │   ├── agents/           # Open-model orchestration, conversations, grounded decisions
+│   │   ├── agents/           # Gemini orchestration, conversations, grounded decisions
 │   │   ├── merchants/        # Owned merchant profile and product catalog
 │   │   ├── orders/           # Carts, state machine, reservations, expiry, Razorpay
 │   │   ├── commerce/         # Public v1 capability, catalog, schemas, and adapters
@@ -176,7 +176,7 @@ nexora/
 ## 9. Buyer Search and Conversation Pipeline
 
 ```text
-buyer text -> deterministic hard constraints -> open-model structured intent
+buyer text -> deterministic hard constraints -> Gemini structured intent
            -> bounded SQL/pgvector retrieval -> relaxed retry when empty
            -> grounded top 1-3 recommendations -> immutable decision trace
            -> UUID conversation + user/assistant messages

@@ -8,7 +8,7 @@
 
 ### Phase Completion
 - [x] Phase 1 — Foundation & Merchant Catalog (100%)
-- [x] Phase 2 — Groq AI Buyer Agent Engine (100%)
+- [x] Phase 2 — Gemini AI Buyer Agent Engine (100%)
 - [x] Phase 3 — Recommendation Engine & Interactive UI (100%)
 - [x] Phase 4 — Razorpay Transaction Loop & Webhooks (100%)
 - [x] Phase 5 — Agentic Merchant Analytics & Polish (100%)
@@ -22,7 +22,7 @@
 
 ## 2. Completed Milestones
 - [x] Defined PRD, Architecture, Rules, and Execution Phases.
-- [x] Defined tech stack: Django, React, PostgreSQL, Groq, Razorpay.
+- [x] Defined tech stack: Django, React, PostgreSQL, Gemini, Razorpay.
 - [x] Defined Merchant Analytics & AI Agent interaction boundaries.
 - [x] Initialized the Vite + React frontend with Tailwind CSS and Lucide React.
 - [x] Implemented the original Nexora dark design system, then replaced it with a 21st.dev-informed editorial system using warm white/ink surfaces, violet and emerald signals, DM Sans, IBM Plex Mono, structured grids, and sharp framed components.
@@ -56,11 +56,11 @@
 - [x] Added DRF serializers, CRUD ModelViewSets, admin registrations, and `/api/merchants/products/` routing.
 - [x] Generated `apps/merchants/migrations/0001_initial.py` and confirmed Django system checks pass.
 - [x] Applied the initial catalog schema to PostgreSQL and confirmed the live connection with a validated merchant product record.
-- [x] Added a strict Pydantic `ProductSearchSchema` and Groq-compatible `search_merchant_products` tool definition.
+- [x] Added a strict Pydantic `ProductSearchSchema` and Gemini-compatible `search_merchant_products` function definition.
 - [x] Implemented bounded Django ORM catalog search for price, category, rating, keywords, and JSON specifications.
-- [x] Implemented the two-stage Groq buyer-agent flow: tool-call intent parsing followed by grounded comparative recommendations.
+- [x] Implemented the two-stage Gemini buyer-agent flow: function-call intent parsing followed by schema-constrained grounded comparative recommendations.
 - [x] Added strict final response validation, one repair retry, catalog fact grounding, and high-level audit stages without exposing hidden chain-of-thought.
-- [x] Added deterministic ORM keyword/price fallback behavior for Groq configuration, rate-limit, API, and malformed-output failures.
+- [x] Added deterministic ORM keyword/price fallback behavior for Gemini configuration, rate-limit, API, and malformed-output failures.
 - [x] Added `POST /api/agents/search/` with request validation and catalog-unavailable handling.
 - [x] Added four passing agent unit tests for strict tool schemas, budget extraction, and recommendation grounding.
 - [x] Added UUID-based Order and AgentTransactionAudit models with explicit payment/conversion status lifecycles.
@@ -72,7 +72,7 @@
 - [x] Added Razorpay and order-route tests; combined agent/order suite now passes 9 tests.
 - [x] Added a centralized Axios client with configurable API base URL, normalized DRF response adapters, actionable errors, and a lazy Razorpay Checkout SDK loader.
 - [x] Replaced B2C scenario responses with live `POST /api/agents/search/` requests and dynamic in-flight agent progress states.
-- [x] Grounded recommendation cards in live Django/Groq response fields, including database product IDs required by checkout.
+- [x] Grounded recommendation cards in live Django/Gemini response fields, including database product IDs required by checkout.
 - [x] Replaced simulated checkout progression with server-side order creation and Razorpay Checkout initialization after explicit buyer approval.
 - [x] Changed the client success state to `Order Placed`; authoritative `PAID` status, inventory decrement, and merchant conversion events remain webhook-controlled.
 - [x] Replaced merchant inventory mock state with paginated `GET /api/merchants/products/` data and connected catalog edits to DRF create/patch operations.
@@ -149,7 +149,7 @@
 - [x] Documented the exact 21st.dev reference and licensing boundaries in `docs/UI.md`; no private registry, paid-template, imagery, or unknown-license source was copied.
 - [x] Expanded the live demo catalog to 74 attributed products through an idempotent pinned MIT/CC0 seed command; every imported record carries provenance and demo-data flags.
 - [x] Replaced static Recent intents with buyer-owned UUID conversations, signed guest continuation, memory-only guest UI state, private history loading, and cross-user 404 isolation.
-- [x] Switched the default structured model to open-weight GPT-OSS, added deterministic category/budget parsing and empty-result relaxation, capped output at three, and verified the representative keyboard prompt returns three grounded matches.
+- [x] Added deterministic category/budget parsing and empty-result relaxation, capped structured model output at three, and verified the representative keyboard prompt returns three grounded matches.
 - [x] Applied `agents.0003` and `merchants.0005`; passed all 48 backend tests, Django/migration checks, catalog smoke testing, diff validation, and the 1,656-module frontend production build.
 - [x] Added CSRF-protected, throttled buyer registration with Django password validation, automatic secure session creation, case-insensitive identity checks, and explicit separation from merchant onboarding.
 - [x] Added navbar Sign up actions and a responsive 21st.dev-inspired sign-in/create-account card; rebuilt checkout as a four-stage basket, quote, payment, and verified-status experience without weakening server authority.
@@ -212,7 +212,7 @@
 - `backend/apps/merchants/views.py` (Complete — tenant-scoped catalog CRUD, performance annotations, and live workspace health/operations snapshot)
 - `backend/apps/merchants/migrations/0001_initial.py` (Applied)
 - `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
-- `backend/apps/agents/` (Complete — open-weight GPT-OSS orchestration, durable private conversations/decisions, deterministic retrieval and growth suggestions, and explicit offer responses)
+- `backend/apps/agents/` (Complete — Gemini orchestration, durable private conversations/decisions, deterministic retrieval and growth suggestions, and explicit offer responses)
 - `backend/apps/orders/` (Complete locally — multi-line lifecycle plus payload-free webhook inbox, exact reconciliation, bounded refund/manual review, immutable trace, and verified payment/refund authority)
 - `backend/apps/agents/tools.py` (Complete — hybrid SQL/pgvector catalog search and fallback)
 - `backend/apps/agents/services.py` (Complete — open-model orchestration, relaxed deterministic retry, evidence-ranked 1-3 result contract)
@@ -239,8 +239,8 @@
 - The local Windows PostgreSQL 18 server now provides pgvector 0.8.6. The `vector` extension, 128-dimensional product embedding table, and HNSW cosine index are active and backfilled; indexed SQL fallback remains available for hosts without the extension.
 - The WSL Node.js runtime is 18.19 and cannot parse the installed Vite version; production builds use the installed Windows Node 22.20 runtime and pass.
 - Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
-- Open-model inference defaults to `openai/gpt-oss-20b` through `OPEN_MODEL_NAME`; provider and Razorpay credentials remain environment-managed, and deterministic retrieval works without model availability.
-- Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate the affected Groq key and database password before continuing, even though the real `.env` remains gitignored.
+- Gemini inference defaults to the stable `gemini-3.7-flash` model through `GEMINI_MODEL`; provider and Razorpay credentials remain environment-managed, and deterministic retrieval works without model availability.
+- Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate any affected historical provider key and database password before continuing, even though the real `.env` remains gitignored.
 - Phase 11 implementation and local acceptance tests are complete, but Phase 11 remains in progress until the deployed public webhook is registered and redacted evidence captures one real Razorpay test success, one graceful failure, and duplicate delivery. No dashboard registration or real test-mode charge was claimed from the local environment. The browser callback intentionally never marks an order paid.
 - Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
 - Local `check --deploy` reports the expected development-only warnings because `.env` intentionally has `DEBUG=True`, HTTP redirects/HSTS disabled, and non-secure cookies. Render production values enable HTTPS, secure cookies, redirects, and HSTS.
@@ -249,3 +249,4 @@
 - Neon cutover preparation preserves `sslmode`, `channel_binding`, and supported routing options from `DATABASE_URL`; `docs/NeonRunbook.md` documents credential-safe backup, direct restore/migration, validation, deployment, and rollback.
 - Neon PostgreSQL 18 in AWS US West 2 (Oregon) is populated from the retained local backup: all 35 public tables and 254 rows matched, migrations/checks passed, and the pgvector HNSW index is ready. Local Django loads the ignored `.env.neon` connection; the undeployed Render Blueprint now pins Oregon and requests the same Neon URL as a secret for the API and both workers.
 - Public registration now atomically creates buyer access and a new owner-scoped merchant profile; client input cannot select or join an existing merchant. The existing `subhodeeproy37@gmail.com` account was granted its own merchant workspace in Neon.
+- Replaced the Groq/GPT-OSS inference adapter with the official Google Gen AI SDK and stable `gemini-3.7-flash`; new provider events use `GEMINI` while historical `GROQ` audit provenance is preserved, and strict function arguments, structured recommendation validation, live catalog grounding, and deterministic fallback remain mandatory.

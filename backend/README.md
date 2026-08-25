@@ -68,10 +68,11 @@ Authenticated merchant product CRUD is available at `http://localhost:8000/api/m
 Merchant relationship/offer CRUD is available at `http://localhost:8000/api/merchants/product-relationships/`. Both products must belong to the merchant; active add-on targets must be active and in stock.
 
 The buyer-agent endpoint accepts `{"query": "..."}` at
-`http://localhost:8000/api/agents/search/`. It uses the Apache-2.0 open-weight
-GPT-OSS model for structured tool calling when `GROQ_API_KEY` is configured and
+`http://localhost:8000/api/agents/search/`. It uses Google's Gemini API for
+structured tool calling when `GEMINI_API_KEY` is configured and
 falls back to deterministic ORM retrieval if the provider is unavailable or
-over-constrains the catalog. `OPEN_MODEL_NAME` selects the model.
+over-constrains the catalog. `GEMINI_MODEL` selects the model and defaults to
+the stable `gemini-3.7-flash` endpoint.
 Each response includes a UUID `conversation_id`. Logged-in buyers can list and
 open only their own history at `GET /api/agents/conversations/` and
 `GET /api/agents/conversations/{id}/`. Anonymous searches receive a short-lived,
@@ -150,7 +151,7 @@ The client pauses for exact human approval, never imports Django internals, and 
 
 WhiteNoise serves compressed, hashed Django static assets. `render.yaml` and
 `Procfile` provide Render/Gunicorn commands, while all hosts, origins, database,
-Groq, and Razorpay values remain environment-driven. Set the frontend's
+Gemini, and Razorpay values remain environment-driven. Set the frontend's
 `VITE_API_BASE_URL` to the deployed API URL ending in `/api/`.
 
 ## Catalog JSON schema

@@ -5,7 +5,8 @@ from apps.merchants.models import Merchant, Product
 
 class AgentSearchImpression(models.Model):
     class Source(models.TextChoices):
-        GROQ = "GROQ", "Groq"
+        GEMINI = "GEMINI", "Gemini"
+        GROQ = "GROQ", "Groq (legacy)"
         FALLBACK = "FALLBACK", "ORM fallback"
 
     merchant = models.ForeignKey(Merchant, on_delete=models.PROTECT, related_name="agent_search_impressions")

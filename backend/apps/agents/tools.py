@@ -210,14 +210,11 @@ def fallback_product_search(user_prompt: str, limit: int = 5) -> list[dict[str, 
     return search_merchant_products(deterministic_search_arguments(user_prompt, limit))
 
 
-SEARCH_MERCHANT_PRODUCTS_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "search_merchant_products",
-        "description": (
-            "Search the Nexora merchant catalog for active, in-stock products. "
-            "Use explicit price, category, rating, and structured specification constraints from the buyer intent."
-        ),
-        "parameters": ProductSearchSchema.model_json_schema(),
-    },
+SEARCH_MERCHANT_PRODUCTS_FUNCTION = {
+    "name": "search_merchant_products",
+    "description": (
+        "Search the Nexora merchant catalog for active, in-stock products. "
+        "Use explicit price, category, rating, and structured specification constraints from the buyer intent."
+    ),
+    "parameters_json_schema": ProductSearchSchema.model_json_schema(),
 }

@@ -4,12 +4,14 @@ import os
 from typing import Any
 
 from django.conf import settings
-from groq import APIError, Groq
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .prompts import BUYER_AGENT_SYSTEM_PROMPT, RECOMMENDATION_SYSTEM_PROMPT
 from .tools import (
-    SEARCH_MERCHANT_PRODUCTS_TOOL,
+    SEARCH_MERCHANT_PRODUCTS_FUNCTION,
     ProductSearchSchema,
     deterministic_search_arguments,
     extract_max_price,
@@ -18,7 +20,7 @@ from .tools import (
 )
 
 
-DEFAULT_OPEN_MODEL = "openai/gpt-oss-20b"
+DEFAULT_GEMINI_MODEL = "gemini-3.7-flash"
 MAX_TOOL_ATTEMPTS = 2
 MAX_OUTPUT_ATTEMPTS = 2
 logger = logging.getLogger(__name__)
@@ -159,106 +161,100 @@ def _attach_growth_suggestions(
     )
 
 
-def _groq_client() -> Groq:
-    api_key = os.getenv("GROQ_API_KEY")
+def _gemini_client() -> genai.Client:
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise AgentServiceError("GROQ_API_KEY is not configured")
-    return Groq(api_key=api_key, timeout=20, max_retries=1)
+        raise AgentServiceError("GEMINI_API_KEY is not configured")
+    return genai.Client(
+        api_key=api_key,
+        http_options=genai_types.HttpOptions(timeout=20_000),
+    )
 
 
 def _model_name() -> str:
-    # GROQ_MODEL remains a backwards-compatible alias for existing deployments.
-    return os.getenv("OPEN_MODEL_NAME") or os.getenv("GROQ_MODEL", DEFAULT_OPEN_MODEL)
+    return os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
 
 
-def _extract_tool_call(client: Groq, user_prompt: str):
-    messages = [
-        {"role": "system", "content": BUYER_AGENT_SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
+def _extract_tool_call(client: genai.Client, user_prompt: str) -> ProductSearchSchema:
+    tool = genai_types.Tool(
+        function_declarations=[
+            genai_types.FunctionDeclaration(**SEARCH_MERCHANT_PRODUCTS_FUNCTION)
+        ]
+    )
     last_error: Exception | None = None
 
     for attempt in range(MAX_TOOL_ATTEMPTS):
-        completion = client.chat.completions.create(
-            model=_model_name(),
-            messages=messages,
-            tools=[SEARCH_MERCHANT_PRODUCTS_TOOL],
-            tool_choice="required",
-            parallel_tool_calls=False,
-            temperature=0,
-            max_completion_tokens=700,
+        retry_instruction = (
+            "\nRetry with exactly one valid search_merchant_products call using its strict schema."
+            if attempt
+            else ""
         )
-        message = completion.choices[0].message
-        tool_calls = message.tool_calls or []
-        if tool_calls:
-            tool_call = tool_calls[0]
-            if tool_call.function.name != "search_merchant_products":
+        response = client.models.generate_content(
+            model=_model_name(),
+            contents=user_prompt + retry_instruction,
+            config=genai_types.GenerateContentConfig(
+                system_instruction=BUYER_AGENT_SYSTEM_PROMPT,
+                tools=[tool],
+                tool_config=genai_types.ToolConfig(
+                    function_calling_config=genai_types.FunctionCallingConfig(
+                        mode=genai_types.FunctionCallingConfigMode.ANY,
+                        allowed_function_names=["search_merchant_products"],
+                    )
+                ),
+                max_output_tokens=700,
+            ),
+        )
+        function_calls = response.function_calls or []
+        if function_calls:
+            function_call = function_calls[0]
+            if function_call.name != "search_merchant_products":
                 last_error = AgentServiceError("Model selected an unsupported tool")
             else:
                 try:
-                    arguments = ProductSearchSchema.model_validate_json(tool_call.function.arguments)
-                    return messages, message, tool_call, arguments
+                    return ProductSearchSchema.model_validate(function_call.args or {})
                 except ValidationError as exc:
                     last_error = exc
         else:
             last_error = AgentServiceError("Model did not request a catalog search")
 
-        if attempt + 1 < MAX_TOOL_ATTEMPTS:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": "Retry with exactly one valid search_merchant_products call using its strict schema.",
-                }
-            )
-
-    raise AgentServiceError("Open model returned invalid tool arguments") from last_error
+    raise AgentServiceError("Gemini returned invalid tool arguments") from last_error
 
 
 def _parse_recommendations(
-    client: Groq,
-    messages: list[dict[str, Any]],
+    client: genai.Client,
+    user_prompt: str,
     candidates: list[dict[str, Any]],
 ) -> BuyerAgentResponse:
-    schema = BuyerAgentResponse.model_json_schema()
-    final_messages = [
-        *messages,
-        {
-            "role": "user",
-            "content": (
-                f"{RECOMMENDATION_SYSTEM_PROMPT}\n\n"
-                "Compare the catalog results and return recommendation JSON. "
-                f"The exact output schema is: {json.dumps(schema, separators=(',', ':'))}"
-            ),
-        },
-    ]
+    base_prompt = (
+        f"Buyer request: {user_prompt}\n\n"
+        "Compare only these exact catalog candidates and return the grounded recommendation object:\n"
+        f"{json.dumps(candidates, separators=(',', ':'))}"
+    )
     last_error: Exception | None = None
 
     for attempt in range(MAX_OUTPUT_ATTEMPTS):
-        completion = client.chat.completions.create(
-            model=_model_name(),
-            messages=final_messages,
-            response_format={"type": "json_object"},
-            temperature=0,
-            max_completion_tokens=1800,
+        correction = (
+            "\nThe previous output failed validation. Return a corrected object matching the schema exactly."
+            if attempt
+            else ""
         )
-        content = completion.choices[0].message.content or ""
+        response = client.models.generate_content(
+            model=_model_name(),
+            contents=base_prompt + correction,
+            config=genai_types.GenerateContentConfig(
+                system_instruction=RECOMMENDATION_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_json_schema=BuyerAgentResponse.model_json_schema(),
+                max_output_tokens=1800,
+            ),
+        )
         try:
-            response = BuyerAgentResponse.model_validate_json(content)
-            return _ground_recommendations(response, candidates)
+            parsed = BuyerAgentResponse.model_validate_json(response.text or "")
+            return _ground_recommendations(parsed, candidates)
         except (ValidationError, ValueError) as exc:
             last_error = exc
-            if attempt + 1 < MAX_OUTPUT_ATTEMPTS:
-                final_messages.extend(
-                    [
-                        {"role": "assistant", "content": content},
-                        {
-                            "role": "user",
-                            "content": "The previous JSON failed strict validation. Correct it to match the schema exactly, with no markdown.",
-                        },
-                    ]
-                )
 
-    raise AgentServiceError("Open model returned invalid recommendation JSON") from last_error
+    raise AgentServiceError("Gemini returned invalid recommendation JSON") from last_error
 
 
 def _ground_recommendations(
@@ -289,7 +285,7 @@ def _ground_recommendations(
         )
 
     if candidates and not grounded:
-        raise AgentServiceError("Open-model recommendations did not reference catalog products")
+        raise AgentServiceError("Gemini recommendations did not reference catalog products")
     return response.model_copy(update={"recommendations": grounded})
 
 
@@ -406,8 +402,8 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         raise ValueError("user_prompt cannot exceed 2,000 characters")
 
     try:
-        client = _groq_client()
-        messages, assistant_message, tool_call, arguments = _extract_tool_call(client, prompt)
+        client = _gemini_client()
+        arguments = _extract_tool_call(client, prompt)
         candidates = search_merchant_products(arguments)
         if not candidates:
             # Model-extracted optional specs can be too strict for a small catalog. Retry with
@@ -418,31 +414,20 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
                 arguments = relaxed_arguments
             else:
                 _record_search(
-                    prompt, [], "GROQ", max_price=arguments.max_price, category=arguments.category
+                    prompt, [], "GEMINI", max_price=arguments.max_price, category=arguments.category
                 )
                 result = _empty_response(
                     "Parsed the intent and searched active, in-stock merchant inventory."
                 ).model_dump(mode="json")
                 result["_audit_context"] = {
-                    "provider_source": "GROQ",
+                    "provider_source": "GEMINI",
                     "parsed_constraints": arguments.model_dump(mode="json"),
                     "catalog_candidate_ids": [],
                 }
                 return result
 
-        messages.extend(
-            [
-                assistant_message.model_dump(exclude_none=True),
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "name": tool_call.function.name,
-                    "content": json.dumps(candidates, separators=(",", ":")),
-                },
-            ]
-        )
         response = _attach_growth_suggestions(
-            _parse_recommendations(client, messages, candidates),
+            _parse_recommendations(client, prompt, candidates),
             arguments.model_dump(mode="json"),
         )
         recommended_ids = {item.product_id for item in response.recommendations}
@@ -450,19 +435,24 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         _record_search(
             prompt,
             recommended_candidates,
-            "GROQ",
+            "GEMINI",
             max_price=arguments.max_price,
             category=arguments.category,
         )
         result = response.model_dump(mode="json")
         result["_audit_context"] = {
-            "provider_source": "GROQ",
+            "provider_source": "GEMINI",
             "parsed_constraints": arguments.model_dump(mode="json"),
             "catalog_candidate_ids": [candidate["id"] for candidate in candidates],
         }
         return result
-    except (APIError, AgentServiceError, ValidationError, json.JSONDecodeError, ValueError) as exc:
-        reason = "provider request failed" if isinstance(exc, APIError) else "configuration or provider output error"
+    except (genai_errors.APIError, AgentServiceError, ValidationError, ValueError) as exc:
+        logger.warning("Gemini buyer-agent fallback after %s", type(exc).__name__)
+        reason = (
+            "provider request failed"
+            if isinstance(exc, genai_errors.APIError)
+            else "configuration or provider output error"
+        )
         response = _attach_growth_suggestions(
             _fallback_response(prompt, reason),
             {"max_price": extract_max_price(prompt)},

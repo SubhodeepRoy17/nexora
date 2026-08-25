@@ -9,7 +9,7 @@ Official Track 01 reference: <https://razorpay.com/buildathon/>
 Nexora already demonstrates the core Track 01 direction:
 
 - A Django/PostgreSQL merchant catalog with structured specifications and live CRUD APIs.
-- Groq tool calling with validated output, grounded recommendations, and deterministic SQL fallback.
+- Gemini function calling with validated structured output, grounded recommendations, and deterministic SQL fallback.
 - Hybrid PostgreSQL/pgvector search with pgvector 0.8.6 and an HNSW index.
 - Explicit buyer approval before Razorpay Checkout is opened.
 - Server-authoritative Razorpay order creation and signed webhook processing.
@@ -340,7 +340,7 @@ Task: Produce honest, repeatable evidence that Nexora recommends accurately, res
 
 2. Metrics and evaluator:
    - Measure constraint satisfaction, catalog groundedness, unsupported-claim rate, top-k relevance, correct no-result behavior, add-on compatibility, fallback success, and p50/p95 latency.
-   - Report Groq and deterministic fallback results separately.
+   - Report Gemini and deterministic fallback results separately.
    - Make failures inspectable and never hide or cherry-pick them.
 
 3. Analytics integrity:
@@ -390,7 +390,7 @@ Task: Establish a submission-grade quality gate covering the full agentic-commer
 4. Performance and resilience:
    - Measure agent search, catalog API, quote creation, order status, analytics, and webhook processing at realistic demo volumes.
    - Add query-count assertions for hot paths and verify indexes with PostgreSQL query plans.
-   - Test Groq timeout/rate limit, pgvector absence, Razorpay timeout, duplicate client submission, and database retry behavior.
+   - Test Gemini timeout/rate limit, pgvector absence, Razorpay timeout, duplicate client submission, and database retry behavior.
 
 5. CI quality gate:
    - Add CI that provisions PostgreSQL with pgvector, installs locked dependencies, checks migrations, runs backend and frontend tests, builds the frontend, performs lint/static checks, and scans for committed secrets.
@@ -411,7 +411,7 @@ Task: Establish a submission-grade quality gate covering the full agentic-commer
 ```text
 Read docs/PRD.md, docs/Architecture.md, docs/Rules.md, docs/Phases.md, docs/Memory.md, and docs/Upcoming.md. Transitioning to Phase 15 — Deployment, Demo Data, and Operational Readiness.
 
-Task: Deploy a reproducible public demo with PostgreSQL/pgvector, Groq, and Razorpay test mode, and prove that it survives a clean setup and realistic end-to-end smoke test.
+Task: Deploy a reproducible public demo with PostgreSQL/pgvector, Gemini, and Razorpay test mode, and prove that it survives a clean setup and realistic end-to-end smoke test.
 
 1. Reproducible environments:
    - Pin or lock backend and frontend dependencies and document supported Python, Node, PostgreSQL, and pgvector versions.
@@ -424,7 +424,7 @@ Task: Deploy a reproducible public demo with PostgreSQL/pgvector, Groq, and Razo
    - Configure correct HTTPS hosts, CORS/CSRF origins, secure cookies, HSTS after HTTPS verification, API base URL, and trusted proxies.
 
 3. External services:
-   - Configure Groq and Razorpay test-mode credentials through the host secret manager.
+   - Configure Gemini and Razorpay test-mode credentials through the host secret manager.
    - Register the exact public Razorpay webhook URL and secret.
    - Confirm no live-mode key or real charge can be used in the demo environment.
 
@@ -460,7 +460,7 @@ Task: Turn the verified project into a concise public submission that proves Tra
    - Remove dead code, obsolete mocks, generated artifacts, debug logs, local paths, secrets, personal data, and misleading claims.
 
 2. Architecture evidence:
-   - Create a readable architecture diagram showing buyer/merchant clients, authenticated API boundaries, Groq tool loop, PostgreSQL/pgvector, policy/approval gate, quote/reservation/order state machine, Razorpay Checkout, verified webhook inbox, reconciliation, audit ledger, and analytics.
+   - Create a readable architecture diagram showing buyer/merchant clients, authenticated API boundaries, Gemini function-call loop, PostgreSQL/pgvector, policy/approval gate, quote/reservation/order state machine, Razorpay Checkout, verified webhook inbox, reconciliation, audit ledger, and analytics.
    - Add a money-action sequence diagram and a graceful-failure sequence diagram.
 
 3. Five-minute pitch package:

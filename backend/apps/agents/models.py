@@ -45,7 +45,8 @@ class ChatMessage(models.Model):
 
 class AgentSession(models.Model):
     class Source(models.TextChoices):
-        GROQ = "GROQ", "Groq"
+        GEMINI = "GEMINI", "Gemini"
+        GROQ = "GROQ", "Groq (legacy)"
         FALLBACK = "FALLBACK", "Deterministic fallback"
 
     session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
