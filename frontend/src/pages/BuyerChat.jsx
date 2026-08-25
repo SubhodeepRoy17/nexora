@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bot, Clock3, Menu, Plus, Sparkles, User } from 'lucide-react'
+import { Bot, Clock3, Menu, Plus, Sparkles, Trash2, User } from 'lucide-react'
 import AgentThinkingStep from '../components/chat/AgentThinkingStep'
 import ChatInput from '../components/chat/ChatInput'
 import CheckoutModal from '../components/chat/CheckoutModal'
@@ -8,7 +8,7 @@ import BuyerOrders from '../components/chat/BuyerOrders'
 import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { examplePrompts, onboardingMessages } from '../data/onboarding'
-import { extractResults, getApiError, getChatSession, getChatSessions, searchProducts, toAddOnProduct, toRecommendationProduct } from '../services/api'
+import { deleteChatSession, extractResults, getApiError, getChatSession, getChatSessions, searchProducts, toAddOnProduct, toRecommendationProduct } from '../services/api'
 
 const liveThinkingSteps = [
   { id: 'parse', label: 'Parsing intent', detail: 'Extracting budget, use case, and required features' },
@@ -46,6 +46,7 @@ export default function BuyerChat() {
   const [conversationToken, setConversationToken] = useState(null)
   const [chatSessions, setChatSessions] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [deletingConversationId, setDeletingConversationId] = useState(null)
   const [historyError, setHistoryError] = useState('')
   const [orderRefreshNonce, setOrderRefreshNonce] = useState(0)
   const logRef = useRef(null)
@@ -138,6 +139,21 @@ export default function BuyerChat() {
     }
   }
 
+  const removeChatSession = async (sessionId) => {
+    if (activeRun || historyLoading || deletingConversationId) return
+    setDeletingConversationId(sessionId)
+    setHistoryError('')
+    try {
+      await deleteChatSession(sessionId)
+      setChatSessions((current) => current.filter((item) => item.conversation_id !== sessionId))
+      if (conversationId === sessionId) startNewIntent()
+    } catch (error) {
+      setHistoryError(getApiError(error, 'Could not delete this chat history.'))
+    } finally {
+      setDeletingConversationId(null)
+    }
+  }
+
   const submitMessage = async (rawQuery) => {
     const query = rawQuery.trim()
     if (!query || activeRun) return
@@ -226,9 +242,12 @@ export default function BuyerChat() {
             {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-[10px] text-slate-400">Loading your chats…</p>}
             {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-[10px] text-slate-400">Your completed searches will appear here.</p>}
             {user && chatSessions.map((session) => (
-              <button key={session.conversation_id} type="button" disabled={Boolean(activeRun) || historyLoading} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 border px-3 py-3 text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-violet-50 text-violet-900' : 'border-transparent text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950'}`}>
-                <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} /><span className="truncate">{session.title}</span>
-              </button>
+              <div key={session.conversation_id} className="group relative">
+                <button type="button" disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 border py-3 pl-3 pr-11 text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-violet-50 text-violet-900' : 'border-transparent text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950'}`}>
+                  <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} /><span className="truncate">{session.title}</span>
+                </button>
+                <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => removeChatSession(session.conversation_id)} aria-label={`Delete ${session.title} chat history`} title="Delete chat history" className="focus-ring absolute right-2 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-rose-600 opacity-100 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"><Trash2 size={13} /></button>
+              </div>
             ))}
             {historyError && <p className="px-3 py-2 text-[10px] leading-4 text-rose-600">{historyError}</p>}
           </div>

@@ -4,6 +4,8 @@
 
 Nexora accepts money only through an explicitly approved server quote and Razorpay test Checkout. Browser callbacks are hints. Final payment/refund state comes from a verified webhook or, for payment capture only, an exact server-to-server reconciliation result.
 
+After a valid Checkout return, Nexora immediately fetches the signed payment ID from Razorpay and settles only if the provider reports the exact order-bound amount and currency as captured. This is the safe fallback during local development because Razorpay cannot deliver webhooks to `localhost`. Deployed environments must still register the public HTTPS webhook below; the scheduled stale-order reconciler remains the delayed recovery layer.
+
 The implementation follows Razorpay's guidance to verify the untouched raw body, deduplicate using `x-razorpay-event-id`, and tolerate out-of-order delivery. See [webhook validation and idempotency](https://razorpay.com/docs/webhooks/validate-test/), [payment events](https://razorpay.com/docs/webhooks/payments/), and [refund events](https://razorpay.com/docs/webhooks/refunds/).
 
 ## Environment

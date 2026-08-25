@@ -32,6 +32,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const [reasonCode, setReasonCode] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [checkoutProofVerified, setCheckoutProofVerified] = useState(false)
+  const [pollingStopped, setPollingStopped] = useState(false)
   const [statusUpdatedAt, setStatusUpdatedAt] = useState(null)
   const approvalKey = useRef(newIdempotencyKey('quote-approval'))
   const paymentKey = useRef(newIdempotencyKey('payment-order'))
@@ -47,6 +48,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
     setError('')
     setReasonCode('')
     setCheckoutProofVerified(false)
+    setPollingStopped(false)
     notifiedPaid.current = false
     approvalKey.current = newIdempotencyKey('quote-approval')
     paymentKey.current = newIdempotencyKey('payment-order')
@@ -78,11 +80,17 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           setStage('verifying')
         }
       } catch (pollError) {
-        if (!signal?.aborted) setError(getApiError(pollError, 'Could not refresh authoritative order status.'))
+        if (!signal?.aborted) {
+          setError(getApiError(pollError, 'Could not refresh authoritative order status.'))
+          if (pollError?.response?.status === 404) {
+            setPollingStopped(true)
+            setStage('error')
+          }
+        }
       }
   }, [order?.order_id, onOrderPlaced, product])
   useBoundedPolling(pollOrder, {
-    enabled: Boolean(order?.order_id && !terminalStates.has(order.status)),
+    enabled: Boolean(order?.order_id && !terminalStates.has(order.status) && !pollingStopped),
     intervalMs: 2500,
     maxCycles: 120,
   })
@@ -148,20 +156,28 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
 
   const approveAndReserve = async () => {
     if (!quote || !approvedExactQuote || remainingSeconds <= 0) return
-    setStage('approving')
     setError('')
+    setReasonCode('')
+    setStage('opening')
+    try {
+      await loadRazorpayCheckout()
+    } catch (sdkError) {
+      setError(getApiError(sdkError, 'Razorpay Checkout could not be loaded.'))
+      setStage('error')
+      return
+    }
+
+    setStage('approving')
     try {
       const approval = await approveQuote(quote.quote_id, approvalKey.current)
       setStage('reserving')
-      const [orderResponse] = await Promise.all([
-        createOrder({
-          quoteId: quote.quote_id,
-          approvalToken: approval.data.approval_token,
-          idempotencyKey: paymentKey.current,
-        }),
-        loadRazorpayCheckout(),
-      ])
+      const orderResponse = await createOrder({
+        quoteId: quote.quote_id,
+        approvalToken: approval.data.approval_token,
+        idempotencyKey: paymentKey.current,
+      })
       const authoritativeOrder = orderResponse.data
+      setPollingStopped(false)
       setOrder(authoritativeOrder)
       setStage('opening')
       const checkout = new window.Razorpay({
@@ -174,13 +190,22 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         prefill: { email: user.email },
         theme: { color: '#6366F1', backdrop_color: '#020617' },
         handler: async (paymentResult) => {
-          // Browser success is only a hint. Polling waits for the verified webhook.
+          // Browser success is only a hint. The backend verifies it, then asks
+          // Razorpay directly for authoritative capture state.
           setStage('verifying')
           setOrder((current) => ({ ...current, status: 'PAYMENT_PENDING' }))
           try {
             const { data } = await verifyCheckoutPayment(authoritativeOrder.order_id, paymentResult)
             setCheckoutProofVerified(Boolean(data.checkout_signature_verified))
-            if (data.order) setOrder(data.order)
+            if (data.order) {
+              setOrder(data.order)
+              setStatusUpdatedAt(new Date().toISOString())
+              if (data.order.status === 'PAID' && !notifiedPaid.current) {
+                notifiedPaid.current = true
+                setStage('paid')
+                onOrderPlaced({ product, order: data.order })
+              }
+            }
           } catch (verificationError) {
             setCheckoutProofVerified(false)
             setError(getApiError(verificationError, 'Checkout returned, but its browser proof could not be verified. Provider reconciliation will continue.'))
@@ -214,8 +239,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
   const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : ['approving', 'reserving', 'opening'].includes(stage) ? 2 : 3
-  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : stage === 'refunding' ? 'Refund confirmation pending' : ['verifying', 'opening', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : processing ? 'Securing your checkout' : 'Checkout stopped safely'
-  const stageCopy = stage === 'paid' ? 'Razorpay’s signed webhook confirmed payment and the reservation was consumed exactly once.' : stage === 'refunding' ? statusMessages.REFUND_PENDING : ['verifying', 'opening', 'cancelling'].includes(stage) ? `The browser cannot mark this order paid. Nexora is polling the authoritative backend status.${checkoutProofVerified ? ' The Checkout signature was valid, but settlement is still pending.' : ''}` : statusMessages[order?.status] ?? 'Review each line, see the exact total, and approve only when the basket matches your intent.'
+  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : stage === 'refunding' ? 'Refund confirmation pending' : stage === 'opening' ? 'Preparing Razorpay Checkout' : ['verifying', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : processing ? 'Securing your checkout' : 'Checkout stopped safely'
+  const stageCopy = stage === 'paid' ? 'Razorpay’s signed webhook or exact server reconciliation confirmed payment, and the reservation was consumed exactly once.' : stage === 'refunding' ? statusMessages.REFUND_PENDING : stage === 'opening' ? 'Loading the secure payment handoff before Nexora consumes your approval or reserves inventory.' : ['verifying', 'cancelling'].includes(stage) ? `The browser cannot mark this order paid. Nexora is polling the authoritative backend status.${checkoutProofVerified ? ' The Checkout signature was valid; Razorpay capture confirmation is still pending.' : ''}` : statusMessages[order?.status] ?? 'Review each line, see the exact total, and approve only when the basket matches your intent.'
   const displayLines = lines.length ? lines : [
     { product_title: product.name, merchant_name: product.merchant.name, quantity, line_total: product.price * quantity },
     ...selectedAddOns.map((item) => ({ product_title: item.name, merchant_name: item.merchant.name, quantity: 1, line_total: item.price, growth_offer: true })),
@@ -223,18 +248,21 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const checkoutSteps = ['Basket', 'Exact quote', 'Payment', 'Verified']
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-md sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="max-h-[96dvh] w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] text-slate-950 shadow-[0_30px_100px_rgba(2,6,23,.45)] sm:max-w-6xl">
-        <header className={`relative border-b px-5 py-5 sm:px-7 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-slate-800 bg-[#11131a] text-white'}`}>
-          {!processing && <button type="button" onClick={onClose} aria-label="Close checkout" className={`focus-ring absolute right-4 top-4 grid size-9 place-items-center border ${stopped || stage === 'paid' ? 'border-slate-300 bg-white text-slate-600' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}><X size={16} /></button>}
+    <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-md sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="modal-scroll max-h-full w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] text-slate-950 shadow-[0_30px_100px_rgba(2,6,23,.45)] sm:max-w-6xl">
+        <header className={`relative border-b px-5 py-5 sm:px-7 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-violet-200 bg-violet-50 text-slate-950'}`}>
+          {!processing && <button type="button" onClick={onClose} aria-label="Close checkout" className="focus-ring absolute right-4 top-4 grid size-9 place-items-center border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"><X size={16} /></button>}
           <div className="flex max-w-3xl items-start gap-4 pr-10">
             <span className={`grid size-11 shrink-0 place-items-center border ${stage === 'paid' ? 'border-emerald-600 bg-emerald-500 text-white' : stopped ? 'border-rose-600 bg-rose-500 text-white' : 'border-violet-400 bg-violet-600 text-white shadow-[3px_3px_0_#fff]'}`}>{stage === 'paid' ? <PackageCheck size={21} /> : stopped ? <AlertTriangle size={20} /> : processing || ['verifying', 'cancelling'].includes(stage) ? <LoaderCircle size={21} className="animate-spin" /> : <LockKeyhole size={20} />}</span>
-            <div><p className={`font-mono text-[8px] font-semibold uppercase tracking-[.16em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-violet-300'}`}>Nexora protected checkout</p><h2 id="checkout-title" className="mt-2 text-xl font-semibold sm:text-2xl">{stageTitle}</h2><p className={`mt-2 text-xs leading-5 sm:text-sm ${stopped || stage === 'paid' ? 'text-slate-600' : 'text-slate-400'}`}>{stageCopy}</p></div>
+            <div><p className={`font-mono text-[8px] font-semibold uppercase tracking-[.16em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-violet-700'}`}>Nexora protected checkout</p><h2 id="checkout-title" className="mt-2 text-xl font-semibold sm:text-2xl">{stageTitle}</h2><p className="mt-2 text-xs leading-5 text-slate-600 sm:text-sm">{stageCopy}</p></div>
           </div>
         </header>
 
         <nav className="grid grid-cols-4 border-b border-slate-300 bg-white" aria-label="Checkout progress">
-          {checkoutSteps.map((label, index) => <div key={label} className={`relative flex items-center gap-2 border-r border-slate-200 px-3 py-3 last:border-r-0 sm:px-5 ${index < stepIndex ? 'text-emerald-700' : index === stepIndex ? 'bg-violet-50 text-violet-700' : 'text-slate-400'}`}><span className={`grid size-5 shrink-0 place-items-center rounded-full border font-mono text-[8px] ${index < stepIndex ? 'border-emerald-500 bg-emerald-500 text-white' : index === stepIndex ? 'border-violet-600 bg-violet-600 text-white' : 'border-slate-300'}`}>{index < stepIndex ? <Check size={10} /> : index + 1}</span><span className="hidden text-[10px] font-semibold sm:inline">{label}</span></div>)}
+          {checkoutSteps.map((label, index) => {
+            const complete = index < stepIndex || (stage === 'paid' && index === stepIndex)
+            return <div key={label} className={`relative flex items-center gap-2 border-r border-slate-200 px-3 py-3 last:border-r-0 sm:px-5 ${complete ? 'text-emerald-700' : index === stepIndex ? 'bg-violet-50 text-violet-700' : 'text-slate-400'}`}><span className={`grid size-5 shrink-0 place-items-center rounded-full border font-mono text-[8px] ${complete ? 'border-emerald-600 bg-emerald-600 text-white' : index === stepIndex ? 'border-violet-600 bg-violet-600 text-white' : 'border-slate-300 bg-white text-slate-500'}`}>{complete ? <Check size={11} strokeWidth={3} /> : index + 1}</span><span className="hidden text-[10px] font-semibold sm:inline">{label}</span></div>
+          })}
         </nav>
 
         <div className="grid lg:grid-cols-[1.18fr_.82fr]">

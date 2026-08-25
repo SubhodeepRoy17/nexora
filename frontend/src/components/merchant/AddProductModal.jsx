@@ -78,8 +78,8 @@ export default function AddProductModal({ open, product, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/85 backdrop-blur-md sm:place-items-center sm:p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="product-modal-title" onSubmit={submit} className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 shadow-2xl sm:max-w-3xl sm:rounded-3xl">
+    <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-slate-950/85 backdrop-blur-md sm:place-items-center sm:p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="product-modal-title" onSubmit={submit} className="modal-scroll max-h-full w-full overflow-y-auto rounded-t-3xl border border-slate-700 bg-slate-900 shadow-2xl sm:max-w-3xl sm:rounded-3xl">
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-800 bg-slate-900/95 p-5 backdrop-blur-xl sm:p-6">
           <div><p className="mono-label text-indigo-400">Structured catalog</p><h2 id="product-modal-title" className="mt-2 text-lg font-semibold text-white">{product ? 'Edit product' : 'Add a new product'}</h2><p className="mt-1 text-xs text-slate-500">Metadata updates automatically as specifications change.</p></div>
           <button type="button" onClick={onClose} aria-label="Close product form" className="rounded-full border border-slate-700 p-2 text-slate-400 hover:text-white"><X size={16} /></button>

@@ -91,7 +91,7 @@ Payment endpoints:
 - `POST /api/orders/create/` requires a separate `Idempotency-Key`, `quote_id`, and `approval_token`. It locks products, revalidates, snapshots `OrderItem` rows, reserves inventory, and creates the exact Razorpay order.
 - `GET /api/orders/{order_id}/` returns authoritative status and historical lines for bounded frontend polling.
 - `POST /api/orders/{order_id}/cancel/` cancels eligible buyer orders and releases active inventory exactly once.
-- `POST /api/orders/{order_id}/payment-status/` verifies browser Checkout proof for feedback but never settles the order or stores the signature.
+- `POST /api/orders/{order_id}/payment-status/` verifies browser Checkout proof, then fetches the exact payment from Razorpay. The browser proof never settles the order or stores its signature; only a matching provider-reported capture can reuse the idempotent settlement path. This safely covers local demos where Razorpay cannot deliver a webhook to `localhost`.
 - `POST /api/orders/webhook/razorpay/` verifies the untouched raw body, writes a payload-free deduplicated inbox record, and applies deterministic payment/refund transitions.
 - `GET /api/orders/audits/` returns only the signed-in merchant's webhook-backed timeline records.
 - `GET /api/orders/money-audits/` returns a sanitized intent-to-payment trace scoped to the current buyer or merchant.

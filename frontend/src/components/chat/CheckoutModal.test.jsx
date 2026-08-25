@@ -76,6 +76,16 @@ describe('approval-gated checkout', () => {
     expect(screen.getAllByText('Backend Keyboard')).toHaveLength(2)
   })
 
+  it('does not consume approval or reserve stock when Razorpay Checkout cannot load', async () => {
+    const sdkError = new Error('Razorpay Checkout failed to load.')
+    sdkError.code = 'RAZORPAY_SDK_LOAD_FAILED'
+    apiMocks.loadRazorpayCheckout.mockRejectedValue(sdkError)
+    const user = userEvent.setup(); renderCheckout(); await reachQuote(user); await approve(user)
+    expect(await screen.findByText(/Razorpay Checkout could not load/i)).toBeInTheDocument()
+    expect(apiMocks.approveQuote).not.toHaveBeenCalled()
+    expect(apiMocks.createOrder).not.toHaveBeenCalled()
+  })
+
   it('shows success only after the authoritative order endpoint reports webhook-confirmed PAID', async () => {
     const paidOrder = { ...pendingOrder, status: 'PAID', cancellable: false, paid_at: new Date().toISOString() }
     apiMocks.getOrder.mockResolvedValue({ data: paidOrder })

@@ -78,8 +78,8 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
 
   const paid = order.status === 'PAID'
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-sm sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="max-h-[94dvh] w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] p-5 shadow-2xl sm:max-w-2xl sm:p-7">
+    <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-sm sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="modal-scroll max-h-full w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] p-5 shadow-2xl sm:max-w-2xl sm:p-7">
         <header className="flex items-start justify-between gap-4"><div><p className="mono-label text-violet-600">Authoritative receipt</p><h2 id="order-detail-title" className="mt-2 text-xl font-semibold">Order {order.order_id.slice(0, 8).toUpperCase()}</h2><div className="mt-2"><DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={10000} /></div></div><button type="button" onClick={close} disabled={Boolean(state.action)} aria-label="Close order receipt" className="focus-ring grid size-9 place-items-center border border-slate-300 bg-white"><X size={16} /></button></header>
         <div className={`mt-5 border p-4 ${paid ? 'border-emerald-300 bg-emerald-50' : TERMINAL.has(order.status) ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`} role="status" aria-live="polite"><div className="flex items-center gap-2">{paid ? <CheckCircle2 size={17} className="text-emerald-600" /> : <Clock3 size={17} className="text-amber-600" />}<p className="text-sm font-semibold">{order.status.replaceAll('_', ' ')}</p></div><p className="mt-2 text-xs leading-5 text-slate-600">{statusCopy[order.status]}</p></div>
         {state.error && <p id="order-action-error" className="mt-4 border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800" role="alert">{state.error}</p>}
@@ -113,6 +113,10 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
   }, [user])
   useEffect(() => { const controller = new AbortController(); refresh(controller.signal); return () => controller.abort() }, [refresh, refreshNonce])
   useBoundedPolling(refresh, { enabled: Boolean(user && orders.some((item) => !TERMINAL.has(item.status))), intervalMs: 10000, maxCycles: 60, immediate: false })
+  const closeSelectedOrder = useCallback(() => setSelected(null), [])
+  const updateSelectedOrder = useCallback((changed) => {
+    setOrders((current) => current.map((item) => item.order_id === changed.order_id ? changed : item))
+  }, [])
   if (!user) return null
   return <>
     <section className="mt-6 border-t border-slate-200 pt-5" aria-labelledby="buyer-orders-title"><div className="flex items-center justify-between px-2"><p id="buyer-orders-title" className="mono-label text-slate-400">Your orders</p><DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={30000} /></div>
@@ -120,6 +124,6 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
       {!state.loading && !orders.length && <p className="mt-2 px-2 text-[10px] leading-5 text-slate-500">No orders yet. Approved checkouts appear here from the backend.</p>}
       <div className="mt-2 space-y-1">{orders.slice(0, 4).map((order) => <button key={order.order_id} type="button" onClick={() => setSelected(order)} className="focus-ring flex w-full items-center gap-2 border border-slate-200 bg-slate-50 px-2.5 py-2 text-left"><Package size={12} className="shrink-0 text-violet-600" /><span className="min-w-0 flex-1"><span className="block truncate text-[9px] font-semibold">{order.items?.[0]?.product_title ?? 'Order'}</span><span className="mt-0.5 block font-mono text-[7px] text-slate-500">{order.status.replaceAll('_', ' ')} · {money(order.total_amount, order.currency)}</span></span></button>)}</div>
     </section>
-    {selected && <OrderDetail summary={selected} onClose={() => setSelected(null)} onChanged={(changed) => setOrders((current) => current.map((item) => item.order_id === changed.order_id ? changed : item))} onRetry={onRetry} />}
+    {selected && <OrderDetail summary={selected} onClose={closeSelectedOrder} onChanged={updateSelectedOrder} onRetry={onRetry} />}
   </>
 }

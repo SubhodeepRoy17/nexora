@@ -277,6 +277,20 @@ class BuyerConversationDetailView(APIView):
             }
         )
 
+    @transaction.atomic
+    def delete(self, request, conversation_id):
+        conversation = get_object_or_404(
+            ChatConversation.objects.select_for_update(),
+            conversation_id=conversation_id,
+            buyer=request.user,
+        )
+        # Durable commerce decisions and money audits must survive a UI-history
+        # deletion, so detach their nullable conversation link before removing
+        # the conversation and its cascading chat messages.
+        AgentSession.objects.filter(conversation=conversation).update(conversation=None)
+        conversation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class GrowthOfferResponseView(APIView):
     permission_classes = [permissions.IsAuthenticated]

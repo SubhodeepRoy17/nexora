@@ -6,14 +6,14 @@ export default function ProtectedRoute({ role, children }) {
   const location = useLocation()
 
   if (loading) {
-    return <main className="grid min-h-[calc(100dvh-4rem)] place-items-center bg-slate-950 text-slate-300" aria-live="polite"><p className="font-mono text-xs">VERIFYING SECURE SESSION…</p></main>
+    return <main className="login-grid grid min-h-[calc(100dvh-4rem)] place-items-center bg-white text-slate-700" aria-live="polite"><p className="border border-violet-200 bg-violet-50 px-5 py-3 font-mono text-xs text-violet-700">VERIFYING SECURE SESSION…</p></main>
   }
   if (!user) {
     const next = encodeURIComponent(`${location.pathname}${location.search}`)
     return <Navigate to={`/login?next=${next}&role=${role}`} replace />
   }
   if (role && user.role !== role) {
-    return <main className="grid min-h-[calc(100dvh-4rem)] place-items-center bg-slate-950 px-5 text-center"><div className="max-w-md rounded-2xl border border-rose-500/30 bg-rose-500/10 p-7"><h1 className="text-lg font-semibold text-white">Merchant access required</h1><p className="mt-2 text-sm text-slate-400">This account does not own a merchant workspace.</p></div></main>
+    return <main className="login-grid grid min-h-[calc(100dvh-4rem)] place-items-center bg-white px-5 text-center"><div className="w-full max-w-md border border-rose-200 bg-white p-8 shadow-[10px_10px_0_rgba(244,63,94,.10)]"><span className="mx-auto grid size-10 place-items-center rounded-full bg-rose-50 font-mono text-sm font-bold text-rose-600">!</span><h1 className="mt-5 text-xl font-semibold text-slate-950">Merchant access required</h1><p className="mt-2 text-sm leading-6 text-slate-600">This account does not own a merchant workspace.</p></div></main>
   }
   return children
 }

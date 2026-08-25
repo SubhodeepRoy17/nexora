@@ -593,7 +593,7 @@ class ApprovalGatedMoneyActionTests(TestCase):
         refund.refresh_from_db()
         self.assertEqual(refund.status, PaymentRefund.Status.PROCESSED)
 
-    def test_checkout_signature_endpoint_never_marks_order_paid(self):
+    def test_checkout_signature_does_not_settle_without_provider_capture(self):
         order = self.create_pending_order("order_checkout_proof")
         payment_id = "pay_checkout_proof"
         signature = hmac.new(
@@ -601,20 +601,59 @@ class ApprovalGatedMoneyActionTests(TestCase):
             f"{order.razorpay_order_id}|{payment_id}".encode(),
             hashlib.sha256,
         ).hexdigest()
-        response = self.client.post(
-            f"/api/orders/{order.pk}/payment-status/",
-            {
-                "razorpay_order_id": order.razorpay_order_id,
-                "razorpay_payment_id": payment_id,
-                "razorpay_signature": signature,
-            },
-            format="json",
-        )
+        provider = Mock()
+        provider.order.fetch.return_value = {
+            "id": order.razorpay_order_id, "status": "attempted", "amount": 250000, "currency": "INR"
+        }
+        provider.order.payments.return_value = {"items": []}
+        with patch("apps.orders.views.get_razorpay_client", return_value=provider):
+            response = self.client.post(
+                f"/api/orders/{order.pk}/payment-status/",
+                {
+                    "razorpay_order_id": order.razorpay_order_id,
+                    "razorpay_payment_id": payment_id,
+                    "razorpay_signature": signature,
+                },
+                format="json",
+            )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["checkout_signature_verified"])
+        self.assertFalse(response.json()["reconciliation"]["settled"])
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.PAYMENT_PENDING)
         self.assertIsNone(order.razorpay_payment_id)
+
+    def test_checkout_signature_triggers_exact_provider_reconciliation(self):
+        order = self.create_pending_order("order_checkout_captured")
+        payment_id = "pay_checkout_captured"
+        provider = Mock()
+        provider.order.fetch.return_value = {
+            "id": order.razorpay_order_id, "status": "paid", "amount": 250000, "currency": "INR"
+        }
+        provider.payment.fetch.return_value = {
+            "order_id": order.razorpay_order_id,
+            "id": payment_id,
+            "status": "captured",
+            "currency": "INR",
+            "amount": 250000,
+        }
+        with patch("apps.orders.views.get_razorpay_client", return_value=provider):
+            response = self.client.post(
+                f"/api/orders/{order.pk}/payment-status/",
+                {
+                    "razorpay_order_id": order.razorpay_order_id,
+                    "razorpay_payment_id": payment_id,
+                    "razorpay_signature": "provider-sdk-verifies-this-value",
+                },
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["reconciliation"]["settled"])
+        self.assertEqual(response.json()["order"]["status"], Order.Status.PAID)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertEqual(order.razorpay_payment_id, payment_id)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
 
     def test_multiline_cart_preserves_historical_prices_and_authoritative_status(self):
         second_product = Product.objects.create(

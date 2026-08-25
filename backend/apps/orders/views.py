@@ -34,6 +34,7 @@ from .models import (
     QuoteItem,
 )
 from .policy import MESSAGES, ReasonCode, evaluate_cart_lines
+from .reconciliation import reconcile_order_capture
 from .serializers import (
     AgentTransactionAuditSerializer,
     ApproveQuoteSerializer,
@@ -676,7 +677,11 @@ class OrderListView(ListAPIView):
             merchant = self.request.user.merchant_profile
         except Merchant.DoesNotExist:
             return queryset.filter(buyer=self.request.user)
-        return queryset.filter(Q(items__merchant=merchant) | Q(product__merchant=merchant)).distinct()
+        return queryset.filter(
+            Q(buyer=self.request.user)
+            | Q(items__merchant=merchant)
+            | Q(product__merchant=merchant)
+        ).distinct()
 
 
 class OrderDetailView(APIView):
@@ -684,19 +689,21 @@ class OrderDetailView(APIView):
 
     def get(self, request, order_id):
         queryset = Order.objects.select_related("quote").prefetch_related("items", "refunds")
-        is_merchant = False
         try:
             merchant = request.user.merchant_profile
         except Merchant.DoesNotExist:
             queryset = queryset.filter(buyer=request.user)
         else:
-            is_merchant = True
-            queryset = queryset.filter(Q(items__merchant=merchant) | Q(product__merchant=merchant))
+            queryset = queryset.filter(
+                Q(buyer=request.user)
+                | Q(items__merchant=merchant)
+                | Q(product__merchant=merchant)
+            )
         try:
             order = queryset.distinct().get(pk=order_id)
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
-        if not is_merchant and order.status == Order.Status.PAYMENT_PENDING:
+        if order.buyer_id == request.user.id and order.status == Order.Status.PAYMENT_PENDING:
             return Response(_order_payload(order))
         return Response(OrderSerializer(order).data)
 
@@ -724,7 +731,8 @@ class VerifyCheckoutPaymentView(APIView):
         if not settings.RAZORPAY_KEY_SECRET:
             return Response({"detail": "Payment verification is not configured."}, status=503)
         try:
-            get_razorpay_client().utility.verify_payment_signature(data)
+            razorpay_client = get_razorpay_client()
+            razorpay_client.utility.verify_payment_signature(data)
         except PaymentConfigurationError:
             return Response({"detail": "Payment verification is not configured."}, status=503)
         except SignatureVerificationError:
@@ -744,11 +752,23 @@ class VerifyCheckoutPaymentView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # No payment ID, signature, paid state, inventory, or revenue mutation is
-        # accepted from this browser-facing endpoint.
+        # The browser proof triggers a provider read, but has no settlement
+        # authority itself. Only one exact capture returned by Razorpay's API can
+        # reuse the same locked/idempotent settlement path as the webhook.
+        reconciliation = reconcile_order_capture(
+            order_id=order.pk,
+            provider_payment_id=data["razorpay_payment_id"],
+            client=razorpay_client,
+        )
+        order = reconciliation["order"]
         return Response({
             "checkout_signature_verified": True,
             "settlement_authority": "WEBHOOK_OR_RECONCILIATION",
+            "reconciliation": {
+                "checked": reconciliation["checked"],
+                "settled": reconciliation["settled"],
+                "reason_code": reconciliation["reason_code"],
+            },
             "order": OrderSerializer(order).data,
         })
 

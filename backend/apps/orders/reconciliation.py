@@ -46,6 +46,131 @@ def _payment_items(response):
     return response if isinstance(response, list) else []
 
 
+def reconcile_order_capture(*, order_id, provider_payment_id=None, client=None):
+    """Immediately reconcile one checkout using provider data, never browser claims.
+
+    This is intentionally safe to call after a valid Checkout signature. The
+    signature identifies the returned checkout, while the Razorpay API remains
+    the settlement authority: an order changes state only when one exact,
+    amount/currency-bound captured payment is returned by Razorpay.
+    """
+
+    order = Order.objects.get(pk=order_id)
+    if order.status != Order.Status.PAYMENT_PENDING:
+        return {
+            "checked": False,
+            "settled": order.status == Order.Status.PAID,
+            "changed": False,
+            "reason_code": "ORDER_ALREADY_FINAL",
+            "order": order,
+        }
+    if not order.razorpay_order_id:
+        return {
+            "checked": False,
+            "settled": False,
+            "changed": False,
+            "reason_code": "RAZORPAY_ORDER_ID_MISSING",
+            "order": order,
+        }
+
+    client = client or get_razorpay_client()
+    provider_status = ""
+    try:
+        provider_order = client.order.fetch(order.razorpay_order_id)
+        provider_status = str(provider_order.get("status", ""))
+        if (
+            provider_order.get("id") != order.razorpay_order_id
+            or provider_order.get("amount") != amount_to_subunits(order.total_amount)
+            or provider_order.get("currency") != order.currency
+        ):
+            reason_code = "RECONCILIATION_ORDER_MISMATCH"
+        else:
+            payments = []
+            if provider_payment_id:
+                # The Checkout signature already bound this ID to the local
+                # Razorpay order. Fetch it directly instead of waiting for the
+                # order-payments collection to become consistent.
+                provider_payment = client.payment.fetch(provider_payment_id)
+                if isinstance(provider_payment, dict):
+                    payments.append(provider_payment)
+            if not any(payment.get("status") == "captured" for payment in payments):
+                payments.extend(_payment_items(client.order.payments(order.razorpay_order_id)))
+            payments = list(
+                {
+                    payment.get("id"): payment
+                    for payment in payments
+                    if payment.get("id")
+                }.values()
+            )
+            captured = [
+                payment
+                for payment in payments
+                if payment.get("status") == "captured"
+                and payment.get("order_id") == order.razorpay_order_id
+            ]
+            if len(captured) == 1:
+                settled_order, changed = _capture_payment(
+                    captured[0], authority="RECONCILIATION_VERIFIED"
+                )
+                _resolve_exceptions(settled_order)
+                if changed:
+                    _money_audit(
+                        settled_order,
+                        action=MoneyActionAudit.Action.RECONCILED,
+                        outcome=settled_order.status,
+                        reason_code="RECONCILIATION_VERIFIED",
+                        summary="Immediate server reconciliation confirmed a provider-proven captured payment.",
+                        metadata={
+                            "authority": "RAZORPAY_API",
+                            "trigger": "VERIFIED_CHECKOUT_RETURN",
+                            "inventory_mutated_at_capture": False,
+                        },
+                    )
+                return {
+                    "checked": True,
+                    "settled": settled_order.status == Order.Status.PAID,
+                    "changed": changed,
+                    "reason_code": "RECONCILIATION_VERIFIED",
+                    "order": settled_order,
+                }
+            if len(captured) > 1:
+                reason_code = "MULTIPLE_CAPTURED_PAYMENTS"
+            elif provider_status == "paid":
+                reason_code = "PAID_WITHOUT_CAPTURE_ENTITY"
+            else:
+                reason_code = "CAPTURE_NOT_YET_VISIBLE"
+    except WebhookPayloadError as exc:
+        reason_code = exc.error_code
+    except Exception:
+        reason_code = "RAZORPAY_RECONCILIATION_ERROR"
+        logger.exception(
+            "razorpay_immediate_reconciliation_provider_error",
+            extra={"security_event": {
+                "event": "razorpay_immediate_reconciliation_provider_error",
+                "reason_code": reason_code,
+                "order_id": str(order.order_id),
+            }},
+        )
+
+    order.refresh_from_db()
+    logger.warning(
+        "razorpay_immediate_reconciliation_pending",
+        extra={"security_event": {
+            "event": "razorpay_immediate_reconciliation_pending",
+            "reason_code": reason_code,
+            "provider_status": provider_status[:32],
+            "order_id": str(order.order_id),
+        }},
+    )
+    return {
+        "checked": True,
+        "settled": order.status == Order.Status.PAID,
+        "changed": False,
+        "reason_code": reason_code,
+        "order": order,
+    }
+
+
 def reconcile_stale_orders(*, client=None, now=None, stale_minutes=None, limit=250):
     """Repair only provider-proven captures; quarantine every ambiguous mismatch."""
 

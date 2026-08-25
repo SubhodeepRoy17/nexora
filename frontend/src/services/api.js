@@ -41,6 +41,7 @@ export function getApiError(error, fallback = 'Something went wrong. Please try 
     if (first) return first
   }
   if (error?.code === 'ECONNABORTED') return 'The server took too long to respond. Please try again.'
+  if (error?.code === 'RAZORPAY_SDK_LOAD_FAILED') return 'Razorpay Checkout could not load. Check your internet connection or content blocker, then retry.'
   if (!error?.response) return 'Cannot reach the Nexora backend. Make sure Django is running on port 8000.'
   return fallback
 }
@@ -52,6 +53,7 @@ export const searchProducts = (query, signal, conversation = {}) => api.post('ag
 }, { signal })
 export const getChatSessions = (signal) => api.get('agents/conversations/', { signal })
 export const getChatSession = (conversationId, signal) => api.get(`agents/conversations/${conversationId}/`, { signal })
+export const deleteChatSession = (conversationId) => api.delete(`agents/conversations/${conversationId}/`)
 export const respondToGrowthOffer = ({ offerId, offerToken, accepted }) => api.post(
   `agents/growth-offers/${offerId}/respond/`,
   { offer_token: offerToken, accepted },
@@ -273,21 +275,30 @@ export function loadRazorpayCheckout() {
 
   razorpayScriptPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector('script[data-nexora-razorpay]')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(true), { once: true })
-      existing.addEventListener('error', () => reject(new Error('Razorpay Checkout failed to load.')), { once: true })
-      return
-    }
+    if (existing) existing.remove()
 
     const script = document.createElement('script')
+    const fail = () => {
+      window.clearTimeout(timeout)
+      script.remove()
+      razorpayScriptPromise = undefined
+      const error = new Error('Razorpay Checkout failed to load.')
+      error.code = 'RAZORPAY_SDK_LOAD_FAILED'
+      reject(error)
+    }
+    const timeout = window.setTimeout(fail, 15000)
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
     script.async = true
     script.dataset.nexoraRazorpay = 'true'
-    script.onload = () => resolve(true)
-    script.onerror = () => {
-      razorpayScriptPromise = undefined
-      reject(new Error('Razorpay Checkout failed to load.'))
+    script.onload = () => {
+      window.clearTimeout(timeout)
+      if (!window.Razorpay) {
+        fail()
+        return
+      }
+      resolve(true)
     }
+    script.onerror = fail
     document.body.appendChild(script)
   })
 

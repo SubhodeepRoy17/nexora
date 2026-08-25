@@ -49,14 +49,14 @@ export default function Login() {
   return (
     <main className="login-grid grid min-h-[calc(100dvh-4rem)] place-items-center bg-[#f6f5f1] px-4 py-10 text-slate-950 sm:px-6">
       <section className="grid w-full max-w-5xl overflow-hidden border border-slate-300 bg-white shadow-[14px_14px_0_rgba(124,58,237,.15)] lg:grid-cols-[.82fr_1.18fr]">
-        <aside className="relative hidden overflow-hidden bg-[#11131a] p-10 text-white lg:flex lg:flex-col">
-          <div className="absolute -right-16 -top-16 size-56 rounded-full bg-violet-500/20 blur-3xl" />
-          <div className="relative grid size-12 place-items-center border border-white/20 bg-violet-600 shadow-[4px_4px_0_#fff]"><ShieldCheck size={21} /></div>
-          <p className="relative mt-10 font-mono text-[9px] uppercase tracking-[.18em] text-violet-300">Private buyer identity</p>
+        <aside className="relative hidden overflow-hidden border-r border-slate-200 bg-violet-50 p-10 text-slate-950 lg:flex lg:flex-col">
+          <div className="absolute -right-16 -top-16 size-56 rounded-full bg-violet-300/30 blur-3xl" />
+          <div className="relative grid size-12 place-items-center border border-violet-700 bg-violet-600 text-white shadow-[4px_4px_0_#111827]"><ShieldCheck size={21} /></div>
+          <p className="relative mt-10 font-mono text-[9px] uppercase tracking-[.18em] text-violet-700">Private buyer identity</p>
           <h2 className="relative mt-4 text-4xl font-semibold leading-tight tracking-[-.045em]">Your intent history belongs to you.</h2>
-          <p className="relative mt-5 text-sm leading-7 text-slate-400">Create a buyer account to keep private conversations, approve exact quotes, and follow webhook-verified orders.</p>
+          <p className="relative mt-5 text-sm leading-7 text-slate-600">Create a buyer account to keep private conversations, approve exact quotes, and follow webhook-verified orders.</p>
           <div className="relative mt-auto space-y-3 pt-12">
-            {['Buyer-scoped chat history', 'CSRF-protected secure session', 'No browser-authoritative payment state'].map((item) => <p key={item} className="flex items-center gap-3 border-t border-white/10 pt-3 text-[11px] text-slate-300"><span className="grid size-5 place-items-center rounded-full bg-emerald-400/10 text-emerald-300"><Check size={11} /></span>{item}</p>)}
+            {['Buyer-scoped chat history', 'CSRF-protected secure session', 'No browser-authoritative payment state'].map((item) => <p key={item} className="flex items-center gap-3 border-t border-violet-200 pt-3 text-[11px] text-slate-700"><span className="grid size-5 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={11} /></span>{item}</p>)}
           </div>
         </aside>
 

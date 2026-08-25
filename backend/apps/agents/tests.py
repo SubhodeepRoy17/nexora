@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.merchants.models import Merchant, Product
 
-from .models import ChatConversation
+from .models import AgentSession, ChatConversation
 from .services import BuyerAgentResponse, ProductRecommendation, _ground_recommendations
 from .tools import ProductSearchSchema, fallback_product_search
 
@@ -134,6 +134,31 @@ class ConversationPrivacyTests(TestCase):
             reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
         )
         self.assertEqual(detail.status_code, 404)
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_authenticated_user_can_delete_only_their_chat_history(self, run_mock):
+        run_mock.return_value = self.agent_result()
+        self.client.force_authenticate(self.user)
+        created = self.client.post(
+            reverse("agents:search"), {"query": "temporary keyboard chat"}, format="json"
+        )
+        conversation_id = created.data["conversation_id"]
+        session_id = created.data["agent_session_id"]
+
+        self.client.force_authenticate(self.other_user)
+        denied = self.client.delete(
+            reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
+        )
+        self.assertEqual(denied.status_code, 404)
+        self.assertTrue(ChatConversation.objects.filter(pk=conversation_id).exists())
+
+        self.client.force_authenticate(self.user)
+        deleted = self.client.delete(
+            reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
+        )
+        self.assertEqual(deleted.status_code, 204)
+        self.assertFalse(ChatConversation.objects.filter(pk=conversation_id).exists())
+        self.assertIsNone(AgentSession.objects.get(pk=session_id).conversation_id)
 
     @patch("apps.agents.views.run_buyer_agent")
     def test_guest_can_continue_only_with_signed_token_and_cannot_list(self, run_mock):

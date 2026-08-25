@@ -73,6 +73,17 @@ class IdentityBoundaryTests(TestCase):
         self.assertEqual(logged_out.status_code, 200)
         self.assertIsNone(client.get("/api/auth/me/").json()["user"])
 
+    def test_checkout_cors_preflight_allows_idempotency_header(self):
+        response = self.client.options(
+            "/api/orders/create/",
+            HTTP_ORIGIN="http://localhost:5173",
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type,x-csrftoken,idempotency-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        allowed_headers = response.headers["Access-Control-Allow-Headers"].lower()
+        self.assertIn("idempotency-key", allowed_headers)
+
     def test_buyer_registration_requires_csrf_validates_and_starts_session(self):
         client = APIClient(enforce_csrf_checks=True)
         token = client.get("/api/auth/me/").json()["csrf_token"]
@@ -287,6 +298,26 @@ class IdentityBoundaryTests(TestCase):
         buyer_orders = self.client.get("/api/orders/").json()["results"]
         self.assertEqual([item["order_id"] for item in buyer_orders], [str(order_b.order_id)])
         self.assertEqual(self.client.get("/api/orders/audits/").status_code, 403)
+
+    def test_merchant_account_can_read_an_order_it_owns_as_the_buyer(self):
+        buyer_owned_order = Order.objects.create(
+            buyer=self.owner_a,
+            product=self.product_b,
+            buyer_email=self.owner_a.email,
+            quantity=1,
+            total_amount=self.product_b.price,
+            status=Order.Status.PAYMENT_PENDING,
+            razorpay_order_id="order_dual_role_buyer",
+        )
+        self.client.force_login(self.owner_a)
+
+        listed_ids = {
+            item["order_id"] for item in self.client.get("/api/orders/").json()["results"]
+        }
+        self.assertIn(str(buyer_owned_order.order_id), listed_ids)
+        detail = self.client.get(f"/api/orders/{buyer_owned_order.order_id}/")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["order_id"], str(buyer_owned_order.order_id))
 
     @patch("apps.orders.views.create_razorpay_order")
     @patch("apps.orders.views.get_razorpay_client")

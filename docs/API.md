@@ -84,11 +84,11 @@ A successful `201` is `PAYMENT_PENDING` and includes `items`, exact total/curren
 - `GET /api/orders/` — paginated buyer-owned orders or merchant-item-owned orders.
 - `GET /api/orders/{order_id}/` — tenant-scoped detail for frontend polling.
 - `POST /api/orders/{order_id}/cancel/` — buyer cancellation for `PAYMENT_PENDING` or `PAYMENT_FAILED`; repeat cancellation is safe.
-- `POST /api/orders/{order_id}/payment-status/` — verifies the Razorpay Checkout signature for fast buyer feedback, returns current authoritative state, stores no signature, and cannot mark paid.
+- `POST /api/orders/{order_id}/payment-status/` — verifies the Razorpay Checkout signature, then performs an immediate server-to-server fetch of the exact Razorpay payment. It stores no signature and the browser cannot mark an order paid; only an exact provider-reported capture can settle through the same locked, idempotent path as a webhook.
 
 Supported states are `DRAFT`, `QUOTED`, `APPROVED`, `PAYMENT_PENDING`, `PAID`, `PAYMENT_FAILED`, `CANCELLED`, `EXPIRED`, `REFUND_PENDING`, `REFUNDED`, and `MANUAL_REVIEW`. Invalid transitions return `ILLEGAL_STATE_TRANSITION` or `ORDER_NOT_CANCELLABLE`.
 
-The Razorpay browser callback has no settlement authority. The frontend displays `PAYMENT_PENDING` and polls detail until a verified webhook changes the backend state.
+The Razorpay browser callback has no settlement authority. The frontend displays `PAYMENT_PENDING` until either a verified webhook or callback-triggered exact Razorpay API reconciliation changes the backend state. This reconciliation is especially important locally, where Razorpay cannot reach a `localhost` webhook URL.
 
 ## 8. Reservation and webhook behavior
 
