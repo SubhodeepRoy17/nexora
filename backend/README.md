@@ -49,7 +49,7 @@ Nexora uses Django session authentication for the React SPA:
 1. `GET /api/auth/me/` returns the current user (or `null`) and a CSRF token while setting the CSRF cookie.
 2. The browser sends that token in `X-CSRFToken` for login and every unsafe request.
 3. `POST /api/auth/login/` accepts `{"username": "...", "password": "..."}` and rotates the session and CSRF token.
-4. `POST /api/auth/register/` creates a buyer account after username, email, and Django password validation, then starts a rotated authenticated session. It never creates a merchant membership.
+4. `POST /api/auth/register/` creates buyer access plus a new isolated merchant profile after username, email, and Django password validation, then starts a rotated authenticated session. Ownership remains server-assigned; registration can never join an existing merchant.
 5. `POST /api/auth/logout/` invalidates the authenticated session.
 
 The Axios client performs this bootstrap automatically. Merchant routes require a signed-in user who owns a `Merchant`. Product ownership is always assigned server-side; a submitted `merchant` field cannot change scope. Buyers can search publicly but must sign in before requesting a quote. Buyer identity and email are derived from the authenticated account.

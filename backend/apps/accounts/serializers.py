@@ -41,9 +41,13 @@ class RegistrationSerializer(serializers.Serializer):
         return username
 
     def validate_email(self, value):
+        from apps.merchants.models import Merchant
+
         email = get_user_model().objects.normalize_email(value).lower()
         if get_user_model().objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError("An account already uses this email address.")
+        if Merchant.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("That email is unavailable for a merchant workspace.")
         return email
 
     def validate(self, attrs):
@@ -59,4 +63,12 @@ class RegistrationSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        return get_user_model().objects.create_user(**validated_data)
+        from apps.merchants.models import Merchant
+
+        user = get_user_model().objects.create_user(**validated_data)
+        Merchant.objects.create(
+            owner=user,
+            name=user.get_full_name().strip() or user.get_username(),
+            email=user.email,
+        )
+        return user

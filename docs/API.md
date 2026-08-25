@@ -4,7 +4,7 @@ All unsafe browser requests require the Django session cookie and `X-CSRFToken`.
 
 ## Buyer registration
 
-`POST /api/auth/register/` accepts `first_name`, `username`, `email`, `password`, and matching `password_confirm`. The CSRF-protected, throttled endpoint validates Django's username and password rules, rejects case-insensitive identity duplicates, creates only a buyer account, and returns the authenticated user plus a rotated CSRF token with `201`. Merchant ownership is never client-assignable through registration.
+`POST /api/auth/register/` accepts `first_name`, `username`, `email`, `password`, and matching `password_confirm`. The CSRF-protected, throttled endpoint validates Django's username and password rules, rejects case-insensitive account or merchant-email duplicates, and atomically creates buyer access plus a new isolated merchant profile. It returns the authenticated user and rotated CSRF token with `201`. Merchant ownership is server-assigned; registration can never select or join an existing merchant.
 
 ## 1. Recommendation lineage
 

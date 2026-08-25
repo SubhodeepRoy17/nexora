@@ -54,7 +54,7 @@ export default function Login() {
           <div className="relative grid size-12 place-items-center border border-violet-700 bg-violet-600 text-white shadow-[4px_4px_0_#111827]"><ShieldCheck size={21} /></div>
           <p className="relative mt-10 font-mono text-[9px] uppercase tracking-[.18em] text-violet-700">Private buyer identity</p>
           <h2 className="relative mt-4 text-4xl font-semibold leading-tight tracking-[-.045em]">Your intent history belongs to you.</h2>
-          <p className="relative mt-5 text-sm leading-7 text-slate-600">Create a buyer account to keep private conversations, approve exact quotes, and follow webhook-verified orders.</p>
+          <p className="relative mt-5 text-sm leading-7 text-slate-600">Create one account for private buying and an isolated merchant workspace.</p>
           <div className="relative mt-auto space-y-3 pt-12">
             {['Buyer-scoped chat history', 'CSRF-protected secure session', 'No browser-authoritative payment state'].map((item) => <p key={item} className="flex items-center gap-3 border-t border-violet-200 pt-3 text-[11px] text-slate-700"><span className="grid size-5 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={11} /></span>{item}</p>)}
           </div>
@@ -68,9 +68,9 @@ export default function Login() {
 
           <div className="mt-8 flex items-start gap-4">
             <span className="grid size-11 shrink-0 place-items-center border border-slate-950 bg-white text-violet-600 shadow-[3px_3px_0_#111827]">{mode === 'signup' ? <UserPlus size={19} /> : <LockKeyhole size={19} />}</span>
-            <div><p className="mono-label text-violet-600">{expectedRole ? 'Merchant security boundary' : mode === 'signup' ? 'New buyer workspace' : 'Welcome back'}</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{expectedRole ? 'Merchant sign in' : mode === 'signup' ? 'Create your Nexora account' : 'Sign in to Nexora'}</h1></div>
+            <div><p className="mono-label text-violet-600">{expectedRole ? 'Merchant security boundary' : mode === 'signup' ? 'Buyer + merchant access' : 'Welcome back'}</p><h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{expectedRole ? 'Merchant sign in' : mode === 'signup' ? 'Create your Nexora account' : 'Sign in to Nexora'}</h1></div>
           </div>
-          <p className="mt-4 text-sm leading-6 text-slate-600">{expectedRole ? 'Merchant ownership is verified before workspace data is loaded.' : mode === 'signup' ? 'Registration creates a buyer account. Merchant workspaces require a separately verified owner.' : 'Continue your private searches, approvals, and orders.'}</p>
+          <p className="mt-4 text-sm leading-6 text-slate-600">{expectedRole ? 'Merchant ownership is verified before workspace data is loaded.' : mode === 'signup' ? 'Registration creates private buyer access and a new owner-scoped merchant workspace.' : 'Continue your private searches, approvals, and orders.'}</p>
 
           <form onSubmit={submit} className="mt-7" aria-busy={state.submitting}>
             {mode === 'signup' && <div className="grid gap-4 sm:grid-cols-2">
@@ -96,7 +96,7 @@ export default function Login() {
 
             {mode === 'signup' && <p className="mt-3 text-[10px] leading-5 text-slate-500">Use at least 8 characters. Common, entirely numeric, or identity-similar passwords are rejected server-side.</p>}
             {state.error && <p className="mt-4 border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700" role="alert">{state.error}</p>}
-            <button type="submit" disabled={state.submitting || loading} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:bg-slate-400">{mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}{state.submitting ? mode === 'signup' ? 'Creating account…' : 'Signing in…' : mode === 'signup' ? 'Create buyer account' : 'Sign in securely'} <ArrowRight size={15} /></button>
+            <button type="submit" disabled={state.submitting || loading} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:bg-slate-400">{mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}{state.submitting ? mode === 'signup' ? 'Creating account…' : 'Signing in…' : mode === 'signup' ? 'Create buyer + merchant account' : 'Sign in securely'} <ArrowRight size={15} /></button>
           </form>
 
           {!expectedRole && <p className="mt-6 text-center text-xs text-slate-500">{mode === 'signup' ? 'Already have an account?' : 'New to Nexora?'} <button type="button" onClick={() => switchMode(mode === 'signup' ? 'signin' : 'signup')} className="focus-ring font-semibold text-violet-700 hover:underline">{mode === 'signup' ? 'Sign in' : 'Create an account'}</button></p>}

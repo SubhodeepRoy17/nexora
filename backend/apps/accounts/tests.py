@@ -84,7 +84,7 @@ class IdentityBoundaryTests(TestCase):
         allowed_headers = response.headers["Access-Control-Allow-Headers"].lower()
         self.assertIn("idempotency-key", allowed_headers)
 
-    def test_buyer_registration_requires_csrf_validates_and_starts_session(self):
+    def test_registration_requires_csrf_creates_merchant_and_starts_session(self):
         client = APIClient(enforce_csrf_checks=True)
         token = client.get("/api/auth/me/").json()["csrf_token"]
         payload = {
@@ -100,12 +100,15 @@ class IdentityBoundaryTests(TestCase):
             "/api/auth/register/", payload, format="json", HTTP_X_CSRFTOKEN=token
         )
         self.assertEqual(registered.status_code, 201)
-        self.assertEqual(registered.json()["user"]["role"], "buyer")
+        self.assertEqual(registered.json()["user"]["role"], "merchant")
         self.assertNotIn("password", registered.json())
         self.assertEqual(client.get("/api/auth/me/").json()["user"]["username"], "new-buyer")
         user = get_user_model().objects.get(username="new-buyer")
         self.assertTrue(user.check_password(payload["password"]))
-        self.assertFalse(Merchant.objects.filter(owner=user).exists())
+        merchant = Merchant.objects.get(owner=user)
+        self.assertEqual(merchant.name, "New Buyer")
+        self.assertEqual(merchant.email, "new-buyer@example.com")
+        self.assertEqual(client.get("/api/merchants/workspace/").status_code, 200)
 
     def test_registration_rejects_duplicate_identity_and_mismatched_password(self):
         client = APIClient(enforce_csrf_checks=True)
@@ -380,15 +383,21 @@ class IdentityBoundaryTests(TestCase):
     def test_authentication_scope_is_throttled(self):
         client = APIClient(enforce_csrf_checks=True)
         token = client.get("/api/auth/me/").json()["csrf_token"]
-        statuses = [
-            client.post(
-                "/api/auth/login/",
-                {"username": "missing", "password": "incorrect"},
-                format="json",
-                HTTP_X_CSRFTOKEN=token,
-            ).status_code
-            for _ in range(11)
-        ]
+        # Keep this deterministic even when password hashing makes ten attempts
+        # last longer than the production one-minute throttle window.
+        with patch(
+            "rest_framework.throttling.ScopedRateThrottle.get_rate",
+            return_value="1/hour",
+        ):
+            statuses = [
+                client.post(
+                    "/api/auth/login/",
+                    {"username": "missing", "password": "incorrect"},
+                    format="json",
+                    HTTP_X_CSRFTOKEN=token,
+                ).status_code
+                for _ in range(2)
+            ]
         self.assertEqual(statuses[-1], 429)
 
 

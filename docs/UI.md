@@ -22,7 +22,7 @@ No 21st.dev private registry code, paid template source, imagery, customer logos
 
 - `/` — dedicated responsive public landing page.
 - `/buyer` — live public-search/authenticated-checkout workspace.
-- `/login` — session sign-in plus public buyer registration; `?mode=signup` opens account creation while merchant-role links remain sign-in only.
+- `/login` — session sign-in plus public buyer-and-merchant registration; `?mode=signup` creates an isolated owner-scoped merchant workspace while merchant-role links remain sign-in only.
 - `/merchant`, `/merchant/inventory`, `/merchant/analytics` — protected merchant workspace.
 
 The public and buyer surfaces use warm white, ink, violet, emerald, sharp grid frames, DM Sans, and IBM Plex Mono. The merchant OS uses the same geometry and signal colors on an ink workspace to distinguish operational data from marketing content.
