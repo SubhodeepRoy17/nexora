@@ -69,6 +69,11 @@ Blueprint uses one URL for build-time migrations and runtime, so direct is the
 safe default. If runtime pooling is introduced later, keep a separate direct
 migration URL.
 
+The Blueprint pins the API and both scheduled jobs to Oregon and declares
+`DATABASE_URL` with `sync: false`. During the first Blueprint creation, provide
+the same direct Neon URL separately for all three prompts. Render stores the
+values as secrets; the URL must never be added to `render.yaml`.
+
 Set `POSTGRES_SSLMODE=require` as defense in depth. The URL's
 `channel_binding=require` is preserved by Django settings. Apply the same
 database secret to the expiry and Razorpay reconciliation workers.

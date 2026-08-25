@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+# Optional ignored local cutover file. Production continues to use host-managed
+# environment variables and never depends on this file.
+load_dotenv(BASE_DIR / ".env.neon", override=False)
 
 
 def env_list(name: str, default: str = "") -> list[str]:
@@ -70,7 +73,7 @@ ASGI_APPLICATION = "nexora_core.asgi.application"
 
 database_options = {"connect_timeout": int(os.getenv("POSTGRES_CONNECT_TIMEOUT", "5"))}
 
-database_url = os.getenv("DATABASE_URL")
+database_url = os.getenv("DATABASE_URL") or os.getenv("NEON_DIRECT_DATABASE_URL")
 if database_url:
     parsed_database_url = urlparse(database_url)
     if parsed_database_url.scheme not in {"postgres", "postgresql"}:

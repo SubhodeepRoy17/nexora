@@ -22,7 +22,9 @@ Django REST Framework backend for Nexora's merchant catalog, buyer agents, order
 For a shared Neon database, follow `docs/NeonRunbook.md`. Nexora accepts Neon's
 direct `DATABASE_URL`, including `sslmode` and `channel_binding`, and keeps the
 individual `POSTGRES_*` settings as the local fallback. Never commit a real
-connection string.
+connection string. Local cutovers may keep the ignored credential in
+`backend/.env.neon` as `NEON_DIRECT_DATABASE_URL`; deployed services must use
+the host-managed `DATABASE_URL` secret.
 
 5. Configure the `DEMO_BUYER_*` and `DEMO_MERCHANT_*` values in `.env`, then create deterministic demo identities:
 
