@@ -166,12 +166,20 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {"security_json": {"()": "nexora_core.logging.JsonSecurityFormatter"}},
     "handlers": {"security_console": {"class": "logging.StreamHandler", "formatter": "security_json"}},
-    "loggers": {"nexora.security": {"handlers": ["security_console"], "level": "INFO", "propagate": False}},
+    "loggers": {
+        "nexora.security": {"handlers": ["security_console"], "level": "INFO", "propagate": False},
+        "nexora.payments": {"handlers": ["security_console"], "level": "INFO", "propagate": False},
+    },
 }
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+RAZORPAY_WEBHOOK_ALERT_ATTEMPTS = max(2, int(os.getenv("RAZORPAY_WEBHOOK_ALERT_ATTEMPTS", "3")))
+RAZORPAY_RECONCILIATION_STALE_MINUTES = max(
+    1, int(os.getenv("RAZORPAY_RECONCILIATION_STALE_MINUTES", "10"))
+)
+RAZORPAY_REFUND_MAX_AMOUNT = Decimal(os.getenv("RAZORPAY_REFUND_MAX_AMOUNT", "100000.00"))
 
 # Phase 7 money-action guardrails. These conservative limits are shown to the
 # buyer with every quote and are enforced again at approval and order creation.

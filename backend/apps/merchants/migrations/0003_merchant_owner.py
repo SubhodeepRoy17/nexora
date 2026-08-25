@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -14,8 +15,13 @@ def assign_legacy_owners(apps, schema_editor):
         while User.objects.filter(username=username).exists():
             suffix += 1
             username = f"legacy_merchant_{merchant.pk}_{suffix}"
-        user = User(username=username, email=merchant.email, is_active=True)
-        user.set_unusable_password()
+        # Historical migration models do not expose User instance methods.
+        user = User(
+            username=username,
+            email=merchant.email,
+            is_active=True,
+            password=make_password(None),
+        )
         user.save()
         merchant.owner_id = user.pk
         merchant.save(update_fields=["owner"])

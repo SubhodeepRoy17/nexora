@@ -27,12 +27,17 @@ from .models import (
     MoneyActionAudit,
     Order,
     OrderItem,
+    PaymentRefund,
     Quote,
+    ReconciliationException,
     StockReservation,
+    WebhookEvent,
 )
+from .reconciliation import reconcile_stale_orders
+from .refunds import RefundSafetyError, initiate_bounded_refund
 from .tokens import issue_decision_token
 from .services import amount_to_subunits, create_razorpay_order
-from .webhooks import _capture_payment, razorpay_webhook
+from .webhooks import _apply_refund, _capture_payment, _fail_payment, razorpay_webhook
 
 
 class OrderRouteTests(SimpleTestCase):
@@ -66,7 +71,7 @@ class RazorpayOrderServiceTests(SimpleTestCase):
 
 
 @override_settings(RAZORPAY_WEBHOOK_SECRET="unit-test-webhook-secret")
-class RazorpayWebhookVerificationTests(SimpleTestCase):
+class RazorpayWebhookVerificationTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
@@ -85,6 +90,10 @@ class RazorpayWebhookVerificationTests(SimpleTestCase):
         response = razorpay_webhook(request)
 
         self.assertEqual(response.status_code, 400)
+        event = WebhookEvent.objects.get()
+        self.assertFalse(event.signature_verified)
+        self.assertEqual(event.error_code, "SIGNATURE_INVALID")
+        self.assertEqual(event.payload_hash, hashlib.sha256(body).hexdigest())
 
     def test_accepts_valid_signature_for_ignored_event(self):
         body = json.dumps({"event": "subscription.activated"}, separators=(",", ":")).encode()
@@ -99,6 +108,9 @@ class RazorpayWebhookVerificationTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(json.loads(response.content)["status"], "ignored")
+        event = WebhookEvent.objects.get()
+        self.assertTrue(event.signature_verified)
+        self.assertEqual(event.processing_state, WebhookEvent.ProcessingState.IGNORED)
 
 
 @override_settings(
@@ -405,6 +417,204 @@ class ApprovalGatedMoneyActionTests(TestCase):
             ).count(),
             1,
         )
+        paid_order, late_failure_processed = _fail_payment(
+            {"order_id": "order_capture", "id": "pay_capture"}
+        )
+        self.assertFalse(late_failure_processed)
+        self.assertEqual(paid_order.status, Order.Status.PAID)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+
+    def _post_webhook(self, payload, event_id, signature=None):
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        signature = signature or hmac.new(
+            b"unit-test-webhook-secret", body, hashlib.sha256
+        ).hexdigest()
+        return self.client.post(
+            "/api/orders/webhook/razorpay/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_RAZORPAY_SIGNATURE=signature,
+            HTTP_X_RAZORPAY_EVENT_ID=event_id,
+        )
+
+    @override_settings(RAZORPAY_WEBHOOK_SECRET="unit-test-webhook-secret")
+    def test_webhook_inbox_deduplicates_capture_by_provider_event_id(self):
+        order = self.create_pending_order("order_inbox_capture")
+        payload = {
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {
+                "order_id": order.razorpay_order_id,
+                "id": "pay_inbox_capture",
+                "status": "captured",
+                "currency": "INR",
+                "amount": 250000,
+            }}},
+        }
+        first = self._post_webhook(payload, "evt_capture_once")
+        second = self._post_webhook(payload, "evt_capture_once")
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["status"], "already_processed")
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertEqual(WebhookEvent.objects.filter(razorpay_event_id="evt_capture_once").count(), 1)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+        self.assertEqual(MoneyActionAudit.objects.filter(order=order, action="PAYMENT_CAPTURED").count(), 1)
+
+    def test_out_of_order_failure_then_capture_enters_refund_pending(self):
+        order = self.create_pending_order("order_out_of_order")
+        failed_order, failed = _fail_payment({"order_id": order.razorpay_order_id, "id": "pay_failed_first"})
+        self.assertTrue(failed)
+        self.assertEqual(failed_order.status, Order.Status.PAYMENT_FAILED)
+        captured_order, captured = _capture_payment({
+            "order_id": order.razorpay_order_id,
+            "id": "pay_captured_late",
+            "status": "captured",
+            "currency": "INR",
+            "amount": 250000,
+        })
+        self.assertTrue(captured)
+        self.assertEqual(captured_order.status, Order.Status.REFUND_PENDING)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 5)
+        self.assertFalse(MoneyActionAudit.objects.filter(order=order, action="PAYMENT_CAPTURED").exists())
+
+    @override_settings(RAZORPAY_WEBHOOK_SECRET="unit-test-webhook-secret")
+    def test_amount_mismatch_and_unknown_order_are_quarantined(self):
+        order = self.create_pending_order("order_bad_amount")
+        mismatch = {
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {
+                "order_id": order.razorpay_order_id, "id": "pay_bad_amount",
+                "status": "captured", "currency": "INR", "amount": 1,
+            }}},
+        }
+        unknown = {
+            "event": "payment.failed",
+            "payload": {"payment": {"entity": {"order_id": "order_unknown", "id": "pay_unknown"}}},
+        }
+        self.assertEqual(self._post_webhook(mismatch, "evt_bad_amount").status_code, 202)
+        self.assertEqual(self._post_webhook(unknown, "evt_unknown").status_code, 202)
+        mismatch_event = WebhookEvent.objects.get(razorpay_event_id="evt_bad_amount")
+        self.assertEqual(mismatch_event.error_code, "AMOUNT_MISMATCH")
+        self.assertEqual(mismatch_event.order_id, order.pk)
+        self.assertEqual(WebhookEvent.objects.get(razorpay_event_id="evt_unknown").error_code, "UNKNOWN_ORDER")
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAYMENT_PENDING)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+
+    def test_stale_pending_reconciliation_repairs_only_proven_capture(self):
+        order = self.create_pending_order("order_reconcile")
+        Order.objects.filter(pk=order.pk).update(state_updated_at=timezone.now() - timedelta(minutes=20))
+        client = Mock()
+        client.order.fetch.return_value = {
+            "id": order.razorpay_order_id, "status": "paid", "amount": 250000, "currency": "INR"
+        }
+        client.order.payments.return_value = {"items": [{
+            "order_id": order.razorpay_order_id, "id": "pay_reconciled", "status": "captured",
+            "currency": "INR", "amount": 250000,
+        }]}
+        result = reconcile_stale_orders(client=client, stale_minutes=10)
+        order.refresh_from_db()
+        self.assertEqual(result["repaired"], 1)
+        self.assertEqual(result["exceptions"], [])
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+
+    def test_stale_pending_reconciliation_lists_ambiguous_state(self):
+        order = self.create_pending_order("order_reconcile_pending")
+        Order.objects.filter(pk=order.pk).update(state_updated_at=timezone.now() - timedelta(minutes=20))
+        client = Mock()
+        client.order.fetch.return_value = {
+            "id": order.razorpay_order_id, "status": "attempted", "amount": 250000, "currency": "INR"
+        }
+        client.order.payments.return_value = {"items": []}
+        result = reconcile_stale_orders(client=client, stale_minutes=10)
+        self.assertEqual(result["repaired"], 0)
+        self.assertEqual(result["exceptions"][0]["reason_code"], "STALE_PAYMENT_PENDING")
+        self.assertTrue(ReconciliationException.objects.filter(order=order, resolved_at__isnull=True).exists())
+        self.assertEqual(Order.objects.get(pk=order.pk).status, Order.Status.PAYMENT_PENDING)
+
+    @override_settings(RAZORPAY_REFUND_MAX_AMOUNT=Decimal("100.00"))
+    def test_refund_is_operator_gated_and_bounded(self):
+        order = self.create_pending_order("order_refund_gate")
+        order, _ = _capture_payment({
+            "order_id": order.razorpay_order_id, "id": "pay_refund_gate", "status": "captured",
+            "currency": "INR", "amount": 250000,
+        })
+        transition_order(order, Order.Status.REFUND_PENDING)
+        provider = Mock()
+        with self.assertRaises(RefundSafetyError) as raised:
+            initiate_bounded_refund(
+                order_id=order.pk, reason_code="FULFILLMENT_IMPOSSIBLE", client=provider
+            )
+        self.assertEqual(raised.exception.reason_code, "REFUND_LIMIT_EXCEEDED")
+        provider.payment.refund.assert_not_called()
+        self.assertFalse(PaymentRefund.objects.filter(order=order).exists())
+
+    def test_bounded_refund_records_identifier_and_waits_for_verified_webhook(self):
+        order = self.create_pending_order("order_refund_success")
+        order, _ = _capture_payment({
+            "order_id": order.razorpay_order_id, "id": "pay_refund_success", "status": "captured",
+            "currency": "INR", "amount": 250000,
+        })
+        transition_order(order, Order.Status.REFUND_PENDING)
+        provider = Mock()
+        provider.payment.refund.return_value = {
+            "id": "rfnd_bounded", "payment_id": "pay_refund_success",
+            "amount": 250000, "currency": "INR", "status": "pending",
+        }
+        refund, created = initiate_bounded_refund(
+            order_id=order.pk,
+            reason_code="FULFILLMENT_IMPOSSIBLE",
+            requested_by="TEST_OPERATOR",
+            client=provider,
+        )
+        self.assertTrue(created)
+        self.assertEqual(refund.razorpay_refund_id, "rfnd_bounded")
+        request_payload = provider.payment.refund.call_args.kwargs["data"]
+        self.assertEqual(request_payload["amount"], 250000)
+        self.assertEqual(request_payload["speed"], "normal")
+        self.assertEqual(Order.objects.get(pk=order.pk).status, Order.Status.REFUND_PENDING)
+
+        final_order, processed = _apply_refund({
+            "id": "rfnd_bounded", "payment_id": "pay_refund_success",
+            "amount": 250000, "currency": "INR", "status": "processed",
+        }, "refund.processed")
+        self.assertTrue(processed)
+        self.assertEqual(final_order.status, Order.Status.REFUNDED)
+        refund.refresh_from_db()
+        self.assertEqual(refund.status, PaymentRefund.Status.PROCESSED)
+        unchanged_order, changed = _apply_refund({
+            "id": "rfnd_bounded", "payment_id": "pay_refund_success",
+            "amount": 250000, "currency": "INR", "status": "pending",
+        }, "refund.created")
+        self.assertFalse(changed)
+        self.assertEqual(unchanged_order.status, Order.Status.REFUNDED)
+        refund.refresh_from_db()
+        self.assertEqual(refund.status, PaymentRefund.Status.PROCESSED)
+
+    def test_checkout_signature_endpoint_never_marks_order_paid(self):
+        order = self.create_pending_order("order_checkout_proof")
+        payment_id = "pay_checkout_proof"
+        signature = hmac.new(
+            b"phase7-secret",
+            f"{order.razorpay_order_id}|{payment_id}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        response = self.client.post(
+            f"/api/orders/{order.pk}/payment-status/",
+            {
+                "razorpay_order_id": order.razorpay_order_id,
+                "razorpay_payment_id": payment_id,
+                "razorpay_signature": signature,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["checkout_signature_verified"])
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAYMENT_PENDING)
+        self.assertIsNone(order.razorpay_payment_id)
 
     def test_multiline_cart_preserves_historical_prices_and_authoritative_status(self):
         second_product = Product.objects.create(
@@ -559,3 +769,60 @@ class ReservationConcurrencyTests(TransactionTestCase):
         self.assertEqual(results.count("INSUFFICIENT_STOCK"), 1)
         self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 0)
         self.assertEqual(StockReservation.objects.filter(status=StockReservation.Status.ACTIVE).count(), 1)
+
+
+class ConcurrentCaptureProcessingTests(TransactionTestCase):
+    def _fixture_teardown(self):
+        connections.close_all()
+
+    def setUp(self):
+        User = get_user_model()
+        owner = User.objects.create_user("capture-owner", "capture-owner@example.com", "pass")
+        buyer = User.objects.create_user("capture-buyer", "capture-buyer@example.com", "pass")
+        merchant = Merchant.objects.create(owner=owner, name="Capture Shop", email="capture@example.com")
+        self.product = Product.objects.create(
+            merchant=merchant, title="Concurrent Capture", category="Test",
+            price=Decimal("10.00"), stock_quantity=1,
+        )
+        self.order = Order.objects.create(
+            buyer=buyer, product=self.product, buyer_email=buyer.email, quantity=1,
+            total_amount=Decimal("10.00"), status=Order.Status.PAYMENT_PENDING,
+            razorpay_order_id="order_concurrent_capture",
+        )
+        OrderItem.objects.create(
+            order=self.order, product=self.product, merchant=merchant,
+            product_title=self.product.title, merchant_name=merchant.name,
+            unit_price=Decimal("10.00"), quantity=1, line_total=Decimal("10.00"),
+        )
+        with transaction.atomic():
+            reserve_order_inventory(
+                Order.objects.select_for_update().get(pk=self.order.pk),
+                expires_at=timezone.now() + timedelta(minutes=15),
+            )
+
+    def test_concurrent_capture_workers_converge_exactly_once(self):
+        barrier = threading.Barrier(2)
+        payment = {
+            "order_id": "order_concurrent_capture", "id": "pay_concurrent_capture",
+            "status": "captured", "currency": "INR", "amount": 1000,
+        }
+
+        def process(_):
+            close_old_connections()
+            barrier.wait()
+            try:
+                _, changed = _capture_payment(payment)
+                return changed
+            finally:
+                connections["default"].close()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(process, range(2)))
+        self.assertEqual(results.count(True), 1)
+        self.assertEqual(results.count(False), 1)
+        self.assertEqual(Order.objects.get(pk=self.order.pk).status, Order.Status.PAID)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 0)
+        self.assertEqual(
+            StockReservation.objects.get(order=self.order).status,
+            StockReservation.Status.CONSUMED,
+        )

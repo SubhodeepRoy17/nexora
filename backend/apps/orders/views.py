@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from razorpay.errors import BadRequestError, GatewayError, ServerError
+from razorpay.errors import SignatureVerificationError
 from requests import RequestException
 from rest_framework import permissions, status, throttling
 from rest_framework.generics import ListAPIView
@@ -43,6 +44,7 @@ from .serializers import (
     MoneyActionAuditSerializer,
     OrderSerializer,
     QuoteSerializer,
+    VerifyCheckoutPaymentSerializer,
 )
 from .services import (
     PaymentConfigurationError,
@@ -54,6 +56,7 @@ from .tokens import issue_approval_token, read_approval_token, read_decision_tok
 
 
 logger = logging.getLogger(__name__)
+payment_logger = logging.getLogger("nexora.payments")
 RAZORPAY_REQUEST_ERRORS = (BadRequestError, GatewayError, ServerError)
 ORDER_CREATION_ERRORS = RAZORPAY_REQUEST_ERRORS + (RequestException, KeyError, TypeError, ValueError)
 
@@ -668,7 +671,7 @@ class OrderListView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Order.objects.select_related("buyer", "quote").prefetch_related("items")
+        queryset = Order.objects.select_related("buyer", "quote").prefetch_related("items", "refunds")
         try:
             merchant = self.request.user.merchant_profile
         except Merchant.DoesNotExist:
@@ -680,7 +683,7 @@ class OrderDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, order_id):
-        queryset = Order.objects.select_related("quote").prefetch_related("items")
+        queryset = Order.objects.select_related("quote").prefetch_related("items", "refunds")
         try:
             merchant = request.user.merchant_profile
         except Merchant.DoesNotExist:
@@ -692,6 +695,58 @@ class OrderDetailView(APIView):
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(OrderSerializer(order).data)
+
+
+class VerifyCheckoutPaymentView(APIView):
+    """Verify the browser proof for feedback without granting settlement authority."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, order_id):
+        serializer = VerifyCheckoutPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order = Order.objects.prefetch_related("items", "refunds").get(
+                pk=order_id, buyer=request.user
+            )
+        except Order.DoesNotExist:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        data = serializer.validated_data
+        if data["razorpay_order_id"] != order.razorpay_order_id:
+            return Response(
+                {"detail": "Checkout proof does not match this order.", "reason_code": "PAYMENT_LINK_MISMATCH"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not settings.RAZORPAY_KEY_SECRET:
+            return Response({"detail": "Payment verification is not configured."}, status=503)
+        try:
+            get_razorpay_client().utility.verify_payment_signature(data)
+        except PaymentConfigurationError:
+            return Response({"detail": "Payment verification is not configured."}, status=503)
+        except SignatureVerificationError:
+            payment_logger.warning(
+                "razorpay_checkout_signature_failed",
+                extra={"security_event": {
+                    "event": "razorpay_checkout_signature_failed",
+                    "reason_code": "CHECKOUT_SIGNATURE_INVALID",
+                    "order_id": str(order.order_id),
+                }},
+            )
+            return Response(
+                {
+                    "detail": "Checkout confirmation could not be verified. Authoritative provider status is still pending.",
+                    "reason_code": "CHECKOUT_SIGNATURE_INVALID",
+                    "status": order.status,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # No payment ID, signature, paid state, inventory, or revenue mutation is
+        # accepted from this browser-facing endpoint.
+        return Response({
+            "checkout_signature_verified": True,
+            "settlement_authority": "WEBHOOK_OR_RECONCILIATION",
+            "order": OrderSerializer(order).data,
+        })
 
 
 class CancelOrderView(APIView):

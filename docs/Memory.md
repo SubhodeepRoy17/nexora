@@ -1,10 +1,10 @@
 # Project Memory & Progress Tracker - Nexora
 
 ## 1. Project State Overview
-- **Current Phase:** Phase 10 — COMPLETE (Agent-Readable Catalog and External AI Buyer Contract)
-- **Active Task:** Ready to begin Phase 11 — Evaluation Harness and Regression Quality Gates
+- **Current Phase:** Phase 11 — IN PROGRESS (Razorpay reliability implementation complete locally; deployed test-mode evidence pending)
+- **Active Task:** Register the deployed webhook and capture redacted successful-payment, graceful-failure, and duplicate-delivery evidence
 - **Overall Progress:** Phases 1-10 complete; submission roadmap continues through Phase 16
-- **Last Updated:** 2026-08-24
+- **Last Updated:** 2026-08-25
 
 ### Phase Completion
 - [x] Phase 1 — Foundation & Merchant Catalog (100%)
@@ -17,6 +17,7 @@
 - [x] Phase 8 — Cart, Inventory Reservation, and Complete Order Lifecycle (100%)
 - [x] Phase 9 — Grounded Upsell/Cross-Sell Revenue Growth Loop (100%)
 - [x] Phase 10 — Agent-Readable Catalog and External AI Buyer Contract (100%)
+- [ ] Phase 11 — Razorpay Reliability, Webhook Inbox, Reconciliation, and Refund Safety (local implementation complete; deployment evidence pending)
 
 ## 2. Completed Milestones
 - [x] Defined PRD, Architecture, Rules, and Execution Phases.
@@ -152,6 +153,15 @@
 - [x] Added CSRF-protected, throttled buyer registration with Django password validation, automatic secure session creation, case-insensitive identity checks, and explicit separation from merchant onboarding.
 - [x] Added navbar Sign up actions and a responsive 21st.dev-inspired sign-in/create-account card; rebuilt checkout as a four-stage basket, quote, payment, and verified-status experience without weakening server authority.
 - [x] Passed all 50 backend tests and the 1,656-module frontend production build after registration and checkout refinement.
+- [x] Added a payload-free `WebhookEvent` inbox with raw-body-first HMAC verification, `x-razorpay-event-id`/body-hash deduplication, transactional row locking, attempts, linked orders, terminal acknowledgements, and sanitized errors.
+- [x] Added deterministic handling for `payment.authorized`, `payment.captured`, `order.paid`, `payment.failed`, `refund.created`, `refund.processed`, and `refund.failed`, including both out-of-order directions and late-capture refund safety.
+- [x] Removed durable Checkout/webhook signature storage and added a buyer-owned Checkout-signature verification endpoint that provides fast feedback without payment, stock, revenue, or audit settlement authority.
+- [x] Added an idempotent Razorpay reconciliation service/command that repairs only one exact captured payment and persists every ambiguous/mismatched outcome as an operator-visible `ReconciliationException`.
+- [x] Added bounded `PaymentRefund` records and an operator CLI requiring a repeated order UUID, enumerated reason, test-mode key, exact full-order amount, and configurable cap; verified webhooks remain final refund authority.
+- [x] Added `MANUAL_REVIEW`, buyer refund/manual-review UX, merchant timeline mapping, structured payment alerts, Django admin operations views, Render reconciliation scheduling, and a dedicated Razorpay runbook/evidence checklist.
+- [x] Added Phase 11 coverage for signatures, provider-event duplication, both out-of-order directions, amount mismatch, unknown orders, stale reconciliation repair/exception behavior, refund gating/finality, Checkout proof non-authority, and concurrent capture workers.
+- [x] Fixed the historical `merchants.0003` data migration to use `make_password(None)` with Django's historical User model; applied all pending local migrations through `orders.0008` successfully.
+- [x] Passed all 59 backend tests from a clean PostgreSQL/pgvector test schema, focused refund-finality and inbox-quarantine reruns, Django checks, migration drift checks, Python compilation, diff validation, a zero-eligible-order reconciliation smoke run, and the 1,656-module frontend production build.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
@@ -195,7 +205,7 @@
 - `backend/apps/merchants/migrations/0001_initial.py` (Applied)
 - `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
 - `backend/apps/agents/` (Complete — open-weight GPT-OSS orchestration, durable private conversations/decisions, deterministic retrieval and growth suggestions, and explicit offer responses)
-- `backend/apps/orders/` (Complete — multi-line carts/orders, state machine, reservations, idempotency, expiry worker, immutable trace, Razorpay lifecycle, and verified webhooks)
+- `backend/apps/orders/` (Complete locally — multi-line lifecycle plus payload-free webhook inbox, exact reconciliation, bounded refund/manual review, immutable trace, and verified payment/refund authority)
 - `backend/apps/agents/tools.py` (Complete — hybrid SQL/pgvector catalog search and fallback)
 - `backend/apps/agents/services.py` (Complete — open-model orchestration, relaxed deterministic retry, evidence-ranked 1-3 result contract)
 - `backend/apps/agents/prompts.py` (Complete — tool and recommendation guardrails)
@@ -223,7 +233,7 @@
 - Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
 - Open-model inference defaults to `openai/gpt-oss-20b` through `OPEN_MODEL_NAME`; provider and Razorpay credentials remain environment-managed, and deterministic retrieval works without model availability.
 - Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate the affected Groq key and database password before continuing, even though the real `.env` remains gitignored.
-- Phase 10 is complete; Phases 11-16 remain before submission readiness. The external-client acceptance is proven to a mocked-provider `PAYMENT_PENDING` handoff; each deployed environment must still register its public Razorpay webhook URL and perform a real Razorpay test-mode payment. The browser callback intentionally never marks an order paid.
+- Phase 11 implementation and local acceptance tests are complete, but Phase 11 remains in progress until the deployed public webhook is registered and redacted evidence captures one real Razorpay test success, one graceful failure, and duplicate delivery. No dashboard registration or real test-mode charge was claimed from the local environment. The browser callback intentionally never marks an order paid.
 - Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
 - Local `check --deploy` reports the expected development-only warnings because `.env` intentionally has `DEBUG=True`, HTTP redirects/HSTS disabled, and non-secure cookies. Render production values enable HTTPS, secure cookies, redirects, and HSTS.
 - Credentialed cross-site sessions require `SameSite=None` over HTTPS. Prefer same-site frontend/API domains or a reverse proxy because browser third-party-cookie blocking can override cookie configuration.

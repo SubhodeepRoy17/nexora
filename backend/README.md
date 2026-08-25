@@ -91,7 +91,8 @@ Payment endpoints:
 - `POST /api/orders/create/` requires a separate `Idempotency-Key`, `quote_id`, and `approval_token`. It locks products, revalidates, snapshots `OrderItem` rows, reserves inventory, and creates the exact Razorpay order.
 - `GET /api/orders/{order_id}/` returns authoritative status and historical lines for bounded frontend polling.
 - `POST /api/orders/{order_id}/cancel/` cancels eligible buyer orders and releases active inventory exactly once.
-- `POST /api/orders/webhook/razorpay/` verifies the raw-body webhook signature and applies payment state transitions.
+- `POST /api/orders/{order_id}/payment-status/` verifies browser Checkout proof for feedback but never settles the order or stores the signature.
+- `POST /api/orders/webhook/razorpay/` verifies the untouched raw body, writes a payload-free deduplicated inbox record, and applies deterministic payment/refund transitions.
 - `GET /api/orders/audits/` returns only the signed-in merchant's webhook-backed timeline records.
 - `GET /api/orders/money-audits/` returns a sanitized intent-to-payment trace scoped to the current buyer or merchant.
 
@@ -101,10 +102,10 @@ Analytics endpoint:
   attributed revenue, trends, price/stock losses, real versus synthetic offer metrics, paid attachment, top complements, rejections, compatibility gaps, and exact paid add-on line revenue. This is recorded attribution, not causal lift.
 
 Configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
-`RAZORPAY_WEBHOOK_SECRET` in `.env`. Only use Razorpay test-mode keys during
+`RAZORPAY_WEBHOOK_SECRET` in `.env`. Also configure `RAZORPAY_WEBHOOK_ALERT_ATTEMPTS`, `RAZORPAY_RECONCILIATION_STALE_MINUTES`, and a full-order cap in `RAZORPAY_REFUND_MAX_AMOUNT`. Only use Razorpay test-mode keys during
 local development. The buildathon guardrail rejects live keys by default. Configure conservative limits with the documented `MONEY_*` variables in `.env.example`.
 
-`Product.stock_quantity` is available inventory: reservation creation deducts it, capture only consumes the hold, and failed/cancelled/expired checkouts restore it. The browser Razorpay callback never marks an order paid.
+`Product.stock_quantity` is available inventory: reservation creation deducts it, capture only consumes the hold, and failed/cancelled/expired checkouts restore it. The browser Razorpay callback never marks an order paid. Order responses expose pending, failed, cancelled, expired, refund-pending, refunded, and manual-review outcomes plus sanitized refund records.
 
 ## Expiry worker
 
@@ -115,6 +116,14 @@ python manage.py expire_checkouts
 ```
 
 For continuous local development, invoke it every minute with your OS scheduler. The Render Blueprint runs `python manage.py expire_checkouts --limit 1000` every five minutes as a finite UTC cron job. Other hosts should schedule the same command at a five-minute interval. Configure hold duration using `ORDER_RESERVATION_TTL_SECONDS`; only `ACTIVE` reservations release stock, so retries are safe.
+
+Run stale-payment reconciliation separately:
+
+```bash
+python manage.py reconcile_razorpay --stale-minutes 10 --limit 250
+```
+
+It is idempotent and repairs only one exact Razorpay-captured payment. Its JSON output and admin `ReconciliationException` list expose ambiguous cases. For an already captured order that cannot be fulfilled, follow `docs/RazorpayRunbook.md`; the refund command requires the order UUID twice, an enumerated reason, test credentials, exact full amount, and the configured cap.
 
 See `docs/API.md` for request/response contracts and stable money-action reason codes.
 

@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Check, ChevronRight, Clock3, CreditCard, LoaderCircle, LockKeyhole, Minus, PackageCheck, Plus, ShieldCheck, X } from 'lucide-react'
-import { approveQuote, cancelOrder, createCart, createCartQuote, createOrder, getApiError, getOrder, loadRazorpayCheckout, newIdempotencyKey, respondToGrowthOffer } from '../../services/api'
+import { approveQuote, cancelOrder, createCart, createCartQuote, createOrder, getApiError, getOrder, loadRazorpayCheckout, newIdempotencyKey, respondToGrowthOffer, verifyCheckoutPayment } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
-const terminalStates = new Set(['PAID', 'PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUND_PENDING', 'REFUNDED'])
+const terminalStates = new Set(['PAID', 'PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'MANUAL_REVIEW'])
+const statusMessages = {
+  PAYMENT_PENDING: 'Razorpay confirmation is pending. Your reserved stock remains protected while Nexora verifies the provider result.',
+  PAYMENT_FAILED: 'The payment failed safely and reserved stock was released exactly once.',
+  CANCELLED: 'The checkout was cancelled and reserved stock was released.',
+  EXPIRED: 'The payment window expired and the reservation was released.',
+  REFUND_PENDING: 'A captured payment could not be fulfilled. A bounded full-order refund is pending operator/provider confirmation.',
+  REFUNDED: 'Razorpay confirmed the full-order refund.',
+  MANUAL_REVIEW: 'This payment needs operator review. Nexora has not guessed a fulfilled or refunded outcome.',
+}
 
 export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const { user } = useAuth()
@@ -19,6 +28,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const [error, setError] = useState('')
   const [reasonCode, setReasonCode] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const [checkoutProofVerified, setCheckoutProofVerified] = useState(false)
   const approvalKey = useRef(newIdempotencyKey('quote-approval'))
   const paymentKey = useRef(newIdempotencyKey('payment-order'))
   const notifiedPaid = useRef(false)
@@ -32,6 +42,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
     setOrder(null)
     setError('')
     setReasonCode('')
+    setCheckoutProofVerified(false)
     notifiedPaid.current = false
     approvalKey.current = newIdempotencyKey('quote-approval')
     paymentKey.current = newIdempotencyKey('payment-order')
@@ -58,6 +69,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           onOrderPlaced({ product, order: data })
         } else if (terminalStates.has(data.status)) {
           setStage('terminal')
+        } else if (data.status === 'REFUND_PENDING') {
+          setStage('refunding')
         } else {
           setStage('verifying')
         }
@@ -154,10 +167,18 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         order_id: authoritativeOrder.razorpay_order_id,
         prefill: { email: user.email },
         theme: { color: '#6366F1', backdrop_color: '#020617' },
-        handler: () => {
+        handler: async (paymentResult) => {
           // Browser success is only a hint. Polling waits for the verified webhook.
           setStage('verifying')
           setOrder((current) => ({ ...current, status: 'PAYMENT_PENDING' }))
+          try {
+            const { data } = await verifyCheckoutPayment(authoritativeOrder.order_id, paymentResult)
+            setCheckoutProofVerified(Boolean(data.checkout_signature_verified))
+            if (data.order) setOrder(data.order)
+          } catch (verificationError) {
+            setCheckoutProofVerified(false)
+            setError(getApiError(verificationError, 'Checkout returned, but its browser proof could not be verified. Provider reconciliation will continue.'))
+          }
         },
         modal: { ondismiss: () => setStage('verifying') },
       })
@@ -188,8 +209,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
   const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : ['approving', 'reserving', 'opening'].includes(stage) ? 2 : 3
-  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : ['verifying', 'opening', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : processing ? 'Securing your checkout' : 'Checkout stopped safely'
-  const stageCopy = stage === 'paid' ? 'Razorpay’s signed webhook confirmed payment and the reservation was consumed exactly once.' : ['verifying', 'opening', 'cancelling'].includes(stage) ? 'The browser cannot mark this order paid. Nexora is polling the authoritative backend status.' : 'Review each line, see the exact total, and approve only when the basket matches your intent.'
+  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : stage === 'refunding' ? 'Refund confirmation pending' : ['verifying', 'opening', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : processing ? 'Securing your checkout' : 'Checkout stopped safely'
+  const stageCopy = stage === 'paid' ? 'Razorpay’s signed webhook confirmed payment and the reservation was consumed exactly once.' : stage === 'refunding' ? statusMessages.REFUND_PENDING : ['verifying', 'opening', 'cancelling'].includes(stage) ? `The browser cannot mark this order paid. Nexora is polling the authoritative backend status.${checkoutProofVerified ? ' The Checkout signature was valid, but settlement is still pending.' : ''}` : statusMessages[order?.status] ?? 'Review each line, see the exact total, and approve only when the basket matches your intent.'
   const displayLines = lines.length ? lines : [
     { product_title: product.name, merchant_name: product.merchant.name, quantity, line_total: product.price * quantity },
     ...selectedAddOns.map((item) => ({ product_title: item.name, merchant_name: item.merchant.name, quantity: 1, line_total: item.price, growth_offer: true })),
@@ -231,7 +252,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               <label className={`mt-5 flex cursor-pointer items-start gap-3 border p-4 transition ${approvedExactQuote ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}><input type="checkbox" checked={approvedExactQuote} onChange={(event) => setApprovedExactQuote(event.target.checked)} className="mt-0.5 size-4 accent-emerald-600" /><span className="text-xs leading-6 text-slate-700"><strong className="block text-slate-950">I approve this exact quote.</strong>I confirm the products, quantities, unit prices, total and disclosed limits before expiry.</span></label>
             </>}
 
-            {order && <section className={`border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}><p className="font-mono text-[8px] text-slate-500">AUTHORITATIVE ORDER STATUS</p><div className="mt-2 flex items-center gap-3"><span className={`size-2 rounded-full ${stage === 'paid' ? 'bg-emerald-500' : stopped ? 'bg-rose-500' : 'animate-pulse bg-amber-500'}`} /><p className="text-lg font-semibold">{statusLabel}</p></div><p className="mt-3 text-xs leading-6 text-slate-600">Order {order.order_id?.slice(0, 8).toUpperCase()}{order.reservation_expires_at ? ` · reservation expires ${new Date(order.reservation_expires_at).toLocaleTimeString()}` : ''}</p></section>}
+            {order && <section className={`border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}><p className="font-mono text-[8px] text-slate-500">AUTHORITATIVE ORDER STATUS</p><div className="mt-2 flex items-center gap-3"><span className={`size-2 rounded-full ${stage === 'paid' ? 'bg-emerald-500' : stopped ? 'bg-rose-500' : 'animate-pulse bg-amber-500'}`} /><p className="text-lg font-semibold">{statusLabel}</p></div><p className="mt-3 text-xs leading-6 text-slate-600">{statusMessages[order.status] ?? `Order ${order.order_id?.slice(0, 8).toUpperCase()}`}</p>{order.refunds?.[0] && <p className="mt-2 font-mono text-[8px] text-slate-500">REFUND {order.refunds[0].status} · {money(order.refunds[0].amount)}</p>}</section>}
           </div>
 
           <aside className="bg-white p-5 sm:p-7">

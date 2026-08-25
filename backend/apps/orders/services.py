@@ -20,6 +20,12 @@ def amount_to_subunits(amount: Decimal) -> int:
     return int((amount * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
+def amount_to_decimal(subunits: int) -> Decimal:
+    """Convert INR paise to a two-decimal Decimal for durable records."""
+
+    return (Decimal(subunits) / Decimal("100")).quantize(Decimal("0.01"))
+
+
 def create_razorpay_order(client: razorpay.Client, order) -> dict:
     item_count = order.items.count() if hasattr(order, "items") else 1
     payload = {

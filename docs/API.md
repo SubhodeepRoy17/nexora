@@ -84,8 +84,9 @@ A successful `201` is `PAYMENT_PENDING` and includes `items`, exact total/curren
 - `GET /api/orders/` — paginated buyer-owned orders or merchant-item-owned orders.
 - `GET /api/orders/{order_id}/` — tenant-scoped detail for frontend polling.
 - `POST /api/orders/{order_id}/cancel/` — buyer cancellation for `PAYMENT_PENDING` or `PAYMENT_FAILED`; repeat cancellation is safe.
+- `POST /api/orders/{order_id}/payment-status/` — verifies the Razorpay Checkout signature for fast buyer feedback, returns current authoritative state, stores no signature, and cannot mark paid.
 
-Supported states are `DRAFT`, `QUOTED`, `APPROVED`, `PAYMENT_PENDING`, `PAID`, `PAYMENT_FAILED`, `CANCELLED`, `EXPIRED`, `REFUND_PENDING`, and `REFUNDED`. Invalid transitions return `ILLEGAL_STATE_TRANSITION` or `ORDER_NOT_CANCELLABLE`.
+Supported states are `DRAFT`, `QUOTED`, `APPROVED`, `PAYMENT_PENDING`, `PAID`, `PAYMENT_FAILED`, `CANCELLED`, `EXPIRED`, `REFUND_PENDING`, `REFUNDED`, and `MANUAL_REVIEW`. Invalid transitions return `ILLEGAL_STATE_TRANSITION` or `ORDER_NOT_CANCELLABLE`.
 
 The Razorpay browser callback has no settlement authority. The frontend displays `PAYMENT_PENDING` and polls detail until a verified webhook changes the backend state.
 
@@ -97,7 +98,9 @@ The Razorpay browser callback has no settlement authority. The frontend displays
 - Duplicate webhook or cleanup execution: no additional inventory mutation.
 - Late verified capture after release: `REFUND_PENDING`, never a false fulfilled/paid state.
 
-`POST /api/orders/webhook/razorpay/` remains signature-authenticated and amount/currency/order-bound.
+`POST /api/orders/webhook/razorpay/` remains signature-authenticated and amount/currency/order-bound. It stores only inbox metadata and hashes, deduplicates by `x-razorpay-event-id` (verified-body hash fallback), and never stores the full payload or signature.
+
+`python manage.py reconcile_razorpay` safely repairs only exact provider-proven captures. `python manage.py initiate_razorpay_refund --order UUID --confirm UUID --reason FULFILLMENT_IMPOSSIBLE` is the deliberately gated, bounded full-refund path; verified refund webhooks provide final state.
 
 ## 9. Merchant relationship and analytics APIs
 

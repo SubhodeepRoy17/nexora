@@ -17,12 +17,18 @@ ORDER_TRANSITIONS = {
         Order.Status.CANCELLED,
         Order.Status.EXPIRED,
         Order.Status.REFUND_PENDING,
+        Order.Status.MANUAL_REVIEW,
     },
-    Order.Status.PAYMENT_FAILED: {Order.Status.CANCELLED, Order.Status.REFUND_PENDING},
-    Order.Status.PAID: {Order.Status.REFUND_PENDING},
-    Order.Status.REFUND_PENDING: {Order.Status.REFUNDED},
-    Order.Status.CANCELLED: {Order.Status.REFUND_PENDING},
-    Order.Status.EXPIRED: {Order.Status.REFUND_PENDING},
+    Order.Status.PAYMENT_FAILED: {
+        Order.Status.CANCELLED,
+        Order.Status.REFUND_PENDING,
+        Order.Status.MANUAL_REVIEW,
+    },
+    Order.Status.PAID: {Order.Status.REFUND_PENDING, Order.Status.MANUAL_REVIEW},
+    Order.Status.REFUND_PENDING: {Order.Status.REFUNDED, Order.Status.MANUAL_REVIEW},
+    Order.Status.MANUAL_REVIEW: {Order.Status.REFUND_PENDING, Order.Status.REFUNDED},
+    Order.Status.CANCELLED: {Order.Status.REFUND_PENDING, Order.Status.MANUAL_REVIEW},
+    Order.Status.EXPIRED: {Order.Status.REFUND_PENDING, Order.Status.MANUAL_REVIEW},
     Order.Status.REFUNDED: set(),
 }
 

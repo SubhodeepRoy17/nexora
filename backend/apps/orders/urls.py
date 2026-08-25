@@ -11,6 +11,7 @@ from .views import (
     MoneyActionAuditListView,
     OrderDetailView,
     OrderListView,
+    VerifyCheckoutPaymentView,
 )
 from .webhooks import razorpay_webhook
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path("", OrderListView.as_view(), name="list"),
     path("<uuid:order_id>/", OrderDetailView.as_view(), name="detail"),
     path("<uuid:order_id>/cancel/", CancelOrderView.as_view(), name="cancel"),
+    path("<uuid:order_id>/payment-status/", VerifyCheckoutPaymentView.as_view(), name="payment-status"),
     path("audits/", AgentTransactionAuditListView.as_view(), name="audit-list"),
     path("money-audits/", MoneyActionAuditListView.as_view(), name="money-audit-list"),
     path("webhook/razorpay/", razorpay_webhook, name="razorpay-webhook"),

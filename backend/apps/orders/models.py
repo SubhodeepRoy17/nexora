@@ -55,6 +55,7 @@ class Order(models.Model):
         EXPIRED = "EXPIRED", "Expired"
         REFUND_PENDING = "REFUND_PENDING", "Refund pending"
         REFUNDED = "REFUNDED", "Refunded"
+        MANUAL_REVIEW = "MANUAL_REVIEW", "Manual review"
 
     order_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     buyer = models.ForeignKey(
@@ -93,7 +94,6 @@ class Order(models.Model):
     state_updated_at = models.DateTimeField(default=timezone.now)
     razorpay_order_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
     razorpay_payment_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
-    razorpay_signature = models.CharField(max_length=256, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -291,6 +291,12 @@ class MoneyActionAudit(models.Model):
         RESERVATION_CONSUMED = "RESERVATION_CONSUMED", "Reservation consumed"
         ORDER_CANCELLED = "ORDER_CANCELLED", "Order cancelled"
         ORDER_EXPIRED = "ORDER_EXPIRED", "Order expired"
+        PAYMENT_AUTHORIZED = "PAYMENT_AUTHORIZED", "Payment authorized"
+        REFUND_INITIATED = "REFUND_INITIATED", "Refund initiated"
+        REFUND_PROCESSED = "REFUND_PROCESSED", "Refund processed"
+        REFUND_FAILED = "REFUND_FAILED", "Refund failed"
+        RECONCILED = "RECONCILED", "Reconciled"
+        MANUAL_REVIEW = "MANUAL_REVIEW", "Manual review"
 
     audit_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(AgentSession, on_delete=models.PROTECT, related_name="money_audits")
@@ -300,7 +306,7 @@ class MoneyActionAudit(models.Model):
     merchant = models.ForeignKey(Merchant, on_delete=models.PROTECT, related_name="money_action_audits")
     buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="money_action_audits")
     action = models.CharField(max_length=24, choices=Action.choices, db_index=True)
-    outcome = models.CharField(max_length=12)
+    outcome = models.CharField(max_length=24)
     reason_code = models.CharField(max_length=48, db_index=True)
     summary = models.TextField(max_length=2_000)
     metadata = models.JSONField(default=dict)
@@ -317,3 +323,89 @@ class MoneyActionAudit(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("MoneyActionAudit records are immutable")
+
+
+class WebhookEvent(models.Model):
+    class ProcessingState(models.TextChoices):
+        RECEIVED = "RECEIVED", "Received"
+        PROCESSING = "PROCESSING", "Processing"
+        PROCESSED = "PROCESSED", "Processed"
+        IGNORED = "IGNORED", "Ignored"
+        FAILED = "FAILED", "Failed"
+
+    event_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    razorpay_event_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    deduplication_key = models.CharField(max_length=80, unique=True)
+    event_type = models.CharField(max_length=64, default="UNKNOWN", db_index=True)
+    payload_hash = models.CharField(max_length=64, db_index=True)
+    signature_verified = models.BooleanField(default=False, db_index=True)
+    processing_state = models.CharField(
+        max_length=12,
+        choices=ProcessingState.choices,
+        default=ProcessingState.RECEIVED,
+        db_index=True,
+    )
+    attempt_count = models.PositiveIntegerField(default=0)
+    order = models.ForeignKey(
+        Order, on_delete=models.PROTECT, related_name="webhook_events", null=True, blank=True
+    )
+    error_code = models.CharField(max_length=48, blank=True, db_index=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [models.Index(fields=["processing_state", "received_at"])]
+
+
+class PaymentRefund(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSED = "PROCESSED", "Processed"
+        FAILED = "FAILED", "Failed"
+
+    refund_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="refunds")
+    razorpay_refund_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    razorpay_payment_id = models.CharField(max_length=64)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    currency = models.CharField(max_length=3, default="INR")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    reason_code = models.CharField(max_length=48)
+    error_code = models.CharField(max_length=48, blank=True)
+    requested_by = models.CharField(max_length=64, default="OPERATOR")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order"],
+                condition=models.Q(status="PENDING"),
+                name="one_pending_refund_per_order",
+            )
+        ]
+
+
+class ReconciliationException(models.Model):
+    exception_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="reconciliation_exceptions")
+    reason_code = models.CharField(max_length=48, db_index=True)
+    provider_status = models.CharField(max_length=32, blank=True)
+    occurrence_count = models.PositiveIntegerField(default=1)
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "reason_code"],
+                condition=models.Q(resolved_at__isnull=True),
+                name="one_open_reconciliation_exception",
+            )
+        ]

@@ -10,6 +10,7 @@ from .models import (
     OrderItem,
     Quote,
     QuoteItem,
+    PaymentRefund,
 )
 
 
@@ -43,6 +44,12 @@ class CreateQuoteSerializer(serializers.Serializer):
     decision_id = serializers.UUIDField()
     decision_token = serializers.CharField(min_length=20, max_length=2_048, trim_whitespace=False)
     quantity = serializers.IntegerField(min_value=1, max_value=10_000)
+
+
+class VerifyCheckoutPaymentSerializer(serializers.Serializer):
+    razorpay_order_id = serializers.CharField(max_length=64)
+    razorpay_payment_id = serializers.CharField(max_length=64)
+    razorpay_signature = serializers.CharField(max_length=256, trim_whitespace=False)
 
 
 class ApproveQuoteSerializer(serializers.Serializer):
@@ -107,8 +114,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PaymentRefundSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentRefund
+        fields = [
+            "refund_id", "razorpay_refund_id", "amount", "currency", "status",
+            "reason_code", "error_code", "requested_at", "processed_at",
+        ]
+        read_only_fields = fields
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    refunds = PaymentRefundSerializer(many=True, read_only=True)
     cancellable = serializers.SerializerMethodField()
 
     class Meta:
@@ -116,7 +134,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             "order_id", "quote", "items", "total_amount", "currency", "status", "cancellable",
             "reservation_expires_at", "razorpay_order_id", "razorpay_payment_id", "paid_at",
-            "cancelled_at", "created_at", "updated_at",
+            "cancelled_at", "refunds", "state_updated_at", "created_at", "updated_at",
         ]
         read_only_fields = fields
 

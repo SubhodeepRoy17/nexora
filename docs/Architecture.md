@@ -20,7 +20,7 @@
 - Every displayed add-on creates a durable `GrowthOffer` impression. Its signed token binds session, decision, and product. The authenticated buyer records one explicit accept or reject before an accepted offer can enter a cart.
 - Checkout is cart- and quote-bound. `CartItem`, `QuoteItem`, and `OrderItem` support multi-product baskets while snapshotting product title, merchant, unit price, quantity, and line total. A short-lived `ApprovalGrant` is signed for the exact aggregate quote.
 - `Product.stock_quantity` means currently available stock. Entering `PAYMENT_PENDING` locks products in deterministic order and deducts an exact `StockReservation`; capture consumes that reservation without a second deduction, while eligible failure/cancellation/expiry restores it once.
-- Razorpay webhooks remain outside browser session/CSRF authentication and are trusted only after raw-body HMAC verification.
+- Razorpay webhooks remain outside browser session/CSRF authentication and are trusted only after untouched raw-body HMAC verification. A payload-free `WebhookEvent` inbox records the provider event ID, body hash, verification result, attempts, state, linked order, and sanitized error code.
 
 ## 3. Application Flow
 
@@ -45,6 +45,7 @@ Public buyer prompt
   -> PAYMENT_PENDING order + exact Razorpay test order
   -> Razorpay Checkout
   -> signed Razorpay webhook
+  -> transactional WebhookEvent deduplication by x-razorpay-event-id (body hash fallback)
   -> consume existing reservations exactly once -> PAID (no capture-time deduction)
   -> paid OrderItem.growth_offer attributes exact incremental add-on revenue
   -> immutable MoneyActionAudit trace for allowed, blocked, and webhook outcomes
@@ -97,6 +98,7 @@ The reference client imports no Django models or private services. External-agen
 | `POST /api/orders/create/` | Authenticated + idempotency key, throttled | Signed approval, server total, atomic reservation |
 | `GET /api/orders/{id}/` | Authenticated | Buyer-owned or merchant-item-owned order |
 | `POST /api/orders/{id}/cancel/` | Authenticated buyer | Eligible buyer-owned order; releases active hold |
+| `POST /api/orders/{id}/payment-status/` | Authenticated buyer | Verifies Checkout proof for feedback; cannot settle or store proof |
 | `GET /api/orders/money-audits/` | Authenticated | Buyer-owned or merchant-owned trace events |
 | `POST /api/orders/webhook/razorpay/` | Razorpay signature | Matching local Razorpay order |
 
@@ -108,14 +110,19 @@ Missing identity returns 401, an authenticated but disallowed role returns 403, 
 DRAFT -> QUOTED -> APPROVED -> PAYMENT_PENDING -> PAID
                                   |      |          |
                                   |      |          -> REFUND_PENDING -> REFUNDED
-                                  |      -> PAYMENT_FAILED
-                                  -> CANCELLED / EXPIRED
+                                  |      |                    |
+                                  |      -> PAYMENT_FAILED    -> MANUAL_REVIEW
+                                  -> CANCELLED / EXPIRED              |
+                                                   late capture -------+
 ```
 
 - Terminal or backward transitions are rejected with `ILLEGAL_STATE_TRANSITION`.
 - Product rows are locked in ascending primary-key order. All lines are checked before any deduction, preventing partial reservation and reducing deadlock risk.
 - An active reservation owns units already removed from available stock. `ACTIVE -> CONSUMED` never changes stock; `ACTIVE -> RELEASED/EXPIRED` adds the units back once.
 - A verified capture after release enters `REFUND_PENDING` with an immutable audit instead of claiming fulfillment.
+- `payment.failed` is ignored after a verified capture. A capture arriving after failure/cancellation/expiry is financially authoritative but cannot reclaim released stock, so it enters `REFUND_PENDING`.
+- Only a verified `payment.captured`/`order.paid` webhook or a Razorpay API reconciliation with one exact captured payment may mark an order `PAID`. Checkout browser proof remains non-authoritative.
+- Refund initiation is a test-mode-only operator command, permits only enumerated fulfillment reasons, always sends the exact full order amount, and is capped by `RAZORPAY_REFUND_MAX_AMOUNT`. Verified refund webhooks determine final state.
 - Idempotency records are unique per buyer, operation, and key. Exact retries reconstruct the same grant/order; conflicting reuse returns `IDEMPOTENCY_CONFLICT`.
 - Migration `orders.0004` backfills legacy `QuoteItem` and `OrderItem` snapshots. Legacy unreserved pending orders become `PAYMENT_FAILED`; paid and cancelled history remains intact.
 
@@ -162,6 +169,7 @@ nexora/
 - `MONEY_*` limits are environment-configurable but default conservatively. Buildathon deployments reject non-`rzp_test_` keys when test-mode enforcement is enabled.
 - `MoneyActionAudit` stores concise evidence and policy results, never prompts containing secrets or hidden chain-of-thought. Its model and queryset reject mutation/deletion through the application ORM.
 - `python manage.py expire_checkouts` is safe to retry and must run at least every five minutes. The Render Blueprint declares a UTC cron job; another platform may invoke the same finite command from its scheduler.
+- `python manage.py reconcile_razorpay` checks stale pending orders every five minutes. It repairs only an exact single captured payment; ambiguous, mismatched, or provider-error outcomes become durable `ReconciliationException` rows and structured alerts.
 - Agent commerce v1 uses cursor pagination capped at 50 and public conditional caching. Catalog serialization excludes credentials, buyers, private analytics, inactive inventory, and internal search vectors.
 - The published interface is a Nexora-native contract. It does not claim conformance with ACP, AP2, x402, UAP, or another third-party protocol.
 
@@ -177,3 +185,11 @@ buyer text -> deterministic hard constraints -> open-model structured intent
 The deterministic parser retains authoritative category and budget constraints while treating prose and optional preferences as ranking evidence. Model-produced specifications may narrow the first retrieval, but an empty result triggers a safe retry using only the deterministic hard constraints. Final product identity, price, stock, merchant, and specifications are overwritten from the database.
 
 `ChatConversation` owns ordered `ChatMessage` records and links every `AgentSession` search run through a UUID. Authenticated list/detail querysets filter by `buyer=request.user`; cross-buyer IDs return 404. Anonymous rows have no list/detail surface and continuation requires a short-lived Django-signed token matching the conversation UUID. No hidden chain-of-thought or approval tokens are stored in message metadata.
+
+## 10. Razorpay Reliability Boundary
+
+The supported test-mode webhook subset is `payment.authorized`, `payment.captured`, `order.paid`, `payment.failed`, `refund.created`, `refund.processed`, and `refund.failed`. Unsupported verified events are durably marked `IGNORED`. Invalid signatures are recorded only as an SHA-256 body hash plus safe failure metadata; full provider payloads, card details, emails, contacts, signatures, keys, and secrets are never retained.
+
+`WebhookEvent` row locks serialize concurrent deliveries. Completed/ignored events acknowledge safely without replaying order, stock, audit, or revenue mutations. Permanent validation failures are quarantined with 2xx acknowledgement and operator-visible codes; unexpected processing failures return 5xx for provider retry and emit structured alerts.
+
+The reconciliation worker fetches the Razorpay order and its payments without holding a database transaction, validates provider order ID, paise amount, and currency, and then reuses the same locked capture service as webhooks. It never turns `created`, `attempted`, multiple-capture, missing-entity, or mismatched results into a guessed local outcome.

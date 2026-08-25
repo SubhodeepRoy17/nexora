@@ -24,6 +24,6 @@
 - **Exact approval:** Approval is short-lived, signed, buyer-bound, quote-bound, and single-use. Missing, altered, expired, replayed, or cross-user approvals must stop before a provider order is created.
 - **Server authority:** Browser values for amount, price, merchant, inventory ownership, order status, payment status, or audit fields are ignored or rejected.
 - **Safe failure:** A blocked action creates a sanitized immutable reason-coded audit event and never creates a Razorpay order, decrements stock, or emits a paid audit.
-- **Settlement authority:** Only a verified Razorpay webhook can mark an order paid and mutate stock.
+- **Settlement authority:** Only a verified Razorpay webhook or exact server-to-server Razorpay reconciliation can mark an order paid. Browser callbacks never settle, and capture consumes an existing reservation without a second stock mutation.
 - **No dark-pattern growth:** Add-ons are optional, unselected by default, bounded in count, and show exact incremental cost plus an honest trade-off. Rejecting is as easy as accepting; merchant labels cannot imply unverified savings or urgency.
 - **Grounded attribution:** A paid add-on must link `AgentSession -> GrowthOffer -> buyer response -> QuoteItem -> OrderItem -> verified paid order`. Attribution describes recorded behavior, never causal lift.

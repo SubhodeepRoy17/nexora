@@ -81,6 +81,10 @@ export const createOrder = ({ quoteId, approvalToken, idempotencyKey }) => api.p
 export const getOrder = (orderId, signal) => api.get(`orders/${orderId}/`, { signal })
 export const getOrders = (signal) => api.get('orders/', { signal })
 export const cancelOrder = (orderId) => api.post(`orders/${orderId}/cancel/`, {})
+export const verifyCheckoutPayment = (orderId, payload) => api.post(
+  `orders/${orderId}/payment-status/`,
+  payload,
+)
 
 export const getProducts = (signal) => api.get('merchants/products/', { signal })
 export const patchProduct = (productId, payload) => api.patch(`merchants/products/${productId}/`, payload)
@@ -215,7 +219,7 @@ export function toTimelineEvent(audit) {
 }
 
 export function toMoneyTimelineEvent(audit) {
-  const blocked = audit.outcome === 'BLOCKED' || audit.outcome === 'FAILED'
+  const blocked = ['BLOCKED', 'FAILED', 'REFUND_PENDING', 'MANUAL_REVIEW', 'REFUNDED'].includes(audit.outcome)
   const paid = audit.action === 'PAYMENT_CAPTURED'
   return {
     id: `money-${audit.audit_id}`,
