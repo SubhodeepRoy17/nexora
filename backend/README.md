@@ -19,6 +19,11 @@ Django REST Framework backend for Nexora's merchant catalog, buyer agents, order
    python manage.py runserver
    ```
 
+For a shared Neon database, follow `docs/NeonRunbook.md`. Nexora accepts Neon's
+direct `DATABASE_URL`, including `sslmode` and `channel_binding`, and keeps the
+individual `POSTGRES_*` settings as the local fallback. Never commit a real
+connection string.
+
 5. Configure the `DEMO_BUYER_*` and `DEMO_MERCHANT_*` values in `.env`, then create deterministic demo identities:
 
    ```bash

@@ -1,7 +1,7 @@
 import os
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
@@ -68,13 +68,19 @@ TEMPLATES = [
 WSGI_APPLICATION = "nexora_core.wsgi.application"
 ASGI_APPLICATION = "nexora_core.asgi.application"
 
-database_options = {"connect_timeout": 5}
-if os.getenv("POSTGRES_SSLMODE"):
-    database_options["sslmode"] = os.environ["POSTGRES_SSLMODE"]
+database_options = {"connect_timeout": int(os.getenv("POSTGRES_CONNECT_TIMEOUT", "5"))}
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
     parsed_database_url = urlparse(database_url)
+    if parsed_database_url.scheme not in {"postgres", "postgresql"}:
+        raise ValueError("DATABASE_URL must use the postgres:// or postgresql:// scheme.")
+    database_query = parse_qs(parsed_database_url.query)
+    # Preserve only libpq security/routing options that the application needs.
+    # Neon connection strings currently include both sslmode and channel_binding.
+    for option in ("sslmode", "channel_binding", "target_session_attrs"):
+        if database_query.get(option):
+            database_options[option] = database_query[option][-1]
     database_config = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": unquote(parsed_database_url.path.lstrip("/")),
@@ -96,6 +102,10 @@ else:
         "CONN_MAX_AGE": 60,
         "OPTIONS": database_options,
     }
+
+if os.getenv("POSTGRES_SSLMODE"):
+    # An explicit deployment setting takes precedence over the URL query.
+    database_options["sslmode"] = os.environ["POSTGRES_SSLMODE"]
 
 DATABASES = {"default": database_config}
 

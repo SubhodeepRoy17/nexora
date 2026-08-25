@@ -4,7 +4,7 @@
 
 - **Frontend:** React (Vite), TailwindCSS, Axios
 - **Backend:** Python, Django, Django REST Framework
-- **Database:** PostgreSQL with `pgvector`
+- **Database:** PostgreSQL with `pgvector`; Neon-compatible `DATABASE_URL` query options preserve TLS and channel binding
 - **LLM:** Apache-2.0 open-weight GPT-OSS through a Groq inference endpoint, with validated tool calling and deterministic fallback
 - **Payment Gateway:** Razorpay API and signed webhooks
 - **Deployment:** Vercel frontend, Render/Railway backend, managed PostgreSQL
