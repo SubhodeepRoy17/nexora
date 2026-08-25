@@ -206,6 +206,9 @@ def _validate_decision_lines(user, lines):
     if session.buyer_id is None:
         session.buyer = user
         session.save(update_fields=["buyer"])
+        if session.conversation_id and session.conversation.buyer_id is None:
+            session.conversation.buyer = user
+            session.conversation.save(update_fields=["buyer", "updated_at"])
     return session, validated
 
 

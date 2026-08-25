@@ -2,9 +2,15 @@
 
 All unsafe browser requests require the Django session cookie and `X-CSRFToken`. Obtain both from `GET /api/auth/me/`. Money errors contain a safe `detail` and stable `reason_code`.
 
+## Buyer registration
+
+`POST /api/auth/register/` accepts `first_name`, `username`, `email`, `password`, and matching `password_confirm`. The CSRF-protected, throttled endpoint validates Django's username and password rules, rejects case-insensitive identity duplicates, creates only a buyer account, and returns the authenticated user plus a rotated CSRF token with `201`. Merchant ownership is never client-assignable through registration.
+
 ## 1. Recommendation lineage
 
 `POST /api/agents/search/` returns grounded recommendations containing `decision_id` and a signed, time-limited `decision_token`. Multiple decisions from the same `agent_session_id` may form one cart. These tokens prove lineage; they do not approve payment.
+
+The request accepts `query` plus optional `conversation_id`. An authenticated buyer supplies only the UUID and the server verifies ownership. A guest must supply both the UUID and its matching short-lived `conversation_token`; a new search returns both values. Only authenticated buyers may call `GET /api/agents/conversations/` and `GET /api/agents/conversations/{conversation_id}/`, and both endpoints return only the current buyer's records. Stored assistant metadata excludes signed decision and offer tokens.
 
 The response identifies the first grounded result in `primary_recommendation_id` and may include up to `GROWTH_MAX_ADDON_OFFERS` entries in `add_on_suggestions`. Each contains a relationship ID/type, exact live incremental cost, compatibility facts, buyer-constraint evidence, merchant-provided benefit/trade-off, an offer ID/token, and an add-on decision ID/token. Missing valid relationships produces an empty list; the agent does not invent an offer.
 

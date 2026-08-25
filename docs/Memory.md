@@ -23,7 +23,7 @@
 - [x] Defined tech stack: Django, React, PostgreSQL, Groq, Razorpay.
 - [x] Defined Merchant Analytics & AI Agent interaction boundaries.
 - [x] Initialized the Vite + React frontend with Tailwind CSS and Lucide React.
-- [x] Implemented the Nexora design system: Slate 950, Cyber Violet, Electric Emerald, Inter, JetBrains Mono, and animated glow treatments.
+- [x] Implemented the original Nexora dark design system, then replaced it with a 21st.dev-informed editorial system using warm white/ink surfaces, violet and emerald signals, DM Sans, IBM Plex Mono, structured grids, and sharp framed components.
 - [x] Built the responsive B2C AI Buyer Chat shell with conversation history, mock agent-thinking state, recommendation cards, spec badges, suggested prompts, and functional mock replies.
 - [x] Built the explicit human-in-the-loop approval modal with mock order state progression and no payment side effects.
 - [x] Built the responsive B2B Merchant Dashboard shell with KPI cards, searchable inventory table, stock status badges, catalog health, and live-style Agent Transaction Timeline.
@@ -141,6 +141,16 @@
 - [x] Added a standard-library reference AI buyer that uses only advertised HTTP APIs, pauses for exact human confirmation, opens Razorpay test Checkout, and polls webhook-authoritative status.
 - [x] Added Phase 10 contract, cache, authorization, mutation-denial, retry/conflict, schema, and live HTTP reference-client coverage in `apps.commerce`.
 - [x] Applied `orders.0007`; passed all 45 backend tests, Django checks, migration drift checks, Python compilation, diff validation, and the Windows Node 22 Vite production build (1,654 modules transformed) after Phase 10.
+- [x] Added a dedicated `/` landing page based on the Cypon Analytics visual direction from 21st.dev, moved the live shopping workspace to `/buyer`, and rewrote all landing content around Nexora's grounded discovery, explicit approval, safe Razorpay handoff, external-agent contract, and merchant growth loop.
+- [x] Added reusable 21st.dev-informed buttons, labels, status pills, grid/bento cards, tool-state traces, numbered process cards, stats cards, responsive navigation, and footer patterns; refined buyer, login, and merchant shells without changing their API/security behavior.
+- [x] Documented the exact 21st.dev reference and licensing boundaries in `docs/UI.md`; no private registry, paid-template, imagery, or unknown-license source was copied.
+- [x] Expanded the live demo catalog to 74 attributed products through an idempotent pinned MIT/CC0 seed command; every imported record carries provenance and demo-data flags.
+- [x] Replaced static Recent intents with buyer-owned UUID conversations, signed guest continuation, memory-only guest UI state, private history loading, and cross-user 404 isolation.
+- [x] Switched the default structured model to open-weight GPT-OSS, added deterministic category/budget parsing and empty-result relaxation, capped output at three, and verified the representative keyboard prompt returns three grounded matches.
+- [x] Applied `agents.0003` and `merchants.0005`; passed all 48 backend tests, Django/migration checks, catalog smoke testing, diff validation, and the 1,656-module frontend production build.
+- [x] Added CSRF-protected, throttled buyer registration with Django password validation, automatic secure session creation, case-insensitive identity checks, and explicit separation from merchant onboarding.
+- [x] Added navbar Sign up actions and a responsive 21st.dev-inspired sign-in/create-account card; rebuilt checkout as a four-stage basket, quote, payment, and verified-status experience without weakening server authority.
+- [x] Passed all 50 backend tests and the 1,656-module frontend production build after registration and checkout refinement.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
@@ -163,7 +173,7 @@
 - `frontend/src/components/merchant/AgentAnalyticsCard.jsx` (Complete)
 - `frontend/src/mock/merchantData.js` (Legacy only — no longer used by the live merchant overview/growth path)
 - `frontend/src/components/common/Navbar.jsx` (Complete — global mode navigation)
-- `frontend/src/context/NexoraContext.jsx` (Complete — persisted chat plus server-backed catalog/audit state)
+- `frontend/src/context/NexoraContext.jsx` (Complete — memory-only guest chat plus server-backed catalog/audit state; legacy shared transcripts are removed)
 - `frontend/src/context/AuthContext.jsx` (Complete — session/CSRF bootstrap, login/logout, and expiry handling)
 - `frontend/src/components/auth/ProtectedRoute.jsx` (Complete — authenticated merchant role boundary)
 - `frontend/src/pages/Login.jsx` (Complete — accessible buyer/merchant sign-in flow)
@@ -183,13 +193,13 @@
 - `backend/apps/merchants/views.py` (Complete — initial unauthenticated CRUD prototype)
 - `backend/apps/merchants/migrations/0001_initial.py` (Applied)
 - `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
-- `backend/apps/agents/` (Complete — Groq engine, durable decisions, deterministic growth suggestions, and explicit offer responses)
+- `backend/apps/agents/` (Complete — open-weight GPT-OSS orchestration, durable private conversations/decisions, deterministic retrieval and growth suggestions, and explicit offer responses)
 - `backend/apps/orders/` (Complete — multi-line carts/orders, state machine, reservations, idempotency, expiry worker, immutable trace, Razorpay lifecycle, and verified webhooks)
 - `backend/apps/agents/tools.py` (Complete — hybrid SQL/pgvector catalog search and fallback)
-- `backend/apps/agents/services.py` (Complete — Groq orchestration and grounded response contract)
+- `backend/apps/agents/services.py` (Complete — open-model orchestration, relaxed deterministic retry, evidence-ranked 1-3 result contract)
 - `backend/apps/agents/prompts.py` (Complete — tool and recommendation guardrails)
-- `backend/apps/agents/views.py` (Complete — initial unauthenticated search endpoint)
-- `backend/apps/agents/tests.py` (Complete — 4 passing unit tests)
+- `backend/apps/agents/views.py` (Complete — public search with signed guest continuation and private buyer-owned history endpoints)
+- `backend/apps/agents/tests.py` (Complete — schema, grounding, catalog recall, and conversation privacy coverage)
 - `backend/apps/orders/models.py` (Complete — cart/quote/order aggregates, snapshots, reservations, idempotency, and audits)
 - `backend/apps/orders/services.py` (Complete — Razorpay client and precise INR subunit conversion)
 - `backend/apps/orders/views.py` (Complete — checkout initialization endpoint)
@@ -210,7 +220,7 @@
 - The local Windows PostgreSQL 18 server now provides pgvector 0.8.6. The `vector` extension, semantic table, and HNSW index are installed and verified; indexed SQL fallback remains available for hosts without server binaries.
 - The WSL Node.js runtime is 18.19 and cannot parse the installed Vite version; production builds use the installed Windows Node 22.20 runtime and pass.
 - Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
-- Groq defaults to `llama-3.3-70b-versatile` through `GROQ_MODEL`; provider and Razorpay production credentials remain environment-managed.
+- Open-model inference defaults to `openai/gpt-oss-20b` through `OPEN_MODEL_NAME`; provider and Razorpay credentials remain environment-managed, and deterministic retrieval works without model availability.
 - Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate the affected Groq key and database password before continuing, even though the real `.env` remains gitignored.
 - Phase 10 is complete; Phases 11-16 remain before submission readiness. The external-client acceptance is proven to a mocked-provider `PAYMENT_PENDING` handoff; each deployed environment must still register its public Razorpay webhook URL and perform a real Razorpay test-mode payment. The browser callback intentionally never marks an order paid.
 - Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.

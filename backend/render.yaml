@@ -42,8 +42,8 @@ services:
         value: require
       - key: GROQ_API_KEY
         sync: false
-      - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+      - key: OPEN_MODEL_NAME
+        value: openai/gpt-oss-20b
       - key: GROWTH_MAX_ADDON_OFFERS
         value: "2"
       - key: RAZORPAY_KEY_ID

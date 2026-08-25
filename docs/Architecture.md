@@ -5,7 +5,7 @@
 - **Frontend:** React (Vite), TailwindCSS, Axios
 - **Backend:** Python, Django, Django REST Framework
 - **Database:** PostgreSQL with `pgvector`
-- **LLM Provider:** Groq with validated tool calling and deterministic fallback
+- **LLM:** Apache-2.0 open-weight GPT-OSS through a Groq inference endpoint, with validated tool calling and deterministic fallback
 - **Payment Gateway:** Razorpay API and signed webhooks
 - **Deployment:** Vercel frontend, Render/Railway backend, managed PostgreSQL
 
@@ -27,7 +27,7 @@
 ```text
 Public buyer prompt
   -> throttled POST /api/agents/search/
-  -> validated Groq tool call or deterministic fallback
+  -> validated open-model tool call or deterministic fallback
   -> active catalog search in PostgreSQL/pgvector
   -> grounded recommendations
   -> deterministic compatibility/budget/availability rules
@@ -136,7 +136,7 @@ nexora/
 │   ├── nexora_core/          # Settings, URLs, bounded pagination, logging
 │   ├── apps/
 │   │   ├── accounts/         # Session auth, CSRF, roles, demo account seeding
-│   │   ├── agents/           # Groq orchestration, sessions, grounded decisions
+│   │   ├── agents/           # Open-model orchestration, conversations, grounded decisions
 │   │   ├── merchants/        # Owned merchant profile and product catalog
 │   │   ├── orders/           # Carts, state machine, reservations, expiry, Razorpay
 │   │   ├── commerce/         # Public v1 capability, catalog, schemas, and adapters
@@ -164,3 +164,16 @@ nexora/
 - `python manage.py expire_checkouts` is safe to retry and must run at least every five minutes. The Render Blueprint declares a UTC cron job; another platform may invoke the same finite command from its scheduler.
 - Agent commerce v1 uses cursor pagination capped at 50 and public conditional caching. Catalog serialization excludes credentials, buyers, private analytics, inactive inventory, and internal search vectors.
 - The published interface is a Nexora-native contract. It does not claim conformance with ACP, AP2, x402, UAP, or another third-party protocol.
+
+## 9. Buyer Search and Conversation Pipeline
+
+```text
+buyer text -> deterministic hard constraints -> open-model structured intent
+           -> bounded SQL/pgvector retrieval -> relaxed retry when empty
+           -> grounded top 1-3 recommendations -> immutable decision trace
+           -> UUID conversation + user/assistant messages
+```
+
+The deterministic parser retains authoritative category and budget constraints while treating prose and optional preferences as ranking evidence. Model-produced specifications may narrow the first retrieval, but an empty result triggers a safe retry using only the deterministic hard constraints. Final product identity, price, stock, merchant, and specifications are overwritten from the database.
+
+`ChatConversation` owns ordered `ChatMessage` records and links every `AgentSession` search run through a UUID. Authenticated list/detail querysets filter by `buyer=request.user`; cross-buyer IDs return 404. Anonymous rows have no list/detail surface and continuation requires a short-lived Django-signed token matching the conversation UUID. No hidden chain-of-thought or approval tokens are stored in message metadata.

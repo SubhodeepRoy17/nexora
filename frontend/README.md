@@ -2,6 +2,15 @@
 
 Production-ready React client for the Nexora buyer agent and merchant dashboard.
 
+The route map is:
+
+- `/` — dedicated public product landing page.
+- `/buyer` — live AI shopping workspace.
+- `/login` — buyer/merchant session login.
+- `/merchant`, `/merchant/inventory`, and `/merchant/analytics` — protected merchant OS.
+
+The current visual system adapts the editorial grid and analytics hierarchy of the 21st.dev Cypon Analytics template, plus selected 21st.dev commerce, AI-state, process-card, stats-card, button, and navigation patterns. See `docs/UI.md` for the exact source mapping, licensing boundary, content rules, and responsive surface guidance.
+
 ## Run locally
 
 ```bash

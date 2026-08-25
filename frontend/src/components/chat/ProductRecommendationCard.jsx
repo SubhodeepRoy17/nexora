@@ -13,51 +13,51 @@ export default function ProductRecommendationCard({ product, featured = false, o
   const primarySpecs = ['wireless', 'hotSwappable', 'switches', 'battery']
 
   return (
-    <article className={`group relative min-w-[300px] snap-start overflow-hidden rounded-2xl border bg-slate-900/95 transition duration-300 hover:-translate-y-1 hover:border-indigo-400/60 hover:shadow-glow md:min-w-0 ${featured ? 'border-indigo-400/50 shadow-glow-strong' : 'border-slate-800'}`}>
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/80 to-transparent opacity-0 transition group-hover:opacity-100" />
-      {featured && <span className="absolute right-3 top-3 z-10 rounded-full border border-indigo-300/30 bg-indigo-500 px-2.5 py-1 font-mono text-[8px] font-semibold uppercase tracking-wider text-white shadow-glow">Best match</span>}
+    <article className={`group relative min-w-[300px] snap-start overflow-hidden border bg-white transition duration-300 hover:-translate-y-1 hover:border-violet-500 md:min-w-0 ${featured ? 'border-violet-500 shadow-[6px_6px_0_rgba(139,92,246,.2)]' : 'border-slate-300'}`}>
+      <div className="absolute inset-x-0 top-0 h-1 bg-violet-600 opacity-0 transition group-hover:opacity-100" />
+      {featured && <span className="absolute right-3 top-3 z-10 border border-violet-700 bg-violet-600 px-2.5 py-1 font-mono text-[8px] font-semibold uppercase tracking-wider text-white shadow-[2px_2px_0_#111827]">Best match</span>}
 
-      <div className="relative h-32 overflow-hidden border-b border-slate-800 bg-gradient-to-br from-indigo-500/20 via-violet-500/5 to-slate-950">
-        <div className="absolute -left-8 -top-10 size-32 rounded-full bg-indigo-500/20 blur-3xl" />
-        <div className="absolute -bottom-16 right-0 size-36 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="product-grid relative h-32 overflow-hidden border-b border-slate-300 bg-[#f6f5f1]">
+        <div className="absolute -left-8 -top-10 size-32 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="absolute -bottom-16 right-0 size-36 rounded-full bg-emerald-500/15 blur-3xl" />
         <div className="absolute inset-0 grid place-items-center">
-          <div className="relative h-[62px] w-[155px] rotate-[-3deg] rounded-xl border border-slate-600 bg-slate-800 p-2 shadow-2xl transition duration-300 group-hover:rotate-0 group-hover:scale-105">
+          <div className="relative h-[62px] w-[155px] rotate-[-3deg] border border-slate-700 bg-slate-900 p-2 shadow-2xl transition duration-300 group-hover:rotate-0 group-hover:scale-105">
             <div className="grid h-full grid-cols-12 gap-1">
               {Array.from({ length: 48 }, (_, index) => <span key={index} className={`rounded-[2px] border border-slate-600/60 ${index === 35 ? 'col-span-5 bg-indigo-500/70' : 'bg-slate-700'}`} />)}
             </div>
-            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 font-mono text-[8px] font-semibold tracking-[0.2em] text-indigo-300">{product.imageLabel}</span>
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 font-mono text-[8px] font-semibold tracking-[0.2em] text-violet-700">{product.imageLabel}</span>
           </div>
         </div>
       </div>
 
       <div className="p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-mono text-[8px] text-emerald-400"><CheckCircle2 size={10} /> {product.merchant.name} · Verified</span>
-          <span className="flex items-center gap-1 font-mono text-[9px] font-semibold text-indigo-300"><Star size={10} fill="currentColor" /> {product.matchScore}% match</span>
+          <span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[8px] text-emerald-700"><CheckCircle2 size={10} /> {product.merchant.name} · Verified</span>
+          <span className="flex items-center gap-1 font-mono text-[9px] font-semibold text-violet-700"><Star size={10} fill="currentColor" /> {product.matchScore}% match</span>
         </div>
 
-        <h3 className="mt-3 text-base font-semibold tracking-tight text-white">{product.name}</h3>
-        <p className="mt-1.5 min-h-[42px] text-[11px] leading-relaxed text-slate-400">{product.reason}</p>
+        <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-950">{product.name}</h3>
+        <p className="mt-1.5 min-h-[42px] text-[11px] leading-relaxed text-slate-600">{product.reason}</p>
 
         <div className="my-4 grid grid-cols-2 gap-1.5">
           {primarySpecs.map((key) => {
             const Icon = specIcons[key]
             const label = key === 'hotSwappable' ? 'Hot-swap' : key.charAt(0).toUpperCase() + key.slice(1)
             return (
-              <div key={key} className="min-w-0 rounded-lg border border-slate-800 bg-slate-950/60 p-2">
-                <p className="flex items-center gap-1 font-mono text-[7px] uppercase tracking-wider text-slate-600"><Icon size={9} /> {label}</p>
-                <p className="mt-1 truncate font-mono text-[9px] text-slate-300" title={product.specs[key]}>{product.specs[key]}</p>
+              <div key={key} className="min-w-0 border border-slate-200 bg-[#f8f7f4] p-2">
+                <p className="flex items-center gap-1 font-mono text-[7px] uppercase tracking-wider text-slate-400"><Icon size={9} /> {label}</p>
+                <p className="mt-1 truncate font-mono text-[9px] text-slate-700" title={product.specs[key]}>{product.specs[key]}</p>
               </div>
             )
           })}
         </div>
 
-        <div className="flex items-end justify-between border-t border-slate-800 pt-3">
-          <div>{product.originalPrice > product.price && <p className="font-mono text-[9px] text-slate-600 line-through">{money(product.originalPrice)}</p>}<p className="mt-0.5 text-lg font-bold tracking-tight text-white">{money(product.price)}</p><p className="mt-1 font-mono text-[8px] text-emerald-400">{product.stock}</p></div>
-          <button type="button" onClick={() => onApprove(product)} className="focus-ring flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3 py-2.5 text-[11px] font-semibold text-white shadow-lg shadow-indigo-950/60 transition hover:bg-indigo-400">Approve & Buy <ArrowUpRight size={13} /></button>
+        <div className="flex items-end justify-between border-t border-slate-200 pt-3">
+          <div>{product.originalPrice > product.price && <p className="font-mono text-[9px] text-slate-400 line-through">{money(product.originalPrice)}</p>}<p className="mt-0.5 text-lg font-bold tracking-tight text-slate-950">{money(product.price)}</p><p className="mt-1 font-mono text-[8px] text-emerald-700">{product.stock}</p></div>
+          <button type="button" disabled={product.historical} onClick={() => onApprove(product)} className="focus-ring flex items-center gap-1.5 border border-violet-700 bg-violet-600 px-3 py-2.5 text-[11px] font-semibold text-white shadow-[3px_3px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none">{product.historical ? 'Historical result' : 'Approve & Buy'} {!product.historical && <ArrowUpRight size={13} />}</button>
         </div>
         <p className="mt-3 flex items-center gap-1.5 font-mono text-[8px] text-slate-600"><Bluetooth size={10} /> {product.specs.layout} · {product.specs.keycaps}</p>
-        {product.addOns?.length > 0 && <p className="mt-2 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-2.5 py-2 text-[9px] text-indigo-300">{product.addOns.length} compatible optional add-on{product.addOns.length === 1 ? '' : 's'} · nothing added automatically</p>}
+        {product.addOns?.length > 0 && <p className="mt-2 border border-violet-200 bg-violet-50 px-2.5 py-2 text-[9px] text-violet-700">{product.addOns.length} compatible optional add-on{product.addOns.length === 1 ? '' : 's'} · nothing added automatically</p>}
         <p className="mt-2 flex items-center gap-1.5 font-mono text-[8px] text-slate-500"><ShieldCheck size={10} className="text-emerald-400" /> {product.delivery}</p>
       </div>
     </article>

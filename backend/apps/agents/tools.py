@@ -16,8 +16,31 @@ from apps.merchants.vector_setup import vector_index_available
 ALLOWED_SPEC_KEYS = frozenset(ProductSpecifications.model_fields)
 MAX_SEARCH_RESULTS = 10
 SEARCH_STOP_WORDS = {
-    "a", "an", "and", "below", "buy", "for", "find", "in", "me", "of", "or",
-    "please", "show", "than", "the", "to", "under", "with",
+    "a", "an", "and", "at", "below", "best", "bring", "buy", "compare", "details",
+    "for", "find", "from", "give", "in", "list", "looking", "me", "most", "need",
+    "of", "options", "or", "please", "prefer", "prioritize", "result", "show", "than",
+    "that", "the", "to", "under", "want", "what", "with",
+}
+CATEGORY_ALIASES = {
+    "keyboard": "Keyboards",
+    "keyboards": "Keyboards",
+    "laptop": "Laptops",
+    "laptops": "Laptops",
+    "phone": "Smartphones",
+    "phones": "Smartphones",
+    "smartphone": "Smartphones",
+    "smartphones": "Smartphones",
+    "tablet": "Tablets",
+    "tablets": "Tablets",
+}
+TERM_EXPANSIONS = {
+    "mac": ["macos"],
+    "macos": ["macos", "mac"],
+    "silent": ["silent", "quiet"],
+    "quiet": ["quiet", "silent"],
+    "coding": ["coding", "productivity"],
+    "hot-swappable": ["hot-swap"],
+    "hotswap": ["hot-swap"],
 }
 
 
@@ -47,10 +70,14 @@ class ProductSearchSchema(BaseModel):
 
 def _keyword_query(search_query: str) -> Q:
     extracted = re.findall(r"[\w+-]+", search_query.lower())
-    tokens = [
+    base_tokens = [
         token for token in dict.fromkeys(extracted)
         if len(token) > 2 and token not in SEARCH_STOP_WORDS
-    ][:8]
+    ][:10]
+    tokens = []
+    for token in base_tokens:
+        tokens.extend(TERM_EXPANSIONS.get(token, [token]))
+    tokens = list(dict.fromkeys(tokens))[:12]
     if not tokens:
         return Q()
 
@@ -83,6 +110,11 @@ def serialize_product(product: Product) -> dict[str, Any]:
             "id": product.merchant_id,
             "name": product.merchant.name,
         },
+        "data_provenance": {
+            "source_name": product.source_name,
+            "source_license": product.source_license,
+            "is_demo": product.is_demo,
+        },
     }
 
 
@@ -98,15 +130,20 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
         queryset = queryset.filter(price__lte=Decimal(str(search.max_price)))
     if search.min_rating is not None:
         queryset = queryset.filter(rating__gte=search.min_rating)
-    if search.required_specs:
-        queryset = queryset.filter(specifications__contains=search.required_specs)
+    for key, value in search.required_specs.items():
+        if isinstance(value, list):
+            for item in value:
+                queryset = queryset.filter(**{f"specifications__{key}__contains": [item]})
+        else:
+            queryset = queryset.filter(**{f"specifications__{key}": value})
 
     sql_queryset = _keyword_filter(queryset, search.search_query)
     keyword_query = _keyword_query(search.search_query)
     query_embedding = catalog_text_embedding(search.search_query, search.category, search.required_specs)
 
     if not vector_index_available():
-        products = list(sql_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
+        ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+        products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
     else:
         try:
             vector_queryset = queryset.filter(semantic_index__embedding__isnull=False).annotate(
@@ -124,9 +161,11 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
             )
             products = list(vector_queryset.order_by("-hybrid_score", "-rating", "price")[: search.limit])
             if not products:
-                products = list(sql_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
+                ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+                products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
         except DatabaseError:
-            products = list(sql_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
+            ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+            products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
     return [serialize_product(product) for product in products]
 
 
@@ -149,16 +188,26 @@ def extract_max_price(user_prompt: str) -> float | None:
     return max_price
 
 
-def fallback_product_search(user_prompt: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Deterministic keyword/price fallback used when Groq is unavailable."""
+def extract_category(user_prompt: str) -> str | None:
+    tokens = re.findall(r"[\w-]+", user_prompt.lower())
+    return next((CATEGORY_ALIASES[token] for token in tokens if token in CATEGORY_ALIASES), None)
 
-    return search_merchant_products(
-        ProductSearchSchema(
-            search_query=user_prompt,
-            max_price=extract_max_price(user_prompt),
-            limit=min(limit, MAX_SEARCH_RESULTS),
-        )
+
+def deterministic_search_arguments(user_prompt: str, limit: int = 5) -> ProductSearchSchema:
+    """Parse reliable hard constraints without allowing prose to over-constrain retrieval."""
+
+    return ProductSearchSchema(
+        search_query=user_prompt,
+        category=extract_category(user_prompt),
+        max_price=extract_max_price(user_prompt),
+        limit=min(limit, MAX_SEARCH_RESULTS),
     )
+
+
+def fallback_product_search(user_prompt: str, limit: int = 5) -> list[dict[str, Any]]:
+    """Deterministic keyword/price fallback used when model inference is unavailable."""
+
+    return search_merchant_products(deterministic_search_arguments(user_prompt, limit))
 
 
 SEARCH_MERCHANT_PRODUCTS_TOOL = {

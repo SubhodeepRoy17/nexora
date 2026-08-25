@@ -27,6 +27,14 @@ Django REST Framework backend for Nexora's merchant catalog, buyer agents, order
 
    The command is idempotent. Passwords are read from the environment and are never embedded in source or printed.
 
+6. Load the attributed demo catalog:
+
+   ```bash
+   python manage.py seed_open_catalog --external-limit 60
+   ```
+
+   The command imports a pinned MIT-licensed DummyJSON subset and the CC0 Nexora keyboard scenarios documented in `docs/CatalogData.md`. It is idempotent; `--skip-external` works offline.
+
 ## Browser authentication and CSRF
 
 Nexora uses Django session authentication for the React SPA:
@@ -34,7 +42,8 @@ Nexora uses Django session authentication for the React SPA:
 1. `GET /api/auth/me/` returns the current user (or `null`) and a CSRF token while setting the CSRF cookie.
 2. The browser sends that token in `X-CSRFToken` for login and every unsafe request.
 3. `POST /api/auth/login/` accepts `{"username": "...", "password": "..."}` and rotates the session and CSRF token.
-4. `POST /api/auth/logout/` invalidates the authenticated session.
+4. `POST /api/auth/register/` creates a buyer account after username, email, and Django password validation, then starts a rotated authenticated session. It never creates a merchant membership.
+5. `POST /api/auth/logout/` invalidates the authenticated session.
 
 The Axios client performs this bootstrap automatically. Merchant routes require a signed-in user who owns a `Merchant`. Product ownership is always assigned server-side; a submitted `merchant` field cannot change scope. Buyers can search publicly but must sign in before requesting a quote. Buyer identity and email are derived from the authenticated account.
 
@@ -52,9 +61,15 @@ Authenticated merchant product CRUD is available at `http://localhost:8000/api/m
 Merchant relationship/offer CRUD is available at `http://localhost:8000/api/merchants/product-relationships/`. Both products must belong to the merchant; active add-on targets must be active and in stock.
 
 The buyer-agent endpoint accepts `{"query": "..."}` at
-`http://localhost:8000/api/agents/search/`. It uses Groq local tool calling when
-`GROQ_API_KEY` is configured and falls back to deterministic ORM keyword search
-if the provider is unavailable.
+`http://localhost:8000/api/agents/search/`. It uses the Apache-2.0 open-weight
+GPT-OSS model for structured tool calling when `GROQ_API_KEY` is configured and
+falls back to deterministic ORM retrieval if the provider is unavailable or
+over-constrains the catalog. `OPEN_MODEL_NAME` selects the model.
+Each response includes a UUID `conversation_id`. Logged-in buyers can list and
+open only their own history at `GET /api/agents/conversations/` and
+`GET /api/agents/conversations/{id}/`. Anonymous searches receive a short-lived,
+signed continuation token but cannot use either history endpoint; guest browser
+transcripts are memory-only.
 It may also return up to `GROWTH_MAX_ADDON_OFFERS` deterministic, Pydantic-validated add-ons. The buyer records an explicit accept or reject through `POST /api/agents/growth-offers/{offer_id}/respond/`; accepted offers still require a fresh exact quote and approval.
 
 Catalog search applies indexed SQL constraints before hybrid ranking. If the

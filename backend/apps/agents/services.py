@@ -11,13 +11,14 @@ from .prompts import BUYER_AGENT_SYSTEM_PROMPT, RECOMMENDATION_SYSTEM_PROMPT
 from .tools import (
     SEARCH_MERCHANT_PRODUCTS_TOOL,
     ProductSearchSchema,
+    deterministic_search_arguments,
     extract_max_price,
     fallback_product_search,
     search_merchant_products,
 )
 
 
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_OPEN_MODEL = "openai/gpt-oss-20b"
 MAX_TOOL_ATTEMPTS = 2
 MAX_OUTPUT_ATTEMPTS = 2
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class BuyerAgentResponse(BaseModel):
 
     thought_process: list[str] = Field(min_length=1, max_length=8)
     primary_recommendation_id: int | None = None
-    recommendations: list[ProductRecommendation] = Field(default_factory=list, max_length=5)
+    recommendations: list[ProductRecommendation] = Field(default_factory=list, max_length=3)
     add_on_suggestions: list[AddOnSuggestion] = Field(default_factory=list, max_length=3)
     summary_reasoning: str = Field(min_length=1, max_length=1500)
 
@@ -166,7 +167,8 @@ def _groq_client() -> Groq:
 
 
 def _model_name() -> str:
-    return os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL)
+    # GROQ_MODEL remains a backwards-compatible alias for existing deployments.
+    return os.getenv("OPEN_MODEL_NAME") or os.getenv("GROQ_MODEL", DEFAULT_OPEN_MODEL)
 
 
 def _extract_tool_call(client: Groq, user_prompt: str):
@@ -209,7 +211,7 @@ def _extract_tool_call(client: Groq, user_prompt: str):
                 }
             )
 
-    raise AgentServiceError("Groq returned invalid tool arguments") from last_error
+    raise AgentServiceError("Open model returned invalid tool arguments") from last_error
 
 
 def _parse_recommendations(
@@ -256,7 +258,7 @@ def _parse_recommendations(
                     ]
                 )
 
-    raise AgentServiceError("Groq returned invalid recommendation JSON") from last_error
+    raise AgentServiceError("Open model returned invalid recommendation JSON") from last_error
 
 
 def _ground_recommendations(
@@ -287,7 +289,7 @@ def _ground_recommendations(
         )
 
     if candidates and not grounded:
-        raise AgentServiceError("Groq recommendations did not reference catalog products")
+        raise AgentServiceError("Open-model recommendations did not reference catalog products")
     return response.model_copy(update={"recommendations": grounded})
 
 
@@ -321,7 +323,33 @@ def _record_search(
         logger.exception("Analytics tracking failed without interrupting the buyer response.")
 
 
+def _evidence_reason(candidate: dict[str, Any], constraints: ProductSearchSchema) -> tuple[str, list[str]]:
+    evidence = [f"₹{float(candidate['price']):,.0f} and currently in stock"]
+    if constraints.category:
+        evidence.append(f"listed in {candidate['category']}")
+    specs = candidate.get("specifications", {})
+    for label, key in (
+        ("connectivity", "connectivity"),
+        ("switch type", "switches"),
+        ("layout", "layout"),
+        ("battery", "battery_life_hours"),
+    ):
+        value = specs.get(key)
+        if value not in (None, "", []):
+            formatted = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+            evidence.append(f"{label}: {formatted}")
+        if len(evidence) == 4:
+            break
+    tradeoffs = []
+    if not specs.get("battery_life_hours"):
+        tradeoffs.append("Battery endurance is not specified in the catalog data.")
+    if specs.get("hot_swappable") is False:
+        tradeoffs.append("The switches are not listed as hot-swappable.")
+    return "Catalog evidence: " + "; ".join(evidence) + ".", tradeoffs
+
+
 def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
+    constraints = deterministic_search_arguments(user_prompt)
     candidates = fallback_product_search(user_prompt)
     if not candidates:
         _record_search(
@@ -330,11 +358,12 @@ def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
             "FALLBACK",
             max_price=extract_max_price(user_prompt),
         )
-        return _empty_response(f"Groq unavailable ({reason}); exact ORM keyword fallback completed.")
+        return _empty_response("The bounded catalog search completed without a matching item.")
 
     recommendations = []
     for candidate in candidates[:3]:
         score = min(96, round(68 + (candidate["rating"] * 5)))
+        evidence_reason, tradeoffs = _evidence_reason(candidate, constraints)
         recommendations.append(
             ProductRecommendation(
                 product_id=candidate["id"],
@@ -346,13 +375,13 @@ def _fallback_response(user_prompt: str, reason: str) -> BuyerAgentResponse:
                 rating=candidate["rating"],
                 match_score=score,
                 key_specs=candidate["specifications"],
-                reason="Matched the available catalog using exact keyword, price, and availability filters.",
-                tradeoffs=["Comparative LLM evaluation was unavailable for this response."],
+                reason=evidence_reason,
+                tradeoffs=tradeoffs,
             )
         )
     response = BuyerAgentResponse(
         thought_process=[
-            f"Groq unavailable ({reason}); switched to exact ORM keyword matching.",
+            "Used the deterministic intent parser and bounded catalog retriever.",
             f"Filtered active inventory and ranked {len(candidates)} candidate products.",
         ],
         recommendations=recommendations,
@@ -381,20 +410,25 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         messages, assistant_message, tool_call, arguments = _extract_tool_call(client, prompt)
         candidates = search_merchant_products(arguments)
         if not candidates:
-            _record_search(
-                prompt,
-                [],
-                "GROQ",
-                max_price=arguments.max_price,
-                category=arguments.category,
-            )
-            result = _empty_response("Parsed intent and searched active merchant inventory.").model_dump(mode="json")
-            result["_audit_context"] = {
-                "provider_source": "GROQ",
-                "parsed_constraints": arguments.model_dump(mode="json"),
-                "catalog_candidate_ids": [],
-            }
-            return result
+            # Model-extracted optional specs can be too strict for a small catalog. Retry with
+            # only deterministic hard constraints before declaring that no product exists.
+            relaxed_arguments = deterministic_search_arguments(prompt)
+            candidates = search_merchant_products(relaxed_arguments)
+            if candidates:
+                arguments = relaxed_arguments
+            else:
+                _record_search(
+                    prompt, [], "GROQ", max_price=arguments.max_price, category=arguments.category
+                )
+                result = _empty_response(
+                    "Parsed the intent and searched active, in-stock merchant inventory."
+                ).model_dump(mode="json")
+                result["_audit_context"] = {
+                    "provider_source": "GROQ",
+                    "parsed_constraints": arguments.model_dump(mode="json"),
+                    "catalog_candidate_ids": [],
+                }
+                return result
 
         messages.extend(
             [
@@ -436,11 +470,7 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         result = response.model_dump(mode="json")
         result["_audit_context"] = {
             "provider_source": "FALLBACK",
-            "parsed_constraints": {
-                "search_query": prompt,
-                "max_price": extract_max_price(prompt),
-                "limit": 5,
-            },
+            "parsed_constraints": deterministic_search_arguments(prompt).model_dump(mode="json"),
             "catalog_candidate_ids": [item.product_id for item in response.recommendations],
         }
         return result

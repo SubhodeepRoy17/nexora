@@ -6,6 +6,43 @@ from django.db import models
 from apps.merchants.models import Product, ProductRelationship
 
 
+class ChatConversation(models.Model):
+    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="chat_conversations",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["buyer", "-updated_at"])]
+
+
+class ChatMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "USER", "User"
+        ASSISTANT = "ASSISTANT", "Assistant"
+
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        ChatConversation, on_delete=models.CASCADE, related_name="messages"
+    )
+    role = models.CharField(max_length=12, choices=Role.choices)
+    content = models.TextField(max_length=5_000)
+    metadata = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["conversation", "created_at"])]
+
+
 class AgentSession(models.Model):
     class Source(models.TextChoices):
         GROQ = "GROQ", "Groq"
@@ -16,6 +53,13 @@ class AgentSession(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="agent_sessions",
+        null=True,
+        blank=True,
+    )
+    conversation = models.ForeignKey(
+        ChatConversation,
+        on_delete=models.PROTECT,
+        related_name="search_runs",
         null=True,
         blank=True,
     )

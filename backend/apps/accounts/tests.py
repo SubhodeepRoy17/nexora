@@ -73,6 +73,62 @@ class IdentityBoundaryTests(TestCase):
         self.assertEqual(logged_out.status_code, 200)
         self.assertIsNone(client.get("/api/auth/me/").json()["user"])
 
+    def test_buyer_registration_requires_csrf_validates_and_starts_session(self):
+        client = APIClient(enforce_csrf_checks=True)
+        token = client.get("/api/auth/me/").json()["csrf_token"]
+        payload = {
+            "first_name": "New Buyer",
+            "username": "new-buyer",
+            "email": "new-buyer@example.com",
+            "password": "a-strong-registration-pass-42",
+            "password_confirm": "a-strong-registration-pass-42",
+        }
+        self.assertEqual(client.post("/api/auth/register/", payload, format="json").status_code, 403)
+
+        registered = client.post(
+            "/api/auth/register/", payload, format="json", HTTP_X_CSRFTOKEN=token
+        )
+        self.assertEqual(registered.status_code, 201)
+        self.assertEqual(registered.json()["user"]["role"], "buyer")
+        self.assertNotIn("password", registered.json())
+        self.assertEqual(client.get("/api/auth/me/").json()["user"]["username"], "new-buyer")
+        user = get_user_model().objects.get(username="new-buyer")
+        self.assertTrue(user.check_password(payload["password"]))
+        self.assertFalse(Merchant.objects.filter(owner=user).exists())
+
+    def test_registration_rejects_duplicate_identity_and_mismatched_password(self):
+        client = APIClient(enforce_csrf_checks=True)
+        token = client.get("/api/auth/me/").json()["csrf_token"]
+        mismatch = client.post(
+            "/api/auth/register/",
+            {
+                "first_name": "Buyer",
+                "username": "unique-buyer",
+                "email": "unique@example.com",
+                "password": "a-strong-registration-pass-42",
+                "password_confirm": "not-the-same-password-42",
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(mismatch.status_code, 400)
+        self.assertIn("password_confirm", mismatch.json())
+
+        duplicate = client.post(
+            "/api/auth/register/",
+            {
+                "first_name": "Buyer",
+                "username": "BUYER-A",
+                "email": "another@example.com",
+                "password": "a-strong-registration-pass-42",
+                "password_confirm": "a-strong-registration-pass-42",
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn("username", duplicate.json())
+
     def test_unauthenticated_business_endpoints_return_401(self):
         for path in [
             "/api/merchants/",

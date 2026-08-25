@@ -44,10 +44,17 @@ class ProductSerializer(serializers.ModelSerializer):
             "is_active",
             "specifications",
             "tags",
+            "source_name",
+            "source_url",
+            "source_license",
+            "is_demo",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "merchant", "merchant_name", "created_at", "updated_at"]
+        read_only_fields = [
+            "id", "merchant", "merchant_name", "source_name", "source_url",
+            "source_license", "is_demo", "created_at", "updated_at",
+        ]
 
     def validate_specifications(self, value):
         return serializer_validation(validate_specifications, value)

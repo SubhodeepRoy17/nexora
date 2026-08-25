@@ -51,6 +51,10 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     specifications = models.JSONField(default=dict, validators=[validate_specifications])
     tags = models.JSONField(default=list, validators=[validate_tags])
+    source_name = models.CharField(max_length=120, blank=True)
+    source_url = models.URLField(max_length=500, blank=True)
+    source_license = models.CharField(max_length=80, blank=True)
+    is_demo = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

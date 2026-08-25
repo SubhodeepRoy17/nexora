@@ -45,7 +45,13 @@ export function getApiError(error, fallback = 'Something went wrong. Please try 
   return fallback
 }
 
-export const searchProducts = (query, signal) => api.post('agents/search/', { query }, { signal })
+export const searchProducts = (query, signal, conversation = {}) => api.post('agents/search/', {
+  query,
+  ...(conversation.conversationId ? { conversation_id: conversation.conversationId } : {}),
+  ...(conversation.conversationToken ? { conversation_token: conversation.conversationToken } : {}),
+}, { signal })
+export const getChatSessions = (signal) => api.get('agents/conversations/', { signal })
+export const getChatSession = (conversationId, signal) => api.get(`agents/conversations/${conversationId}/`, { signal })
 export const respondToGrowthOffer = ({ offerId, offerToken, accepted }) => api.post(
   `agents/growth-offers/${offerId}/respond/`,
   { offer_token: offerToken, accepted },
@@ -53,6 +59,7 @@ export const respondToGrowthOffer = ({ offerId, offerToken, accepted }) => api.p
 
 export const getCurrentUser = () => api.get('auth/me/')
 export const loginAccount = ({ username, password }) => api.post('auth/login/', { username, password })
+export const registerAccount = (payload) => api.post('auth/register/', payload)
 export const logoutAccount = () => api.post('auth/logout/')
 
 export const newIdempotencyKey = (prefix = 'nexora') => `${prefix}-${crypto.randomUUID()}`

@@ -1,8 +1,14 @@
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.contrib.auth import get_user_model
+from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
 from pydantic import ValidationError
+from rest_framework.test import APIClient
 
+from apps.merchants.models import Merchant, Product
+
+from .models import ChatConversation
 from .services import BuyerAgentResponse, ProductRecommendation, _ground_recommendations
 from .tools import ProductSearchSchema, fallback_product_search
 
@@ -55,3 +61,109 @@ class RecommendationGroundingTests(SimpleTestCase):
         self.assertEqual(grounded.recommendations[0].title, "Keychron K2 Pro")
         self.assertEqual(grounded.recommendations[0].price, 7999.0)
         self.assertEqual(grounded.recommendations[0].stock_quantity, 0)
+
+
+class CatalogRecallTests(TestCase):
+    def setUp(self):
+        owner = get_user_model().objects.create_user(username="catalog-owner")
+        merchant = Merchant.objects.create(owner=owner, name="Catalog", email="catalog@test.invalid")
+        Product.objects.create(
+            merchant=merchant,
+            title="Quiet Code Keyboard",
+            description="A wireless mechanical keyboard for programming.",
+            category="Keyboards",
+            price="7499.00",
+            stock_quantity=5,
+            rating=4.8,
+            specifications={
+                "switches": "Silent tactile",
+                "connectivity": ["Bluetooth", "USB-C"],
+                "layout": "75%",
+                "hot_swappable": True,
+            },
+            tags=["keyboard", "quiet", "coding", "wireless"],
+        )
+
+    def test_verbose_buyer_prompt_returns_bounded_results(self):
+        results = fallback_product_search(
+            "I need a quiet wireless mechanical keyboard under ₹8,000 for coding on macOS; "
+            "please prioritize a compact layout and hot-swap support."
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Quiet Code Keyboard")
+
+
+class ConversationPrivacyTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(username="buyer-one", password="test")
+        self.other_user = get_user_model().objects.create_user(username="buyer-two", password="test")
+
+    @staticmethod
+    def agent_result():
+        return {
+            "thought_process": ["Searched the catalog."],
+            "primary_recommendation_id": None,
+            "recommendations": [],
+            "add_on_suggestions": [],
+            "summary_reasoning": "No grounded result in this test fixture.",
+            "_audit_context": {
+                "provider_source": "FALLBACK",
+                "parsed_constraints": {"search_query": "keyboard", "limit": 5},
+                "catalog_candidate_ids": [],
+            },
+        }
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_authenticated_history_is_private_and_reusable(self, run_mock):
+        run_mock.return_value = self.agent_result()
+        self.client.force_authenticate(self.user)
+        response = self.client.post(
+            reverse("agents:search"), {"query": "quiet keyboard"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        conversation_id = response.data["conversation_id"]
+        self.assertNotIn("conversation_token", response.data)
+
+        list_response = self.client.get(reverse("agents:conversation-list"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data["results"][0]["conversation_id"], conversation_id)
+
+        self.client.force_authenticate(self.other_user)
+        detail = self.client.get(
+            reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
+        )
+        self.assertEqual(detail.status_code, 404)
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_guest_can_continue_only_with_signed_token_and_cannot_list(self, run_mock):
+        run_mock.return_value = self.agent_result()
+        first = self.client.post(
+            reverse("agents:search"), {"query": "quiet keyboard"}, format="json"
+        )
+        self.assertEqual(first.status_code, 200)
+        conversation_id = first.data["conversation_id"]
+        token = first.data["conversation_token"]
+
+        second = self.client.post(
+            reverse("agents:search"),
+            {
+                "query": "which one has bluetooth?",
+                "conversation_id": conversation_id,
+                "conversation_token": token,
+            }, format="json",
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.data["conversation_id"], conversation_id)
+        self.assertEqual(ChatConversation.objects.get(pk=conversation_id).messages.count(), 4)
+        self.assertEqual(self.client.get(reverse("agents:conversation-list")).status_code, 401)
+
+        rejected = self.client.post(
+            reverse("agents:search"),
+            {
+                "query": "continue",
+                "conversation_id": conversation_id,
+                "conversation_token": token + "tampered",
+            }, format="json",
+        )
+        self.assertEqual(rejected.status_code, 400)

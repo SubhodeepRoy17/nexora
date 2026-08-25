@@ -11,9 +11,10 @@
 - **NO Direct Database Mutations from Agent:** LLMs must call structured Django DRF internal services or functions, never raw SQL.
 
 ## 3. Boundary & Error Handling Standards
-- **Groq Fallbacks:** If Groq rate limits or fails, fall back gracefully to exact SQL product keyword matching with a user notice.
+- **Open-model fallback:** GPT-OSS output is strictly validated. If hosted inference fails or produces an empty over-constrained query, retry with deterministic hard constraints and SQL/pgvector ranking.
 - **Structured Output Safety:** Enforce `pydantic` schemas on all LLM JSON outputs. Reject and retry if JSON parsing fails.
 - **Razorpay Webhooks:** Always verify Razorpay signatures server-side before updating order states in PostgreSQL.
+- **Conversation privacy:** Logged-in conversation history is always buyer-owned. Anonymous continuation requires a matching signed token, guest conversations have no public list/detail API, and guest transcripts must never be persisted in shared browser storage.
 
 ## 4. Money-Action Invariants
 

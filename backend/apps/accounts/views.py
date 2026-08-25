@@ -1,4 +1,5 @@
 from django.contrib.auth import login, logout
+from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -7,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .security import log_security_event
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer, RegistrationSerializer
 
 
 def user_payload(user):
@@ -54,6 +55,35 @@ class LoginView(APIView):
         login(request, user)
         log_security_event(request, "login", user_id=user.pk, outcome="success")
         return Response({"user": user_payload(user), "csrf_token": get_token(request)})
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class RegistrationView(APIView):
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [throttling.ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = RegistrationSerializer(data=request.data)
+        if not serializer.is_valid():
+            log_security_event(request, "registration", outcome="denied", reason="invalid_input")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            with transaction.atomic():
+                user = serializer.save()
+        except IntegrityError:
+            log_security_event(request, "registration", outcome="denied", reason="conflict")
+            return Response(
+                {"detail": "That account identifier is unavailable."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        login(request, user)
+        log_security_event(request, "registration", user_id=user.pk, outcome="success")
+        return Response(
+            {"user": user_payload(user), "csrf_token": get_token(request)},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LogoutView(APIView):

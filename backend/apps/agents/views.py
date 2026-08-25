@@ -1,12 +1,24 @@
 from django.core import signing
 from django.db import DatabaseError, transaction
+from django.db.models import Count, OuterRef, Subquery
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .serializers import BuyerSearchRequestSerializer, GrowthOfferResponseSerializer
-from .models import AgentSession, GrowthOffer, RecommendationDecision
+from .conversation_tokens import (
+    issue_anonymous_conversation_token,
+    read_anonymous_conversation_token,
+)
+from .models import (
+    AgentSession,
+    ChatConversation,
+    ChatMessage,
+    GrowthOffer,
+    RecommendationDecision,
+)
 from .services import run_buyer_agent
 from apps.merchants.models import Product, ProductRelationship
 from apps.orders.tokens import (
@@ -16,12 +28,60 @@ from apps.orders.tokens import (
 )
 
 
+def _conversation_title(query):
+    compact = " ".join(query.split())
+    return compact[:117] + "..." if len(compact) > 120 else compact
+
+
+def _resolve_conversation(request, validated_data):
+    conversation_id = validated_data.get("conversation_id")
+    if request.user.is_authenticated:
+        if conversation_id:
+            return get_object_or_404(
+                ChatConversation, conversation_id=conversation_id, buyer=request.user
+            )
+        return ChatConversation.objects.create(
+            buyer=request.user, title=_conversation_title(validated_data["query"])
+        )
+
+    token = validated_data.get("conversation_token")
+    if conversation_id and token:
+        try:
+            payload = read_anonymous_conversation_token(token)
+        except (signing.BadSignature, signing.SignatureExpired) as exc:
+            raise signing.BadSignature("Anonymous conversation token is invalid or expired.") from exc
+        if payload.get("conversation_id") != str(conversation_id):
+            raise signing.BadSignature("Anonymous conversation token does not match.")
+        return get_object_or_404(
+            ChatConversation, conversation_id=conversation_id, buyer__isnull=True
+        )
+    return ChatConversation.objects.create(
+        buyer=None, title=_conversation_title(validated_data["query"])
+    )
+
+
+def _history_metadata(result):
+    def strip_tokens(items):
+        return [
+            {key: value for key, value in item.items() if not key.endswith("_token")}
+            for item in items
+        ]
+
+    return {
+        "recommendations": strip_tokens(result.get("recommendations", [])),
+        "add_on_suggestions": strip_tokens(result.get("add_on_suggestions", [])),
+        "provider_source": result.get("provider_source"),
+        "agent_session_id": result.get("agent_session_id"),
+    }
+
+
 @transaction.atomic
-def _persist_public_decision_trace(request, query, result):
+def _persist_public_decision_trace(request, query, result, conversation):
     context = result.pop("_audit_context", {})
     add_on_suggestions = result.pop("add_on_suggestions", [])
     session = AgentSession.objects.create(
         buyer=request.user if request.user.is_authenticated else None,
+        conversation=conversation,
         user_request=query,
         parsed_constraints=context.get("parsed_constraints", {}),
         catalog_candidate_ids=context.get("catalog_candidate_ids", []),
@@ -121,6 +181,19 @@ def _persist_public_decision_trace(request, query, result):
     result["add_on_suggestions"] = add_on_payloads
     result["agent_session_id"] = str(session.session_id)
     result["provider_source"] = session.provider_source
+    ChatMessage.objects.create(
+        conversation=conversation, role=ChatMessage.Role.USER, content=query
+    )
+    ChatMessage.objects.create(
+        conversation=conversation,
+        role=ChatMessage.Role.ASSISTANT,
+        content=result.get("summary_reasoning", "Search completed."),
+        metadata=_history_metadata(result),
+    )
+    conversation.save(update_fields=["updated_at"])
+    result["conversation_id"] = str(conversation.conversation_id)
+    if conversation.buyer_id is None:
+        result["conversation_token"] = issue_anonymous_conversation_token(conversation)
     return result
 
 
@@ -130,18 +203,79 @@ class BuyerAgentSearchView(APIView):
     throttle_scope = "agent_search"
 
     def post(self, request):
-        serializer = BuyerSearchRequestSerializer(data=request.data)
+        serializer = BuyerSearchRequestSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         query = serializer.validated_data["query"]
         try:
+            conversation = _resolve_conversation(request, serializer.validated_data)
             result = run_buyer_agent(query)
-            result = _persist_public_decision_trace(request, query, result)
+            result = _persist_public_decision_trace(request, query, result, conversation)
+        except signing.BadSignature as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except DatabaseError:
             return Response(
                 {"detail": "The product catalog is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response(result, status=status.HTTP_200_OK)
+
+
+class BuyerConversationListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        latest_message = ChatMessage.objects.filter(conversation=OuterRef("pk")).order_by(
+            "-created_at"
+        )
+        conversations = (
+            ChatConversation.objects.filter(buyer=request.user)
+            .annotate(
+                message_count=Count("messages"),
+                last_message=Subquery(latest_message.values("content")[:1]),
+            )[:50]
+        )
+        return Response(
+            {
+                "results": [
+                    {
+                        "conversation_id": str(item.conversation_id),
+                        "title": item.title,
+                        "updated_at": item.updated_at,
+                        "message_count": item.message_count,
+                        "last_message_preview": (item.last_message or "")[:140],
+                    }
+                    for item in conversations
+                ]
+            }
+        )
+
+
+class BuyerConversationDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        conversation = get_object_or_404(
+            ChatConversation.objects.prefetch_related("messages"),
+            conversation_id=conversation_id,
+            buyer=request.user,
+        )
+        return Response(
+            {
+                "conversation_id": str(conversation.conversation_id),
+                "title": conversation.title,
+                "updated_at": conversation.updated_at,
+                "messages": [
+                    {
+                        "message_id": str(message.message_id),
+                        "role": message.role,
+                        "content": message.content,
+                        "metadata": message.metadata,
+                        "created_at": message.created_at,
+                    }
+                    for message in conversation.messages.all()
+                ],
+            }
+        )
 
 
 class GrowthOfferResponseView(APIView):
@@ -196,6 +330,12 @@ class GrowthOfferResponseView(APIView):
             if offer.session.buyer_id is None:
                 offer.session.buyer = request.user
                 offer.session.save(update_fields=["buyer"])
+                if (
+                    offer.session.conversation_id
+                    and offer.session.conversation.buyer_id is None
+                ):
+                    offer.session.conversation.buyer = request.user
+                    offer.session.conversation.save(update_fields=["buyer", "updated_at"])
             offer.response = target
             offer.buyer = request.user
             offer.responded_at = timezone.now()

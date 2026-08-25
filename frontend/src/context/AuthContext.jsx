@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { getCurrentUser, loginAccount, logoutAccount, setCsrfToken } from '../services/api'
+import { getCurrentUser, loginAccount, logoutAccount, registerAccount, setCsrfToken } from '../services/api'
 
 const AuthContext = createContext(null)
 
@@ -40,6 +40,14 @@ export function AuthProvider({ children }) {
     return data.user
   }, [])
 
+  const signUp = useCallback(async (registration) => {
+    setError('')
+    const { data } = await registerAccount(registration)
+    setCsrfToken(data.csrf_token)
+    setUser(data.user)
+    return data.user
+  }, [])
+
   const signOut = useCallback(async () => {
     try {
       const { data } = await logoutAccount()
@@ -49,7 +57,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signOut }), [user, loading, error, refresh, signIn, signOut])
+  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, signOut }), [user, loading, error, refresh, signIn, signUp, signOut])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
