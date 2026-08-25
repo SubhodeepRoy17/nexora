@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { Bot, ChevronDown, Clock3, HelpCircle, Menu, Plus, Sparkles, User } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bot, Clock3, Menu, Plus, Sparkles, User } from 'lucide-react'
 import AgentThinkingStep from '../components/chat/AgentThinkingStep'
 import ChatInput from '../components/chat/ChatInput'
 import CheckoutModal from '../components/chat/CheckoutModal'
 import ProductRecommendationCard from '../components/chat/ProductRecommendationCard'
+import BuyerOrders from '../components/chat/BuyerOrders'
 import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
-import { initialChatMessages, presetQueries } from '../mock/chatData'
+import { examplePrompts, onboardingMessages } from '../data/onboarding'
 import { extractResults, getApiError, getChatSession, getChatSessions, searchProducts, toAddOnProduct, toRecommendationProduct } from '../services/api'
 
 const liveThinkingSteps = [
@@ -19,9 +20,24 @@ function AgentMark({ active = false }) {
   return <span className={`grid size-8 shrink-0 place-items-center border bg-violet-600 text-white ${active ? 'border-slate-950 shadow-[3px_3px_0_#111827]' : 'border-violet-700'}`}><Sparkles size={14} /></span>
 }
 
+const restoreMessages = (data) => data.messages.map((message) => {
+  const assistant = message.role === 'ASSISTANT'
+  const products = assistant
+    ? (message.metadata?.recommendations ?? []).map((item) => ({ ...toRecommendationProduct(item), historical: true }))
+    : undefined
+  return {
+    id: message.message_id,
+    role: assistant ? 'agent' : 'user',
+    text: message.content,
+    products,
+    evidence: assistant ? `${products.length} SAVED CATALOG MATCH${products.length === 1 ? '' : 'ES'} · HISTORICAL SNAPSHOT` : undefined,
+    time: new Date(message.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+  }
+})
+
 export default function BuyerChat() {
   const { buyerMessages: messages, setBuyerMessages: setMessages } = useNexora()
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, error: authError } = useAuth()
   const [input, setInput] = useState('')
   const [activeRun, setActiveRun] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -31,6 +47,7 @@ export default function BuyerChat() {
   const [chatSessions, setChatSessions] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [orderRefreshNonce, setOrderRefreshNonce] = useState(0)
   const logRef = useRef(null)
   const runTimers = useRef([])
   const requestRef = useRef(null)
@@ -50,7 +67,7 @@ export default function BuyerChat() {
     const controller = new AbortController()
     setConversationId(null)
     setConversationToken(null)
-    setMessages(initialChatMessages)
+    setMessages(onboardingMessages)
     setHistoryError('')
     if (!user) {
       setChatSessions([])
@@ -58,7 +75,16 @@ export default function BuyerChat() {
     }
     setHistoryLoading(true)
     getChatSessions(controller.signal)
-      .then(({ data }) => setChatSessions(extractResults(data)))
+      .then(async ({ data }) => {
+        const sessions = extractResults(data)
+        setChatSessions(sessions)
+        if (!sessions.length) return
+        const { data: latest } = await getChatSession(sessions[0].conversation_id, controller.signal)
+        if (controller.signal.aborted) return
+        const restored = restoreMessages(latest)
+        setMessages(restored.length ? restored : onboardingMessages)
+        setConversationId(latest.conversation_id)
+      })
       .catch((error) => {
         if (!controller.signal.aborted) setHistoryError(getApiError(error, 'Could not load chat history.'))
       })
@@ -79,7 +105,7 @@ export default function BuyerChat() {
     setActiveRun(null)
     setConversationId(null)
     setConversationToken(null)
-    setMessages(initialChatMessages)
+    setMessages(onboardingMessages)
     setInput('')
     setSidebarOpen(false)
   }
@@ -100,21 +126,8 @@ export default function BuyerChat() {
     setHistoryError('')
     try {
       const { data } = await getChatSession(sessionId)
-      const restored = data.messages.map((message) => {
-        const assistant = message.role === 'ASSISTANT'
-        const products = assistant
-          ? (message.metadata?.recommendations ?? []).map((item) => ({ ...toRecommendationProduct(item), historical: true }))
-          : undefined
-        return {
-          id: message.message_id,
-          role: assistant ? 'agent' : 'user',
-          text: message.content,
-          products,
-          evidence: assistant ? `${products.length} SAVED CATALOG MATCH${products.length === 1 ? '' : 'ES'}` : undefined,
-          time: new Date(message.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
-        }
-      })
-      setMessages(restored.length ? restored : initialChatMessages)
+      const restored = restoreMessages(data)
+      setMessages(restored.length ? restored : onboardingMessages)
       setConversationId(data.conversation_id)
       setConversationToken(null)
       setSidebarOpen(false)
@@ -173,6 +186,7 @@ export default function BuyerChat() {
         time: 'Now',
         status: 'error',
       }])
+      setInput(query)
     } finally {
       if (requestRef.current !== controller) return
       clearRunTimers()
@@ -181,7 +195,7 @@ export default function BuyerChat() {
     }
   }
 
-  const confirmOrderPlaced = ({ product, order }) => {
+  const confirmOrderPlaced = useCallback(({ product, order }) => {
     setMessages((current) => [...current, {
       id: Date.now(),
       role: 'agent',
@@ -190,6 +204,11 @@ export default function BuyerChat() {
       time: 'Now',
       status: 'placed',
     }])
+    setOrderRefreshNonce((value) => value + 1)
+  }, [setMessages])
+
+  const retryOrderSearch = (productTitle) => {
+    setInput(productTitle ? `Find an available alternative to ${productTitle}` : '')
   }
 
   return (
@@ -215,12 +234,12 @@ export default function BuyerChat() {
           </div>
         </div>
 
+        <BuyerOrders user={user} refreshNonce={orderRefreshNonce} onRetry={retryOrderSearch} />
+
         <div className="mt-auto space-y-1 border-t border-slate-200 pt-4">
-          <button type="button" className="flex w-full items-center gap-3 px-3 py-2.5 text-xs text-slate-500 transition hover:bg-slate-50 hover:text-slate-950"><HelpCircle size={15} /> Help & feedback</button>
           <div className="flex items-center gap-3 px-3 py-3">
             <div className="grid size-8 place-items-center rounded-full bg-violet-600 text-[10px] font-bold text-white">{user?.display_name?.slice(0, 2).toUpperCase() ?? 'GU'}</div>
             <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-950">{user?.display_name ?? 'Guest buyer'}</p><p className="font-mono text-[8px] text-slate-500">{user ? 'Verified session' : 'Search only · sign in to buy'}</p></div>
-            <ChevronDown size={13} className="text-slate-400" />
           </div>
         </div>
       </aside>
@@ -230,7 +249,7 @@ export default function BuyerChat() {
           <div className="flex items-center gap-3">
             <button type="button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)} className="focus-ring p-2 text-slate-500 lg:hidden"><Menu size={19} /></button>
             <div>
-              <div className="flex items-center gap-2"><h1 className="text-sm font-semibold">AI Buyer Agent</h1><span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[8px] text-emerald-700"><span className="size-1 rounded-full bg-emerald-500" /> ONLINE</span></div>
+              <div className="flex items-center gap-2"><h1 className="text-sm font-semibold">AI Buyer Agent</h1><span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[8px] ${authError ? 'border-rose-200 bg-rose-50 text-rose-700' : authLoading ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}><span className={`size-1 rounded-full ${authError ? 'bg-rose-500' : authLoading ? 'bg-amber-500' : 'bg-emerald-500'}`} /> {authError ? 'API UNAVAILABLE' : authLoading ? 'CHECKING API' : 'BACKEND READY'}</span></div>
               <p className="mt-1 hidden text-[10px] text-slate-500 sm:block">Grounded discovery · explicit purchase approval{conversationId ? ` · ${conversationId.slice(0, 8)}` : ''}</p>
             </div>
           </div>
@@ -259,6 +278,7 @@ export default function BuyerChat() {
                           {message.products.map((product, index) => <ProductRecommendationCard key={product.id} product={product} featured={index === 0} onApprove={setSelectedProduct} />)}
                         </div>
                       )}
+                      {message.products?.length === 0 && !message.fixture && message.status !== 'error' && <button type="button" onClick={() => setInput('Show me similar in-stock products with a broader budget')} className="focus-ring mt-3 border border-violet-300 bg-violet-50 px-3 py-2 text-[10px] font-semibold text-violet-700">Broaden the request</button>}
                     </div>
                   </div>
                 )
@@ -269,7 +289,8 @@ export default function BuyerChat() {
         </div>
 
         <div className="shrink-0 border-t border-slate-300 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-xl md:px-8 md:pb-6">
-          <ChatInput value={input} onChange={setInput} onSubmit={submitMessage} presets={presetQueries} disabled={Boolean(activeRun)} />
+          <div aria-live="polite" className="sr-only">{activeRun ? liveThinkingSteps[activeRun.activeIndex].label : messages.at(-1)?.status === 'error' ? messages.at(-1).text : ''}</div>
+          <ChatInput value={input} onChange={setInput} onSubmit={submitMessage} presets={examplePrompts} disabled={Boolean(activeRun)} />
         </div>
       </main>
 

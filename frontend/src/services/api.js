@@ -87,6 +87,7 @@ export const verifyCheckoutPayment = (orderId, payload) => api.post(
 )
 
 export const getProducts = (signal) => api.get('merchants/products/', { signal })
+export const getMerchantWorkspace = (signal) => api.get('merchants/workspace/', { signal })
 export const patchProduct = (productId, payload) => api.patch(`merchants/products/${productId}/`, payload)
 export const createProduct = (payload) => api.post('merchants/products/', payload)
 export const getProductRelationships = (signal) => api.get('merchants/product-relationships/', { signal })
@@ -174,12 +175,11 @@ export function toInventoryProduct(product) {
     description: product.description ?? '',
     category: product.category,
     price: Number(product.price),
-    compareAt: Number(product.price),
     stock: Number(product.stock_quantity),
     active: Boolean(product.is_active),
     rating: Number(product.rating),
-    agentViews: 0,
-    conversions: 0,
+    agentViews: Number(product.agent_impressions ?? 0),
+    conversions: Number(product.paid_conversions ?? 0),
     tags: product.tags ?? [],
     specs: {
       ...specifications,
@@ -219,12 +219,14 @@ export function toTimelineEvent(audit) {
 }
 
 export function toMoneyTimelineEvent(audit) {
-  const blocked = ['BLOCKED', 'FAILED', 'REFUND_PENDING', 'MANUAL_REVIEW', 'REFUNDED'].includes(audit.outcome)
   const paid = audit.action === 'PAYMENT_CAPTURED'
+  const warning = ['BLOCKED', 'FAILED', 'REFUND_PENDING', 'MANUAL_REVIEW'].includes(audit.outcome)
+  const refunded = audit.action === 'REFUND_PROCESSED' || audit.outcome === 'REFUNDED'
   return {
     id: `money-${audit.audit_id}`,
     agent: 'Nexora Guardrail',
-    type: paid ? 'converted' : blocked ? 'lost' : 'recommended',
+    type: paid ? 'converted' : refunded ? 'refunded' : warning ? 'warning' : 'recommended',
+    actionLabel: audit.action.replaceAll('_', ' '),
     product: audit.product_title ?? 'Money action',
     buyer: audit.buyer_reference,
     reason: `${audit.summary} [${audit.reason_code}]`,

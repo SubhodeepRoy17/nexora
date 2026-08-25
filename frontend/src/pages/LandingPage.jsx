@@ -40,8 +40,8 @@ function DecisionTrace() {
       <div className="absolute -inset-5 translate-x-5 translate-y-5 border border-violet-300/50 bg-violet-200/40" aria-hidden="true" />
       <div className="relative border border-slate-300 bg-[#0e1017] p-3 shadow-[0_30px_90px_rgba(50,31,104,.25)] sm:p-5">
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
-          <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_#34d399]" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-400">Live decision trace</span></div>
-          <span className="font-mono text-[8px] text-violet-300">NX-41A8</span>
+          <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-violet-400" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-400">Deterministic UI example</span></div>
+          <span className="font-mono text-[8px] text-violet-300">NOT LIVE DATA</span>
         </div>
 
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-4">
@@ -66,14 +66,14 @@ function DecisionTrace() {
         <div className="border border-violet-400/40 bg-violet-400/[0.08] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><StatusPill>Best grounded fit</StatusPill><h3 className="mt-3 text-lg font-semibold tracking-tight text-white">Keychron K8 Pro</h3><p className="mt-1 text-[10px] text-slate-400">Wireless · hot-swap · 240h battery · Mac/Windows</p></div>
-            <div className="text-right"><p className="text-xl font-semibold text-white">₹7,499</p><p className="mt-1 font-mono text-[8px] text-emerald-300">IN STOCK · LIVE</p></div>
+            <div className="text-right"><p className="text-xl font-semibold text-white">₹7,499</p><p className="mt-1 font-mono text-[8px] text-violet-300">EXAMPLE FIXTURE</p></div>
           </div>
           <p className="mt-4 border-l-2 border-violet-400 pl-3 text-[11px] leading-5 text-slate-300">Fits the budget and platform constraints. Trade-off: the aluminium frame adds weight versus the lighter alternative.</p>
         </div>
 
         <div className="mt-3 flex flex-col gap-3 border border-emerald-400/25 bg-emerald-400/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-emerald-400/10 text-emerald-300"><LockKeyhole size={16} /></span><div><p className="text-xs font-semibold text-white">Nothing happens without you.</p><p className="mt-1 font-mono text-[7px] text-slate-500">EXACT QUOTE · SINGLE USE · EXPIRES</p></div></div>
-          <button type="button" className="focus-ring bg-emerald-400 px-4 py-2.5 text-[10px] font-bold text-slate-950">Review exact quote</button>
+          <span className="bg-emerald-400 px-4 py-2.5 text-[10px] font-bold text-slate-950">Example action · Review exact quote</span>
         </div>
       </div>
     </div>
@@ -84,7 +84,7 @@ function MerchantPreview() {
   const bars = [42, 58, 51, 68, 64, 78, 72, 91, 84, 96, 88, 100]
   return (
     <div className="border border-white/10 bg-[#12141d] p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[8px] uppercase tracking-[0.16em] text-violet-300">Agent revenue view</p><p className="mt-2 text-lg font-semibold text-white">Merchant intelligence</p></div><StatusPill>Live attribution</StatusPill></div>
+      <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[8px] uppercase tracking-[0.16em] text-violet-300">Deterministic UI example</p><p className="mt-2 text-lg font-semibold text-white">Merchant intelligence</p></div><StatusPill>Not live data</StatusPill></div>
       <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           ['Agent impressions', '1,284'],

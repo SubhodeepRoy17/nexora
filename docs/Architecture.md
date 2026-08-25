@@ -193,3 +193,22 @@ The supported test-mode webhook subset is `payment.authorized`, `payment.capture
 `WebhookEvent` row locks serialize concurrent deliveries. Completed/ignored events acknowledge safely without replaying order, stock, audit, or revenue mutations. Permanent validation failures are quarantined with 2xx acknowledgement and operator-visible codes; unexpected processing failures return 5xx for provider retry and emit structured alerts.
 
 The reconciliation worker fetches the Razorpay order and its payments without holding a database transaction, validates provider order ID, paise amount, and currency, and then reuses the same locked capture service as webhooks. It never turns `created`, `attempted`, multiple-capture, missing-entity, or mismatched results into a guessed local outcome.
+
+## 11. Phase 12 Live Experience Boundary
+
+The browser contains no transaction-authoritative persistence. Authenticated refresh recovery is rebuilt from `GET /api/agents/conversations/`, `GET /api/orders/`, and `GET /api/orders/{id}/`; local storage is not used for identity, approval, checkout, payment, refund, or merchant state. The latest buyer conversation restores as a historical snapshot without decision tokens, while pending orders return a buyer-only Razorpay handoff payload so an interrupted Checkout can be reopened against the existing provider order.
+
+Merchant surfaces join these owner-scoped sources:
+
+| Source | Visible use |
+|---|---|
+| `GET /api/merchants/workspace/` | Authenticated profile, calculated catalog health, order-state counts, webhook inbox counts, reconciliation exceptions |
+| `GET /api/merchants/products/` | Catalog plus annotated recorded impressions and paid conversions |
+| `GET /api/merchants/product-relationships/` | Deterministic compatibility/offers |
+| `GET /api/merchants/analytics/` | Search, paid conversion, loss, and add-on attribution with defined denominators |
+| `GET /api/orders/` | Immutable paid/pending/refund order snapshots |
+| `GET /api/orders/money-audits/` | Intent-to-settlement action timeline |
+
+Catalog health is computed server-side as five equally weighted checks per product: active, in stock, non-empty description, non-empty structured specifications, and non-empty search tags. An empty catalog has no numeric score. No client-supplied merchant identifier changes scope.
+
+All real-time views use sequential bounded polling: no second request starts while the previous request is active, timers pause while the document is hidden, each resource has a finite cycle budget, and abort controllers/timers are cleaned up on unmount. Buyer payment status polls every 2.5 seconds for at most five minutes; merchant timeline, operations, and analytics use separate 5/10/15-second cadences and show their own last-successful update/stale state.

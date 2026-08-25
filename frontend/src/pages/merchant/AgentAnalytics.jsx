@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, RefreshCw, Target, TrendingDown } from 'lucide-react'
-import { getApiError, getMerchantAnalytics } from '../../services/api'
+import DataFreshness from '../../components/common/DataFreshness'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value ?? 0))
 const number = (value) => new Intl.NumberFormat('en-IN').format(Number(value ?? 0))
@@ -12,31 +11,9 @@ const metricConfig = [
   { key: 'agent_attributed_revenue', label: 'Agent revenue', icon: CircleDollarSign, format: money, color: 'emerald' },
 ]
 
-export default function AgentAnalytics() {
-  const [state, setState] = useState({ data: null, loading: true, error: '' })
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const load = async () => {
-      try {
-      const { data } = await getMerchantAnalytics(controller.signal)
-        setState({ data, loading: false, error: '' })
-      } catch (error) {
-        if (!controller.signal.aborted) setState((current) => ({ ...current, loading: false, error: getApiError(error, 'Unable to load merchant analytics.') }))
-      }
-    }
-    load()
-    const poll = window.setInterval(load, 15000)
-    return () => {
-      window.clearInterval(poll)
-      controller.abort()
-    }
-  }, [])
-
-  if (state.loading && !state.data) return <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5 font-mono text-[9px] text-indigo-300"><RefreshCw size={13} className="mr-2 inline animate-spin" /> CALCULATING LIVE AGENT ATTRIBUTION…</div>
-  if (state.error && !state.data) return <div className="rounded-2xl border border-[#DC143C]/30 bg-[#DC143C]/10 p-5 text-[11px] text-rose-300">{state.error}</div>
-
-  const analytics = state.data
+export default function AgentAnalytics({ analytics, state, onRetry }) {
+  if (state.loading && !analytics) return <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5 font-mono text-[9px] text-indigo-300"><RefreshCw size={13} className="mr-2 inline animate-spin" /> CALCULATING OWNER-SCOPED ATTRIBUTION…</div>
+  if (state.error && !analytics) return <div className="rounded-2xl border border-[#DC143C]/30 bg-[#DC143C]/10 p-5 text-[11px] text-rose-300"><p>{state.error}</p><button type="button" onClick={onRetry} className="mt-3 border border-rose-400/40 px-3 py-2 text-[9px]">Retry analytics</button></div>
   const losses = analytics?.lost_opportunities?.breakdown ?? []
   const growth = analytics?.growth?.real ?? {}
   const topComplements = analytics?.growth?.top_converting_complements ?? []
@@ -45,6 +22,8 @@ export default function AgentAnalytics() {
 
   return (
     <div>
+      <div className="mb-3 flex justify-end"><DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={30000} dark /></div>
+      {state.error && <p className="mb-3 border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] text-amber-300" role="alert">Showing the last successful analytics snapshot. {state.error}</p>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metricConfig.map(({ key, label, icon: Icon, format, trend, color }) => {
           const trendValue = trend ? Number(analytics?.trends?.[trend] ?? 0) : null

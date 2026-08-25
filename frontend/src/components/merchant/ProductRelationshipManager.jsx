@@ -18,7 +18,7 @@ export default function ProductRelationshipManager({ products, relationships, on
   const submit = async (event) => {
     event.preventDefault()
     if (!ready) return
-    await onCreate({
+    const saved = await onCreate({
       ...form,
       source_product: Number(form.source_product),
       related_product: Number(form.related_product),
@@ -26,7 +26,7 @@ export default function ProductRelationshipManager({ products, relationships, on
       priority: 100,
       is_active: true,
     })
-    setForm(emptyForm)
+    if (saved) setForm(emptyForm)
   }
 
   return (

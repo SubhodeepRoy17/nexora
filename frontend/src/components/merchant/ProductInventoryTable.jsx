@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Braces, Check, ChevronDown, Edit3, Package, Pencil, Plus, Search, X } from 'lucide-react'
+import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 
 function SpecViewer({ product, onClose }) {
+  const dialogRef = useDialogFocusTrap(Boolean(product), onClose)
   if (!product) return null
   const payload = { sku: product.sku, category: product.category, tags: product.tags, specs: product.specs }
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/85 backdrop-blur-md sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="spec-title" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="w-full overflow-hidden rounded-t-3xl border border-slate-700 bg-slate-900 shadow-2xl sm:max-w-xl sm:rounded-3xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/85 backdrop-blur-md sm:place-items-center sm:p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="spec-title" className="w-full overflow-hidden rounded-t-3xl border border-slate-700 bg-slate-900 shadow-2xl sm:max-w-xl sm:rounded-3xl">
         <header className="flex items-start justify-between border-b border-slate-800 p-5"><div><p className="mono-label text-indigo-400">Agent-readable payload</p><h2 id="spec-title" className="mt-2 text-base font-semibold text-white">{product.name}</h2><p className="mt-1 font-mono text-[9px] text-slate-500">{product.sku} · catalog.product.v1</p></div><button type="button" onClick={onClose} className="rounded-full border border-slate-700 p-2 text-slate-400 hover:text-white"><X size={15} /></button></header>
         <div className="p-5">
           <div className="mb-4 grid gap-2 sm:grid-cols-2">{Object.entries(product.specs).map(([key, value]) => <div key={key} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3"><p className="font-mono text-[8px] uppercase tracking-wider text-slate-600">{key.replaceAll('_', ' ')}</p><p className="mt-1.5 font-mono text-[10px] text-slate-200">{String(value)}</p></div>)}</div>
@@ -20,7 +22,7 @@ function SpecViewer({ product, onClose }) {
   )
 }
 
-export default function ProductInventoryTable({ products, onToggleActive, onToggleStock, onUpdatePrice, onAdd, onEdit }) {
+export default function ProductInventoryTable({ products, onToggleActive, onUpdatePrice, onAdd, onEdit }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [editingPriceId, setEditingPriceId] = useState(null)
@@ -63,7 +65,7 @@ export default function ProductInventoryTable({ products, onToggleActive, onTogg
               <tr key={product.id} className="border-b border-slate-800/80 text-[11px] transition last:border-0 hover:bg-slate-800/35">
                 <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-xl border border-slate-700 bg-slate-950 text-slate-500"><Package size={16} /></div><div><p className="font-semibold text-slate-100">{product.name}</p><p className="mt-1 font-mono text-[8px] text-slate-600">{product.sku} · {product.category}</p><div className="mt-1.5 flex gap-1">{product.tags.slice(0, 2).map((tag) => <span key={tag} className="rounded bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[7px] text-indigo-300">#{tag}</span>)}</div></div></div></td>
                 <td className="px-4 py-4">{editingPriceId === product.id ? <div className="flex items-center gap-1"><span className="text-slate-500">₹</span><input autoFocus type="number" min="1" value={draftPrice} onChange={(event) => setDraftPrice(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePrice(product)} className="w-20 rounded-lg border border-indigo-500 bg-slate-950 px-2 py-1.5 font-mono text-[10px] text-white" /><button type="button" onClick={() => savePrice(product)} className="rounded-lg bg-emerald-500/10 p-1.5 text-emerald-400"><Check size={12} /></button></div> : <button type="button" onClick={() => beginPriceEdit(product)} className="group flex items-center gap-1.5 font-semibold text-slate-200">{money(product.price)}<Pencil size={10} className="text-slate-600 group-hover:text-indigo-400" /></button>}</td>
-                <td className="px-4 py-4"><button type="button" role="switch" aria-checked={product.stock > 0} onClick={() => onToggleStock(product.id)} title="Toggle stock availability" className={`rounded-full border px-2 py-1 font-mono text-[8px] transition ${product.stock === 0 ? 'border-[#DC143C]/25 bg-[#DC143C]/10 text-[#ff607f]' : product.stock < 8 ? 'border-amber-500/20 bg-amber-500/10 text-amber-400' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'}`}>{product.stock === 0 ? 'OUT OF STOCK' : `${product.stock} IN STOCK`}</button><p className="mt-1.5 text-[8px] text-slate-600">Click to {product.stock === 0 ? 'restore 10 units' : 'mark unavailable'}</p></td>
+                <td className="px-4 py-4"><span className={`inline-block rounded-full border px-2 py-1 font-mono text-[8px] ${product.stock === 0 ? 'border-[#DC143C]/25 bg-[#DC143C]/10 text-[#ff607f]' : product.stock < 8 ? 'border-amber-500/20 bg-amber-500/10 text-amber-400' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'}`}>{product.stock === 0 ? 'OUT OF STOCK' : `${product.stock} IN STOCK`}</span><p className="mt-1.5 text-[8px] text-slate-600">Use Edit to enter an exact quantity.</p></td>
                 <td className="px-4 py-4"><button type="button" role="switch" aria-label={`${product.active ? 'Hide' : 'Show'} ${product.name} to agents`} aria-checked={product.active} onClick={() => onToggleActive(product.id)} className={`relative h-6 w-11 rounded-full transition ${product.active ? 'bg-emerald-500' : 'bg-slate-700'}`}><span className={`absolute top-1 size-4 rounded-full bg-white shadow transition ${product.active ? 'left-6' : 'left-1'}`} /></button><p className={`mt-1 font-mono text-[7px] ${product.active ? 'text-emerald-400' : 'text-slate-600'}`}>{product.active ? 'INDEXED' : 'HIDDEN'}</p></td>
                 <td className="px-4 py-4"><p className="font-mono text-[9px] text-slate-300">{product.agentViews.toLocaleString()} views</p><p className="mt-1 font-mono text-[8px] text-emerald-400">{product.conversions} conversions</p></td>
                 <td className="px-4 py-4"><button type="button" onClick={() => setSpecProduct(product)} className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 font-mono text-[8px] text-indigo-300 transition hover:border-indigo-500/50"><Braces size={12} /> View JSON</button></td>

@@ -28,6 +28,8 @@ class MerchantSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     merchant_name = serializers.CharField(source="merchant.name", read_only=True)
+    agent_impressions = serializers.IntegerField(read_only=True, default=0)
+    paid_conversions = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Product
@@ -48,12 +50,15 @@ class ProductSerializer(serializers.ModelSerializer):
             "source_url",
             "source_license",
             "is_demo",
+            "agent_impressions",
+            "paid_conversions",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "id", "merchant", "merchant_name", "source_name", "source_url",
-            "source_license", "is_demo", "created_at", "updated_at",
+            "source_license", "is_demo", "agent_impressions", "paid_conversions",
+            "created_at", "updated_at",
         ]
 
     def validate_specifications(self, value):

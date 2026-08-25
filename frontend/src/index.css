@@ -8,12 +8,13 @@
   * { @apply border-slate-300; }
   html { @apply scroll-smooth bg-[#f6f5f1] antialiased; }
   body { @apply m-0 min-w-[320px] overflow-x-hidden bg-[#f6f5f1] font-sans text-slate-950; }
-  button, input { @apply outline-none; }
+  button, input, select, textarea { @apply outline-none; }
   button { -webkit-tap-highlight-color: transparent; }
   ::selection { @apply bg-violet-500/25 text-violet-950; }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-400; }
+  :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
 }
 
 @layer components {

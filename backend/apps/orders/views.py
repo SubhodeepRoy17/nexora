@@ -684,16 +684,20 @@ class OrderDetailView(APIView):
 
     def get(self, request, order_id):
         queryset = Order.objects.select_related("quote").prefetch_related("items", "refunds")
+        is_merchant = False
         try:
             merchant = request.user.merchant_profile
         except Merchant.DoesNotExist:
             queryset = queryset.filter(buyer=request.user)
         else:
+            is_merchant = True
             queryset = queryset.filter(Q(items__merchant=merchant) | Q(product__merchant=merchant))
         try:
             order = queryset.distinct().get(pk=order_id)
         except Order.DoesNotExist:
             return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not is_merchant and order.status == Order.Status.PAYMENT_PENDING:
+            return Response(_order_payload(order))
         return Response(OrderSerializer(order).data)
 
 

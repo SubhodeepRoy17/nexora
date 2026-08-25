@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Check, ChevronRight, Clock3, CreditCard, LoaderCircle, LockKeyhole, Minus, PackageCheck, Plus, ShieldCheck, X } from 'lucide-react'
 import { approveQuote, cancelOrder, createCart, createCartQuote, createOrder, getApiError, getOrder, loadRazorpayCheckout, newIdempotencyKey, respondToGrowthOffer, verifyCheckoutPayment } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import DataFreshness from '../common/DataFreshness'
+import useBoundedPolling from '../../hooks/useBoundedPolling'
+import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
 const terminalStates = new Set(['PAID', 'PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'MANUAL_REVIEW'])
@@ -29,6 +32,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const [reasonCode, setReasonCode] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [checkoutProofVerified, setCheckoutProofVerified] = useState(false)
+  const [statusUpdatedAt, setStatusUpdatedAt] = useState(null)
   const approvalKey = useRef(newIdempotencyKey('quote-approval'))
   const paymentKey = useRef(newIdempotencyKey('payment-order'))
   const notifiedPaid = useRef(false)
@@ -56,13 +60,12 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
     return () => window.clearInterval(timer)
   }, [quote?.expires_at])
 
-  useEffect(() => {
-    if (!order?.order_id || terminalStates.has(order.status)) return undefined
-    const controller = new AbortController()
-    const poll = async () => {
+  const pollOrder = useCallback(async (signal) => {
+    if (!order?.order_id) return
       try {
-        const { data } = await getOrder(order.order_id, controller.signal)
+        const { data } = await getOrder(order.order_id, signal)
         setOrder(data)
+        setStatusUpdatedAt(new Date().toISOString())
         if (data.status === 'PAID' && !notifiedPaid.current) {
           notifiedPaid.current = true
           setStage('paid')
@@ -75,17 +78,20 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           setStage('verifying')
         }
       } catch (pollError) {
-        if (!controller.signal.aborted) setError(getApiError(pollError, 'Could not refresh authoritative order status.'))
+        if (!signal?.aborted) setError(getApiError(pollError, 'Could not refresh authoritative order status.'))
       }
-    }
-    poll()
-    const timer = window.setInterval(poll, 2500)
-    return () => { controller.abort(); window.clearInterval(timer) }
-  }, [order?.order_id, order?.status, onOrderPlaced, product])
+  }, [order?.order_id, onOrderPlaced, product])
+  useBoundedPolling(pollOrder, {
+    enabled: Boolean(order?.order_id && !terminalStates.has(order.status)),
+    intervalMs: 2500,
+    maxCycles: 120,
+  })
 
   const lines = quote?.items ?? []
   const line = lines[0]
   const processing = ['quoting', 'approving', 'reserving', 'opening'].includes(stage)
+  const safeClose = useCallback(() => { if (!processing) onClose() }, [onClose, processing])
+  const dialogRef = useDialogFocusTrap(Boolean(product), safeClose)
   const selectedAddOns = product?.addOns?.filter((item) => addOnChoices[item.offerId] === true) ?? []
   const choicesComplete = (product?.addOns ?? []).every((item) => typeof addOnChoices[item.offerId] === 'boolean')
   const total = quote?.total_amount ?? product?.price * quantity + selectedAddOns.reduce((sum, item) => sum + item.price, 0)
@@ -205,7 +211,6 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
     }
   }
 
-  const safeClose = () => { if (!processing) onClose() }
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
   const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : ['approving', 'reserving', 'opening'].includes(stage) ? 2 : 3
@@ -218,8 +223,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const checkoutSteps = ['Basket', 'Exact quote', 'Payment', 'Verified']
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-md sm:place-items-center sm:p-5" role="dialog" aria-modal="true" aria-labelledby="checkout-title" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
-      <div className="max-h-[96dvh] w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] text-slate-950 shadow-[0_30px_100px_rgba(2,6,23,.45)] sm:max-w-6xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-md sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="max-h-[96dvh] w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] text-slate-950 shadow-[0_30px_100px_rgba(2,6,23,.45)] sm:max-w-6xl">
         <header className={`relative border-b px-5 py-5 sm:px-7 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-slate-800 bg-[#11131a] text-white'}`}>
           {!processing && <button type="button" onClick={onClose} aria-label="Close checkout" className={`focus-ring absolute right-4 top-4 grid size-9 place-items-center border ${stopped || stage === 'paid' ? 'border-slate-300 bg-white text-slate-600' : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'}`}><X size={16} /></button>}
           <div className="flex max-w-3xl items-start gap-4 pr-10">
@@ -252,7 +257,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               <label className={`mt-5 flex cursor-pointer items-start gap-3 border p-4 transition ${approvedExactQuote ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}><input type="checkbox" checked={approvedExactQuote} onChange={(event) => setApprovedExactQuote(event.target.checked)} className="mt-0.5 size-4 accent-emerald-600" /><span className="text-xs leading-6 text-slate-700"><strong className="block text-slate-950">I approve this exact quote.</strong>I confirm the products, quantities, unit prices, total and disclosed limits before expiry.</span></label>
             </>}
 
-            {order && <section className={`border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}><p className="font-mono text-[8px] text-slate-500">AUTHORITATIVE ORDER STATUS</p><div className="mt-2 flex items-center gap-3"><span className={`size-2 rounded-full ${stage === 'paid' ? 'bg-emerald-500' : stopped ? 'bg-rose-500' : 'animate-pulse bg-amber-500'}`} /><p className="text-lg font-semibold">{statusLabel}</p></div><p className="mt-3 text-xs leading-6 text-slate-600">{statusMessages[order.status] ?? `Order ${order.order_id?.slice(0, 8).toUpperCase()}`}</p>{order.refunds?.[0] && <p className="mt-2 font-mono text-[8px] text-slate-500">REFUND {order.refunds[0].status} · {money(order.refunds[0].amount)}</p>}</section>}
+            {order && <section className={`border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`} role="status" aria-live="polite"><div className="flex items-center justify-between gap-3"><p className="font-mono text-[8px] text-slate-500">AUTHORITATIVE ORDER STATUS</p><DataFreshness updatedAt={statusUpdatedAt} staleAfterMs={10000} /></div><div className="mt-2 flex items-center gap-3"><span className={`size-2 rounded-full ${stage === 'paid' ? 'bg-emerald-500' : stopped ? 'bg-rose-500' : 'animate-pulse bg-amber-500'}`} /><p className="text-lg font-semibold">{statusLabel}</p></div><p className="mt-3 text-xs leading-6 text-slate-600">{statusMessages[order.status] ?? `Order ${order.order_id?.slice(0, 8).toUpperCase()}`}</p>{order.refunds?.[0] && <p className="mt-2 font-mono text-[8px] text-slate-500">REFUND {order.refunds[0].status} · {money(order.refunds[0].amount)}</p>}</section>}
           </div>
 
           <aside className="bg-white p-5 sm:p-7">
@@ -264,7 +269,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               {stage === 'quote' && <><button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none"><CreditCard size={16} /> Approve, reserve & pay</button><button type="button" onClick={() => requestQuote(Number(quote.policy_snapshot?.limits?.max_item_quantity ?? 5) + 1)} className="focus-ring mt-3 w-full py-2 text-[9px] text-slate-400 hover:text-rose-600">Demo safe block: exceed quantity limit</button></>}
               {['verifying', 'opening'].includes(stage) && order?.cancellable && <button type="button" onClick={cancelPendingOrder} className="focus-ring mt-6 w-full border border-rose-300 bg-rose-50 py-3 text-xs font-semibold text-rose-700">Cancel and release reserved stock</button>}
               {stage === 'paid' && <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white"><Check size={16} /> Finish</button>}
-              {stopped && <button type="button" onClick={onClose} className="focus-ring mt-6 w-full border border-slate-950 bg-slate-950 py-3 text-sm font-semibold text-white">Close checkout</button>}
+              {['blocked', 'error'].includes(stage) && <button type="button" onClick={() => { setStage('cart'); setError(''); setReasonCode(''); setQuote(null); approvalKey.current = newIdempotencyKey('quote-approval'); paymentKey.current = newIdempotencyKey('payment-order') }} className="focus-ring mt-6 w-full border border-violet-700 bg-violet-600 py-3 text-sm font-semibold text-white">Return to basket and retry</button>}
+              {stage === 'terminal' && <button type="button" onClick={onClose} className="focus-ring mt-6 w-full border border-slate-950 bg-slate-950 py-3 text-sm font-semibold text-white">Close checkout</button>}
               <div className="mt-6 space-y-2 border-t border-slate-200 pt-5">{['Idempotent order creation', 'Atomic stock reservation', 'Signed webhook settlement'].map((item) => <p key={item} className="flex items-center gap-2 font-mono text-[8px] text-slate-500"><ShieldCheck size={11} className="text-emerald-600" /> {item}</p>)}</div>
             </div>
           </aside>

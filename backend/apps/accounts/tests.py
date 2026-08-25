@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 from apps.analytics.models import AgentSearchImpression
 from apps.agents.models import AgentSession, RecommendationDecision
 from apps.merchants.models import Merchant, Product
-from apps.orders.models import AgentTransactionAudit, Order
+from apps.orders.models import AgentTransactionAudit, Order, ReconciliationException, WebhookEvent
 from apps.orders.tokens import issue_decision_token
 
 
@@ -134,6 +134,7 @@ class IdentityBoundaryTests(TestCase):
             "/api/merchants/",
             "/api/merchants/products/",
             "/api/merchants/analytics/",
+            "/api/merchants/workspace/",
             "/api/orders/",
             "/api/orders/audits/",
         ]:
@@ -195,6 +196,57 @@ class IdentityBoundaryTests(TestCase):
         response = self.client.get(f"/api/merchants/analytics/?merchant={self.merchant_b.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["total_agent_impressions"], 1)
+
+    def test_merchant_workspace_health_and_operations_are_owner_scoped(self):
+        own_order = Order.objects.create(
+            buyer=self.buyer_a,
+            product=self.product_a,
+            buyer_email=self.buyer_a.email,
+            quantity=1,
+            total_amount=self.product_a.price,
+            status=Order.Status.PAYMENT_PENDING,
+        )
+        foreign_order = Order.objects.create(
+            buyer=self.buyer_b,
+            product=self.product_b,
+            buyer_email=self.buyer_b.email,
+            quantity=1,
+            total_amount=self.product_b.price,
+            status=Order.Status.PAID,
+        )
+        WebhookEvent.objects.create(
+            deduplication_key="workspace-own-event",
+            event_type="payment.authorized",
+            payload_hash="a" * 64,
+            signature_verified=True,
+            processing_state=WebhookEvent.ProcessingState.PROCESSED,
+            order=own_order,
+        )
+        WebhookEvent.objects.create(
+            deduplication_key="workspace-foreign-event",
+            event_type="payment.captured",
+            payload_hash="b" * 64,
+            signature_verified=True,
+            processing_state=WebhookEvent.ProcessingState.PROCESSED,
+            order=foreign_order,
+        )
+        ReconciliationException.objects.create(
+            order=own_order, reason_code="PAYMENT_NOT_FOUND"
+        )
+
+        self.client.force_login(self.owner_a)
+        response = self.client.get("/api/merchants/workspace/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["merchant"]["id"], self.merchant_a.pk)
+        self.assertEqual(payload["catalog_health"]["score_percent"], 40)
+        self.assertEqual(payload["operations"]["orders_by_status"], {"PAYMENT_PENDING": 1})
+        self.assertEqual(payload["operations"]["webhooks_by_state"], {"PROCESSED": 1})
+        self.assertEqual(payload["operations"]["open_reconciliation_exceptions"], 1)
+
+        products = self.client.get("/api/merchants/products/").json()["results"]
+        self.assertEqual(products[0]["agent_impressions"], 0)
+        self.assertEqual(products[0]["paid_conversions"], 0)
 
     def test_audits_and_orders_are_scoped_to_owner_or_buyer(self):
         order_a = Order.objects.create(

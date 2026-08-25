@@ -2,16 +2,20 @@ import { Bot, LogIn, LogOut, Menu, Radio, Store, UserPlus, X } from 'lucide-reac
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { API_BASE_URL } from '../../services/api'
 import Brand from '../Brand'
 
 export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, error, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const landing = location.pathname === '/'
   const merchantMode = location.pathname.startsWith('/merchant')
   const buyerMode = location.pathname.startsWith('/buyer')
+  const agentApiUrl = API_BASE_URL.startsWith('http')
+    ? new URL('commerce/v1/openapi.json', API_BASE_URL).toString()
+    : '/api/commerce/v1/openapi.json'
 
   const go = (path) => {
     setMobileOpen(false)
@@ -29,7 +33,7 @@ export default function Navbar() {
               ['Product', '#product'],
               ['How it works', '#how-it-works'],
               ['Safety', '#safety'],
-              ['Agent API', '/api/commerce/v1/openapi.json'],
+              ['Agent API', agentApiUrl],
             ].map(([label, href]) => <a key={label} href={href} className="focus-ring grid min-w-28 place-items-center border-r border-slate-200 px-5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-500 transition last:border-0 hover:bg-violet-50 hover:text-violet-700">{label}</a>)}
           </nav>
         )}
@@ -42,7 +46,7 @@ export default function Navbar() {
         )}
 
         <div className="hidden items-center gap-2 sm:flex">
-          <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 xl:flex"><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-30" /><span className="relative size-2 rounded-full bg-emerald-500" /></span><Radio size={11} className="text-emerald-600" /><span className="font-mono text-[7px] font-semibold uppercase tracking-[0.13em] text-emerald-700">Agent network live</span></span>
+          <span className={`hidden items-center gap-2 border px-3 py-2 xl:flex ${error ? 'border-rose-200 bg-rose-50 text-rose-700' : loading ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}><span className={`size-2 rounded-full ${error ? 'bg-rose-500' : loading ? 'bg-amber-500' : 'bg-emerald-500'}`} /><Radio size={11} /><span className="font-mono text-[7px] font-semibold uppercase tracking-[0.13em]">{error ? 'API unavailable' : loading ? 'Checking API session' : 'API session checked'}</span></span>
           {landing && <button type="button" onClick={() => go('/buyer')} className="focus-ring border border-slate-300 bg-white px-4 py-2.5 text-[10px] font-bold transition hover:border-slate-950">Try buyer</button>}
           {!loading && !user && <button type="button" onClick={() => go('/login?mode=signup')} className="focus-ring flex items-center gap-2 border border-violet-300 bg-violet-50 px-4 py-2.5 text-[10px] font-bold text-violet-700 transition hover:border-violet-600 hover:bg-violet-100"><UserPlus size={13} /> Sign up</button>}
           <button type="button" onClick={() => user ? signOut() : go('/login')} title={user ? `Signed in as ${user.display_name}` : 'Sign in'} className="focus-ring flex items-center gap-2 border border-slate-950 bg-slate-950 px-4 py-2.5 text-[10px] font-bold text-white transition hover:bg-violet-600">

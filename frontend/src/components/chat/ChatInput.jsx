@@ -1,4 +1,4 @@
-import { ArrowUp, Command, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { ArrowUp, Command, Sparkles } from 'lucide-react'
 
 export default function ChatInput({ value, onChange, onSubmit, presets, disabled = false }) {
   const submit = (event) => {
@@ -8,8 +8,8 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1" aria-label="Preset shopping queries">
-        <span className="hidden shrink-0 items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-slate-400 md:flex"><Sparkles size={10} /> Try</span>
+      <div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1" aria-label="Example shopping prompts">
+        <span className="hidden shrink-0 items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-slate-400 md:flex"><Sparkles size={10} /> Examples</span>
         {presets.map((preset) => (
           <button
             key={preset.id}
@@ -25,7 +25,6 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
       </div>
 
       <form onSubmit={submit} className="flex items-end gap-2 border border-slate-300 bg-white p-2 shadow-[4px_4px_0_rgba(139,92,246,.12)] transition focus-within:border-violet-500">
-        <button type="button" aria-label="Search preferences" className="focus-ring mb-0.5 p-2.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"><SlidersHorizontal size={17} /></button>
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}

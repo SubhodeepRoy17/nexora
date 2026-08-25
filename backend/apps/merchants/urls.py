@@ -1,6 +1,7 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import MerchantViewSet, ProductRelationshipViewSet, ProductViewSet
+from .views import MerchantViewSet, MerchantWorkspaceView, ProductRelationshipViewSet, ProductViewSet
 
 
 router = DefaultRouter()
@@ -12,4 +13,5 @@ router.register(
 )
 router.register("merchants", MerchantViewSet, basename="merchant")
 
-urlpatterns = router.urls
+urlpatterns = [path("merchants/workspace/", MerchantWorkspaceView.as_view(), name="merchant-workspace")]
+urlpatterns += router.urls

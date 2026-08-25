@@ -1,9 +1,9 @@
 # Project Memory & Progress Tracker - Nexora
 
 ## 1. Project State Overview
-- **Current Phase:** Phase 11 — IN PROGRESS (Razorpay reliability implementation complete locally; deployed test-mode evidence pending)
-- **Active Task:** Register the deployed webhook and capture redacted successful-payment, graceful-failure, and duplicate-delivery evidence
-- **Overall Progress:** Phases 1-10 complete; submission roadmap continues through Phase 16
+- **Current Phase:** Phase 12 — COMPLETE LOCALLY (complete live buyer and merchant experience)
+- **Active Task:** Phase 11 deployed Razorpay evidence remains the external prerequisite before Phase 13 evaluation work
+- **Overall Progress:** Phases 1-10 and Phase 12 complete locally; Phase 11 deployment evidence remains open; roadmap continues through Phase 16
 - **Last Updated:** 2026-08-25
 
 ### Phase Completion
@@ -18,6 +18,7 @@
 - [x] Phase 9 — Grounded Upsell/Cross-Sell Revenue Growth Loop (100%)
 - [x] Phase 10 — Agent-Readable Catalog and External AI Buyer Contract (100%)
 - [ ] Phase 11 — Razorpay Reliability, Webhook Inbox, Reconciliation, and Refund Safety (local implementation complete; deployment evidence pending)
+- [x] Phase 12 — Complete Live Buyer and Merchant Experience (local implementation and evidence complete)
 
 ## 2. Completed Milestones
 - [x] Defined PRD, Architecture, Rules, and Execution Phases.
@@ -162,29 +163,36 @@
 - [x] Added Phase 11 coverage for signatures, provider-event duplication, both out-of-order directions, amount mismatch, unknown orders, stale reconciliation repair/exception behavior, refund gating/finality, Checkout proof non-authority, and concurrent capture workers.
 - [x] Fixed the historical `merchants.0003` data migration to use `make_password(None)` with Django's historical User model; applied all pending local migrations through `orders.0008` successfully.
 - [x] Passed all 59 backend tests from a clean PostgreSQL/pgvector test schema, focused refund-finality and inbox-quarantine reruns, Django checks, migration drift checks, Python compilation, diff validation, a zero-eligible-order reconciliation smoke run, and the 1,656-module frontend production build.
+- [x] Removed every active prototype mock import and deleted the obsolete approval/product/view-switch, analytics-card, chat-scenario, merchant, and order-state fixture files after confirming no live import depended on them.
+- [x] Replaced onboarding with explicitly labelled example prompts and labelled every landing-page illustrative number as deterministic, non-live UI content.
+- [x] Restored the latest authenticated conversation and buyer order history from private APIs after refresh; added exact backend receipts, pending-payment resume, cancellation, refund/manual-review states, and recoverable retry without granting local storage or browser callbacks payment authority.
+- [x] Added `GET /api/merchants/workspace/` for the authenticated profile, a documented five-check catalog-health calculation, order-state counts, webhook inbox processing counts, and open reconciliation exceptions; annotated product rows with recorded impressions and paid conversions.
+- [x] Added owner-scoped paid receipts and payment operations to the merchant overview, removed fabricated catalog health/product performance/status dots, and consolidated analytics so one backend request feeds each visible metric surface.
+- [x] Replaced overlapping intervals with sequential bounded, visibility-aware, abortable polling and added per-resource last-updated/stale indicators plus retained-snapshot error copy.
+- [x] Added visible keyboard focus, focus trapping/Escape/focus restoration for every dialog, screen-reader live status, reduced-motion behavior, exact error alerts, duplicate-submit prevention, and form/basket preservation on recoverable failures.
+- [x] Added eight Vitest/React Testing Library acceptance tests for search, no-result/empty states, explicit approval, policy blocking, provider failure/retry, webhook-confirmed success, and merchant scoping; added a backend tenant-scoped workspace calculation test.
+- [x] Captured reproducible Phase 12 landing, buyer, and authenticated merchant screenshots with an environment-driven Playwright/installed-Chrome script that never stores credentials.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
 - `frontend/src/pages/MerchantDashboard.jsx` (Complete — live catalog and audit polling integration)
-- `frontend/src/components/ProductCard.jsx` (Complete)
-- `frontend/src/components/ApprovalModal.jsx` (Complete — mock only)
 - `frontend/src/components/Brand.jsx` (Complete)
-- `frontend/src/components/ViewSwitcher.jsx` (Complete)
-- `frontend/src/data/mockData.js` (Complete)
 - `frontend/src/components/chat/ChatInput.jsx` (Complete)
 - `frontend/src/components/chat/AgentThinkingStep.jsx` (Complete)
 - `frontend/src/components/chat/ProductRecommendationCard.jsx` (Complete)
 - `frontend/src/components/chat/CheckoutModal.jsx` (Complete — optional add-on decisions, multi-line quote, exact approval, reservation/cancellation, authoritative polling, and Razorpay integration)
-- `frontend/src/mock/chatData.js` (Complete — structured response scenarios)
 - `frontend/src/pages/merchant/DashboardOverview.jsx` (Complete — live backend performance and honest growth attribution)
 - `frontend/src/components/merchant/ProductInventoryTable.jsx` (Complete — live DRF catalog CRUD controls)
 - `frontend/src/components/merchant/ProductRelationshipManager.jsx` (Complete — relationship/offer create, read, pause/resume, and delete controls)
 - `frontend/src/components/merchant/AddProductModal.jsx` (Complete — generated metadata preview)
 - `frontend/src/components/merchant/AgentTimelineFeed.jsx` (Complete — server-backed activity stream)
-- `frontend/src/components/merchant/AgentAnalyticsCard.jsx` (Complete)
-- `frontend/src/mock/merchantData.js` (Legacy only — no longer used by the live merchant overview/growth path)
+- `frontend/src/components/chat/BuyerOrders.jsx` (Complete — private backend order history, receipts, resume, cancellation, and authoritative polling)
+- `frontend/src/components/merchant/MerchantOperations.jsx` (Complete — paid orders, webhook inbox, and reconciliation state)
+- `frontend/src/hooks/useBoundedPolling.js` (Complete — sequential finite polling with hidden-tab pause and cleanup)
+- `frontend/src/hooks/useDialogFocusTrap.js` (Complete — keyboard focus containment, Escape, and restoration)
+- `frontend/src/data/onboarding.js` (Complete — explicitly labelled example-only content)
 - `frontend/src/components/common/Navbar.jsx` (Complete — global mode navigation)
-- `frontend/src/context/NexoraContext.jsx` (Complete — memory-only guest chat plus server-backed catalog/audit state; legacy shared transcripts are removed)
+- `frontend/src/context/NexoraContext.jsx` (Complete — memory-only guest UI plus server-backed chat/catalog/audit state; no local storage authority)
 - `frontend/src/context/AuthContext.jsx` (Complete — session/CSRF bootstrap, login/logout, and expiry handling)
 - `frontend/src/components/auth/ProtectedRoute.jsx` (Complete — authenticated merchant role boundary)
 - `frontend/src/pages/Login.jsx` (Complete — accessible buyer/merchant sign-in flow)
@@ -201,7 +209,7 @@
 - `backend/apps/merchants/models.py` (Complete — catalog, relationship/compatibility schema, SQL indexes, and optional semantic index model)
 - `backend/apps/merchants/schemas.py` (Complete — strict specification/tag validation)
 - `backend/apps/merchants/serializers.py` (Complete)
-- `backend/apps/merchants/views.py` (Complete — initial unauthenticated CRUD prototype)
+- `backend/apps/merchants/views.py` (Complete — tenant-scoped catalog CRUD, performance annotations, and live workspace health/operations snapshot)
 - `backend/apps/merchants/migrations/0001_initial.py` (Applied)
 - `backend/apps/merchants/migrations/0002_productembedding_and_more.py` (Applied — SQL indexes and optional pgvector setup)
 - `backend/apps/agents/` (Complete — open-weight GPT-OSS orchestration, durable private conversations/decisions, deterministic retrieval and growth suggestions, and explicit offer responses)
@@ -237,3 +245,4 @@
 - Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
 - Local `check --deploy` reports the expected development-only warnings because `.env` intentionally has `DEBUG=True`, HTTP redirects/HSTS disabled, and non-secure cookies. Render production values enable HTTPS, secure cookies, redirects, and HSTS.
 - Credentialed cross-site sessions require `SameSite=None` over HTTPS. Prefer same-site frontend/API domains or a reverse proxy because browser third-party-cookie blocking can override cookie configuration.
+- Phase 12 acceptance is complete locally: 8/8 frontend tests, 60/60 backend tests on a clean PostgreSQL test database, Django checks, zero migration drift, and the 1,661-module production build pass. Phase 11 still truthfully remains open only for deployed Razorpay dashboard/webhook evidence; Phase 12 does not claim that external evidence.

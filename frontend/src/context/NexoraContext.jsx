@@ -1,22 +1,12 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { initialChatMessages } from '../mock/chatData'
+import { createContext, useContext, useState } from 'react'
+import { onboardingMessages } from '../data/onboarding'
 
-const STORAGE_KEY = 'nexora.phase4.state.v1'
 const NexoraContext = createContext(null)
 
 export function NexoraProvider({ children }) {
   const [inventory, setInventory] = useState([])
   const [auditEvents, setAuditEvents] = useState([])
-  const [buyerMessages, setBuyerMessages] = useState(initialChatMessages)
-
-  useEffect(() => {
-    try {
-      // Remove transcripts written by the old prototype. Guest chat is memory-only now.
-      window.localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // Local storage may be unavailable in restricted/private browser contexts.
-    }
-  }, [])
+  const [buyerMessages, setBuyerMessages] = useState(onboardingMessages)
 
   const value = {
     inventory,
