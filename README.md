@@ -220,11 +220,12 @@ answers and the final permissions/deployment/video checklist.
 
 ## Roadmap to submission
 
-Repository-controlled implementation and packaging are complete. The remaining P0 gates are
+Repository-controlled implementation and packaging are complete. The remaining gates are
 operational: deploy the same-origin proxy, establish both scheduler heartbeats, capture real
 Razorpay Test webhook delivery/redelivery and recovery evidence, make the repository public, record
-the five-minute video, and perform the final signed-out form/link audit. The evidence-gated source of
-truth is [docs/Upcoming.md](docs/Upcoming.md); optional protocol adapters and causal-lift experiments
+the five-minute video, and perform the final signed-out form/link audit. Track deployment acceptance
+in [docs/Phase7Evidence.md](docs/Phase7Evidence.md) and final submission readiness in
+[docs/Submission.md](docs/Submission.md). Optional protocol adapters and causal-lift experiments
 remain explicitly post-submission work.
 
 ## License
