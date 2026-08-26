@@ -73,6 +73,7 @@ class IdentityBoundaryTests(TestCase):
         self.assertEqual(logged_out.status_code, 200)
         self.assertIsNone(client.get("/api/auth/me/").json()["user"])
 
+    @override_settings(CORS_ALLOWED_ORIGINS=["http://localhost:5173"])
     def test_checkout_cors_preflight_allows_idempotency_header(self):
         response = self.client.options(
             "/api/orders/create/",
