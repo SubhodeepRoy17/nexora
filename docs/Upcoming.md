@@ -223,7 +223,7 @@ Verified local result:
 Deployment caveat: Gemini and Razorpay are deterministic provider doubles in this repeatable suite.
 Public HTTPS webhook delivery/redelivery remains P0.7 and is not claimed by P0.4.
 
-### P0.5 — Clean CI quality gate
+### P0.5 — Clean CI quality gate — IMPLEMENTED
 
 Goal: make completion reproducible instead of relying on local claims.
 
@@ -252,7 +252,12 @@ npm run build
 
 Acceptance evidence:
 
-- CI passes from a clean clone without undocumented local state.
+- `.github/workflows/ci.yml` is the canonical clean-clone gate for pushes to `main`, pull requests,
+  and manual runs. It provisions `pgvector/pgvector:0.8.6-pg16-bookworm`, installs both lockfiles,
+  runs migration and application checks, runs all backend/frontend/browser suites, performs secret
+  and dependency scans, and publishes per-gate artifacts.
+- `docs/Phase5Evidence.md` records the gate design, reproducible local commands, dependency audit
+  remediation, and the evidence boundary.
 - No critical/high security issue or flaky critical-path test remains unresolved.
 
 ### P0.6 — Reproducible evaluation report

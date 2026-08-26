@@ -8,7 +8,7 @@ Django REST Framework backend for Nexora's merchant catalog, buyer agents, order
 2. Install dependencies:
 
    ```bash
-   pip install -r requirements.txt
+   pip install --require-hashes -r requirements.lock
    ```
 
 3. Copy `.env.example` to `.env` and provide PostgreSQL credentials.
@@ -169,6 +169,15 @@ isolated PostgreSQL test database. Gemini and Razorpay network edges are determi
 real identity, CSRF, catalog retrieval, money policy, quote, approval, idempotency, reservation,
 reconciliation, audit, analytics, refresh, and HTTP-only reference-client paths remain active. See
 `docs/Phase4Evidence.md` for the complete journey and exactly-once assertions.
+
+## CI quality gate
+
+Every push to `main` and every pull request runs the Phase 5 gate in
+`.github/workflows/ci.yml`. It installs `requirements.lock` and `package-lock.json` from scratch,
+provisions PostgreSQL 16 with pgvector, checks migration drift, runs backend and frontend tests plus
+the production build, repeats the critical browser E2E, scans repository history for secrets, and
+audits both dependency graphs. Logs and machine-readable audit output are retained as workflow
+artifacts. See `docs/Phase5Evidence.md` for the exact boundary and reproduction commands.
 
 ## External agent commerce API
 

@@ -7,9 +7,6 @@ from django.core import signing
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from razorpay.errors import BadRequestError, GatewayError, ServerError
-from razorpay.errors import SignatureVerificationError
-from requests import RequestException
 from rest_framework import permissions, status, throttling
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -34,6 +31,7 @@ from .models import (
     QuoteItem,
 )
 from .policy import MESSAGES, ReasonCode, evaluate_cart_lines
+from .razorpay_gateway import BadRequestError, GatewayError, ServerError, SignatureVerificationError
 from .reconciliation import reconcile_order_capture
 from .serializers import (
     AgentTransactionAuditSerializer,
@@ -59,7 +57,7 @@ from .tokens import issue_approval_token, read_approval_token, read_decision_tok
 logger = logging.getLogger(__name__)
 payment_logger = logging.getLogger("nexora.payments")
 RAZORPAY_REQUEST_ERRORS = (BadRequestError, GatewayError, ServerError)
-ORDER_CREATION_ERRORS = RAZORPAY_REQUEST_ERRORS + (RequestException, KeyError, TypeError, ValueError)
+ORDER_CREATION_ERRORS = RAZORPAY_REQUEST_ERRORS + (KeyError, TypeError, ValueError)
 
 
 class MoneyRequestError(RuntimeError):

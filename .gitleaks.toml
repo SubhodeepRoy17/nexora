@@ -1,0 +1,6 @@
+[allowlist]
+description = "Public API documentation uses one fixed non-secret idempotency example."
+regexTarget = "match"
+regexes = [
+  '''quote-approval-550e8400-e29b-41d4-a716-446655440000''',
+]

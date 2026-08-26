@@ -1,0 +1,223 @@
+name: Phase 5 quality gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
+  POSTGRES_DB: nexora_ci
+  POSTGRES_USER: nexora
+  POSTGRES_PASSWORD: nexora-ci-password
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: "5432"
+  DJANGO_SECRET_KEY: phase5-ci-only-secret-key-not-used-outside-the-runner
+  DJANGO_DEBUG: "False"
+  RAZORPAY_KEY_ID: rzp_test_phase5_ci
+  RAZORPAY_KEY_SECRET: phase5-ci-provider-secret
+  RAZORPAY_WEBHOOK_SECRET: phase5-ci-webhook-secret
+  MONEY_REQUIRE_RAZORPAY_TEST_MODE: "True"
+
+jobs:
+  backend:
+    name: Backend checks and tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg16-bookworm
+        env:
+          POSTGRES_DB: nexora_ci
+          POSTGRES_USER: nexora
+          POSTGRES_PASSWORD: nexora-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexora -d nexora_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - name: Install locked backend dependencies
+        run: python -m pip install --require-hashes -r backend/requirements.lock
+      - name: Run Django checks and migration verification
+        working-directory: backend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/backend
+          python manage.py check 2>&1 | tee ../artifacts/backend/check.log
+          python manage.py makemigrations --check --dry-run 2>&1 | tee ../artifacts/backend/migration-drift.log
+          python manage.py migrate --noinput 2>&1 | tee ../artifacts/backend/migrate.log
+          python manage.py setup_pgvector 2>&1 | tee ../artifacts/backend/pgvector.log
+      - name: Run all non-browser backend tests
+        working-directory: backend
+        shell: bash
+        run: |
+          set -o pipefail
+          python manage.py test apps.accounts apps.merchants apps.agents apps.orders apps.analytics apps.commerce --verbosity 2 2>&1 | tee ../artifacts/backend/tests.log
+      - name: Publish backend evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase5-backend-${{ github.run_attempt }}
+          path: artifacts/backend
+          if-no-files-found: warn
+          retention-days: 14
+
+  frontend:
+    name: Frontend tests, build, and audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Test and build
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/frontend
+          npm test 2>&1 | tee ../artifacts/frontend/tests.log
+          npm run build 2>&1 | tee ../artifacts/frontend/build.log
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high --json > ../artifacts/frontend/npm-audit.json
+      - name: Publish frontend evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase5-frontend-${{ github.run_attempt }}
+          path: artifacts/frontend
+          if-no-files-found: warn
+          retention-days: 14
+
+  critical-e2e:
+    name: Critical browser E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg16-bookworm
+        env:
+          POSTGRES_DB: nexora_ci
+          POSTGRES_USER: nexora
+          POSTGRES_PASSWORD: nexora-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexora -d nexora_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          python -m pip install --require-hashes -r backend/requirements.lock
+          npm ci --prefix frontend
+      - name: Prepare the PostgreSQL and pgvector schema
+        working-directory: backend
+        run: |
+          python manage.py migrate --noinput
+          python manage.py setup_pgvector
+      - name: Run the critical buyer and merchant journeys
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/e2e
+          npm run test:e2e 2>&1 | tee ../artifacts/e2e/critical-browser.log
+      - name: Publish browser evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase5-e2e-${{ github.run_attempt }}
+          path: artifacts/e2e
+          if-no-files-found: warn
+          retention-days: 14
+
+  security:
+    name: Secret and backend dependency scans
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: Scan repository history for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Audit locked backend dependencies
+        shell: bash
+        run: |
+          mkdir -p artifacts/security
+          python -m pip install pip-audit==2.10.1
+          pip-audit -r backend/requirements.lock --format json --output artifacts/security/pip-audit.json
+      - name: Publish security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase5-security-${{ github.run_attempt }}
+          path: artifacts/security
+          if-no-files-found: warn
+          retention-days: 14
+
+  quality-gate:
+    name: Phase 5 required gate
+    if: always()
+    needs: [backend, frontend, critical-e2e, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish job summary
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          E2E_RESULT: ${{ needs.critical-e2e.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+        run: |
+          printf '%s\n' \
+            '## Phase 5 quality gate' \
+            '' \
+            "- Backend: ${BACKEND_RESULT}" \
+            "- Frontend: ${FRONTEND_RESULT}" \
+            "- Critical browser E2E: ${E2E_RESULT}" \
+            "- Security: ${SECURITY_RESULT}" >> "$GITHUB_STEP_SUMMARY"
+          test "$BACKEND_RESULT" = success
+          test "$FRONTEND_RESULT" = success
+          test "$E2E_RESULT" = success
+          test "$SECURITY_RESULT" = success
+

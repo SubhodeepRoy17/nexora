@@ -1,17 +1,18 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-import razorpay
 from django.conf import settings
+
+from .razorpay_gateway import RazorpayClient
 
 
 class PaymentConfigurationError(RuntimeError):
     pass
 
 
-def get_razorpay_client() -> razorpay.Client:
+def get_razorpay_client() -> RazorpayClient:
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise PaymentConfigurationError("Razorpay API credentials are not configured")
-    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    return RazorpayClient(key_id=settings.RAZORPAY_KEY_ID, key_secret=settings.RAZORPAY_KEY_SECRET)
 
 
 def amount_to_subunits(amount: Decimal) -> int:
@@ -26,7 +27,7 @@ def amount_to_decimal(subunits: int) -> Decimal:
     return (Decimal(subunits) / Decimal("100")).quantize(Decimal("0.01"))
 
 
-def create_razorpay_order(client: razorpay.Client, order) -> dict:
+def create_razorpay_order(client: RazorpayClient, order) -> dict:
     item_count = order.items.count() if hasattr(order, "items") else 1
     payload = {
         "amount": amount_to_subunits(order.total_amount),
