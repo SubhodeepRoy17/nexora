@@ -284,13 +284,15 @@ Acceptance evidence:
 - Measured latency explicitly excludes public Gemini network time. All growth figures remain
   labelled as recorded attribution rather than causal revenue lift.
 
-### P0.7 — Public deployment and operations
+### P0.7 — Public deployment and operations — DEPLOYED; ACCEPTANCE PENDING
 
 Goal: make the complete path reliable on public HTTPS URLs.
 
-Status: repository implementation is complete. Public acceptance is externally blocked because the
-previous API URL is unresponsive, the previous frontend URL serves an unrelated application, and no
-Render/Vercel project credentials are available in this workspace. See `docs/Phase7Evidence.md`.
+Status: the Nexora frontend and API are live at stable public HTTPS URLs on release `7234e56`.
+Readiness, production configuration, PostgreSQL 18.6, pgvector 0.8.6, HNSW, exact CORS origin,
+test-only money mode, and public agent discovery are verified. Final acceptance remains pending on
+fresh expiry/reconciliation scheduler heartbeats, deployed webhook/payment/failure evidence, and
+browser authentication that does not rely on third-party cookies. See `docs/Phase7Evidence.md`.
 
 - Pin Python, Node, PostgreSQL, and pgvector versions.
 - Verify the deployed pgvector extension and HNSW index.

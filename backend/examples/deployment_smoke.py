@@ -66,7 +66,12 @@ def main():
         require(readiness.get("release") == args.expected_release, "API runs the expected release", failures)
     schedulers = readiness.get("schedulers", {}).get("jobs", {})
     schedulers_ready = len(schedulers) == 2 and all(job.get("healthy") for job in schedulers.values())
-    require(schedulers_ready or args.allow_pending_schedulers, "expiry and reconciliation heartbeats are fresh", failures)
+    if schedulers_ready:
+        require(True, "expiry and reconciliation heartbeats are fresh", failures)
+    elif args.allow_pending_schedulers:
+        print("WAIVE expiry and reconciliation heartbeats are pending (bootstrap-only waiver)")
+    else:
+        require(False, "expiry and reconciliation heartbeats are fresh", failures)
     api_origin = f"{urlparse(api).scheme}://{urlparse(api).netloc}/"
     capability, _ = checked_fetch(
         urljoin(api_origin, ".well-known/nexora-commerce.json"),
