@@ -3,13 +3,14 @@ from django.urls import include, path
 
 from apps.commerce.views import CapabilityView
 
-from .views import HealthView
+from .views import HealthView, ReadinessView
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path(".well-known/nexora-commerce.json", CapabilityView.as_view(), name="commerce-capability"),
     path("api/health/", HealthView.as_view(), name="health"),
+    path("api/health/ready/", ReadinessView.as_view(), name="readiness"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/merchants/analytics/", include("apps.analytics.urls")),
     path("api/", include("apps.merchants.urls")),

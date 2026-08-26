@@ -409,3 +409,29 @@ class ReconciliationException(models.Model):
                 name="one_open_reconciliation_exception",
             )
         ]
+
+
+class ScheduledJobRun(models.Model):
+    """Sanitized, durable evidence that a finite operational job completed."""
+
+    class Job(models.TextChoices):
+        EXPIRE_CHECKOUTS = "EXPIRE_CHECKOUTS", "Expire checkouts"
+        RECONCILE_RAZORPAY = "RECONCILE_RAZORPAY", "Reconcile Razorpay"
+
+    class Status(models.TextChoices):
+        RUNNING = "RUNNING", "Running"
+        SUCCEEDED = "SUCCEEDED", "Succeeded"
+        FAILED = "FAILED", "Failed"
+
+    run_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job = models.CharField(max_length=24, choices=Job.choices, db_index=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.RUNNING, db_index=True)
+    summary = models.JSONField(default=dict)
+    error_code = models.CharField(max_length=80, blank=True)
+    release_sha = models.CharField(max_length=64, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [models.Index(fields=["job", "status", "completed_at"])]

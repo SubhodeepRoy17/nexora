@@ -224,7 +224,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 "Track demo ready: "
                 f"merchant={merchant.owner.username}, products={len(products)}, "
-                f"relationships={len(RELATIONSHIPS)}, prompt={DEMO_PROMPT!r}, "
-                f"no_result_prompt={NO_RESULT_PROMPT!r}"
+                f"relationships={len(RELATIONSHIPS)}, prompt={DEMO_PROMPT.replace('₹', 'INR ')!r}, "
+                f"no_result_prompt={NO_RESULT_PROMPT.replace('₹', 'INR ')!r}"
             )
         )

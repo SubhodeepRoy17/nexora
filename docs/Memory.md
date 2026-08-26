@@ -2,7 +2,7 @@
 
 ## 1. Project State Overview
 - **Current Phase:** Phase 12 — COMPLETE LOCALLY (complete live buyer and merchant experience)
-- **Active Task:** P0.4 browser E2E is locally verified; P0.5 clean CI is next while deployed Razorpay evidence remains externally gated
+- **Active Task:** P0.7 deployment safeguards and operations evidence are implemented; public Render/Vercel/Razorpay verification remains externally gated
 - **Overall Progress:** Phases 1-10 and Phase 12 complete locally; Phase 11 deployment evidence remains open; roadmap continues through Phase 16
 - **Last Updated:** 2026-08-26
 

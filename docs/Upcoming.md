@@ -288,6 +288,10 @@ Acceptance evidence:
 
 Goal: make the complete path reliable on public HTTPS URLs.
 
+Status: repository implementation is complete. Public acceptance is externally blocked because the
+previous API URL is unresponsive, the previous frontend URL serves an unrelated application, and no
+Render/Vercel project credentials are available in this workspace. See `docs/Phase7Evidence.md`.
+
 - Pin Python, Node, PostgreSQL, and pgvector versions.
 - Verify the deployed pgvector extension and HNSW index.
 - Configure hosts, CORS/CSRF, secure cookies, proxy headers, and frontend API URL.

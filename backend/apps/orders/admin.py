@@ -8,6 +8,7 @@ from .models import (
     PaymentRefund,
     Quote,
     ReconciliationException,
+    ScheduledJobRun,
     StockReservation,
     WebhookEvent,
 )
@@ -27,6 +28,15 @@ admin.site.register(OrderItem)
 admin.site.register(StockReservation)
 admin.site.register(PaymentRefund)
 admin.site.register(ReconciliationException)
+
+
+@admin.register(ScheduledJobRun)
+class ScheduledJobRunAdmin(admin.ModelAdmin):
+    list_display = ["job", "status", "started_at", "completed_at", "release_sha"]
+    list_filter = ["job", "status", "started_at"]
+    readonly_fields = [
+        "run_id", "job", "status", "summary", "error_code", "release_sha", "started_at", "completed_at",
+    ]
 
 
 @admin.register(WebhookEvent)

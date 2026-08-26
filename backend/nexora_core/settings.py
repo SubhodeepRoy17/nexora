@@ -3,6 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
 from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
@@ -20,8 +21,11 @@ def env_list(name: str, default: str = "") -> list[str]:
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-before-deployment")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in {"1", "true", "yes", "on"}
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
+    ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
 
 INSTALLED_APPS = [
+    "nexora_core.apps.NexoraCoreConfig",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -184,6 +188,7 @@ LOGGING = {
     "loggers": {
         "nexora.security": {"handlers": ["security_console"], "level": "INFO", "propagate": False},
         "nexora.payments": {"handlers": ["security_console"], "level": "INFO", "propagate": False},
+        "nexora.operations": {"handlers": ["security_console"], "level": "INFO", "propagate": False},
     },
 }
 
@@ -209,7 +214,11 @@ MONEY_REQUIRE_RAZORPAY_TEST_MODE = os.getenv(
 ).lower() in {"1", "true", "yes", "on"}
 ORDER_RESERVATION_TTL_SECONDS = int(os.getenv("ORDER_RESERVATION_TTL_SECONDS", "900"))
 ORDER_MAX_CART_ITEMS = int(os.getenv("ORDER_MAX_CART_ITEMS", "10"))
+OPS_SCHEDULER_MAX_AGE_MINUTES = max(5, int(os.getenv("OPS_SCHEDULER_MAX_AGE_MINUTES", "15")))
 GROWTH_MAX_ADDON_OFFERS = min(3, max(0, int(os.getenv("GROWTH_MAX_ADDON_OFFERS", "2"))))
 CHAT_ANONYMOUS_TOKEN_TTL_SECONDS = max(
     300, min(86_400, int(os.getenv("CHAT_ANONYMOUS_TOKEN_TTL_SECONDS", "43200")))
 )
+
+if MONEY_REQUIRE_RAZORPAY_TEST_MODE and RAZORPAY_KEY_ID and not RAZORPAY_KEY_ID.startswith("rzp_test_"):
+    raise ImproperlyConfigured("Nexora refuses to start with a non-test Razorpay key.")

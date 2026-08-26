@@ -14,8 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.12"
-  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12.13"
+  NODE_VERSION: "22.23.2"
+  VITE_API_BASE_URL: "https://api.example.test/api/"
   POSTGRES_DB: nexora_ci
   POSTGRES_USER: nexora
   POSTGRES_PASSWORD: nexora-ci-password
@@ -23,6 +24,11 @@ env:
   POSTGRES_PORT: "5432"
   DJANGO_SECRET_KEY: phase5-ci-only-secret-key-not-used-outside-the-runner
   DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: api.example.test
+  DJANGO_SECURE_SSL_REDIRECT: "True"
+  DJANGO_HSTS_SECONDS: "31536000"
+  CORS_ALLOWED_ORIGINS: https://app.example.test
+  CSRF_TRUSTED_ORIGINS: https://app.example.test
   RAZORPAY_KEY_ID: rzp_test_phase5_ci
   RAZORPAY_KEY_SECRET: phase5-ci-provider-secret
   RAZORPAY_WEBHOOK_SECRET: phase5-ci-webhook-secret
@@ -65,12 +71,16 @@ jobs:
           python manage.py makemigrations --check --dry-run 2>&1 | tee ../artifacts/backend/migration-drift.log
           python manage.py migrate --noinput 2>&1 | tee ../artifacts/backend/migrate.log
           python manage.py setup_pgvector 2>&1 | tee ../artifacts/backend/pgvector.log
+          python manage.py check --deploy 2>&1 | tee ../artifacts/backend/deploy-check.log
+          python manage.py expire_checkouts --limit 1000 2>&1 | tee ../artifacts/backend/expiry-job.log
+          python manage.py reconcile_razorpay --limit 1000 2>&1 | tee ../artifacts/backend/reconciliation-job.log
+          python manage.py deployment_status 2>&1 | tee ../artifacts/backend/deployment-status.log
       - name: Run all non-browser backend tests
         working-directory: backend
         shell: bash
         run: |
           set -o pipefail
-          python manage.py test apps.accounts apps.merchants apps.agents apps.orders apps.analytics apps.commerce --verbosity 2 2>&1 | tee ../artifacts/backend/tests.log
+          python manage.py test apps.accounts apps.merchants apps.agents apps.orders apps.analytics apps.commerce nexora_core --verbosity 2 2>&1 | tee ../artifacts/backend/tests.log
       - name: Generate the reproducible recommendation evaluation
         working-directory: backend
         shell: bash
