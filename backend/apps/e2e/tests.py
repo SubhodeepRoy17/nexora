@@ -56,6 +56,7 @@ def _wait_for_server(url, process, attempts=120):
 @override_settings(
     SESSION_COOKIE_SECURE=False,
     CSRF_COOKIE_SECURE=False,
+    SECURE_SSL_REDIRECT=False,
     RAZORPAY_KEY_ID="rzp_test_p04_browser",
     RAZORPAY_KEY_SECRET="p04-browser-secret",
     MONEY_MAX_ITEM_QUANTITY=5,

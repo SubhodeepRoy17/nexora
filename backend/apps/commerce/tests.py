@@ -214,6 +214,7 @@ class CommerceContractTests(TestCase):
 @override_settings(
     SESSION_COOKIE_SECURE=False,
     CSRF_COOKIE_SECURE=False,
+    SECURE_SSL_REDIRECT=False,
     RAZORPAY_KEY_ID="rzp_test_reference",
     RAZORPAY_KEY_SECRET="reference-secret",
 )
