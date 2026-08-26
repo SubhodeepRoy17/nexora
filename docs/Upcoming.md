@@ -20,7 +20,8 @@ Nexora uses its own versioned commerce contract. It is conceptually aligned with
 
 ## Current completion snapshot
 
-The core product implementation is approximately 92% complete. The remaining work is primarily clean CI, evaluation, deployment verification, and submission packaging.
+The core product implementation is approximately 96% complete. The remaining work is public
+deployment verification and submission packaging.
 
 ### Implemented
 
@@ -47,11 +48,13 @@ The core product implementation is approximately 92% complete. The remaining wor
 - A locally verified Playwright critical journey covering authentication, deterministic search,
   offer choice, safe failure/recovery, exact checkout, duplicate retry, pending refresh/resume,
   authoritative paid state, mobile interaction, merchant analytics, and the HTTP-only reference buyer.
+- A clean-clone PostgreSQL/pgvector CI gate covering locked installs, migrations, backend/frontend
+  tests, production build, critical E2E, dependency audits, secret scanning, and evidence artifacts.
+- A rollback-only 56-intent evaluation covering constraints, grounding, relevance, safe no-result
+  behavior, growth-offer compatibility/refusal, prompt injection, and forced-provider fallback.
 
 ### Not yet proven complete
 
-- A broad, reproducible agent and growth evaluation report with measured results.
-- A clean-clone CI gate for backend, frontend, migrations, build, security, and critical E2E behavior.
 - A verified public deployment with webhook, expiry scheduler, reconciliation scheduler, and environment safeguards.
 - A root README, architecture diagrams, pitch script, demo recording, and final submission evidence package.
 
@@ -260,7 +263,7 @@ Acceptance evidence:
   remediation, and the evidence boundary.
 - No critical/high security issue or flaky critical-path test remains unresolved.
 
-### P0.6 — Reproducible evaluation report
+### P0.6 — Reproducible evaluation report — IMPLEMENTED
 
 Goal: prove recommendation quality and safe refusal of irrelevant growth offers.
 
@@ -273,8 +276,13 @@ Goal: prove recommendation quality and safe refusal of irrelevant growth offers.
 
 Acceptance evidence:
 
-- One documented command reproduces the report.
-- Submission claims use its measured results and do not imply causal revenue lift.
+- `cd backend && python manage.py evaluate_agent` runs the versioned intent set through both
+  provider-success and forced-fallback pathways, rolls back every fixture/analytics write, and
+  regenerates `docs/Evaluation.md` plus the machine-readable `docs/evaluation/results.json`.
+- The required CI gate reruns the evaluator against PostgreSQL/pgvector, enforces its quality
+  thresholds, and publishes the Markdown, JSON, and command log as `phase6-evaluation-*` evidence.
+- Measured latency explicitly excludes public Gemini network time. All growth figures remain
+  labelled as recorded attribution rather than causal revenue lift.
 
 ### P0.7 — Public deployment and operations
 

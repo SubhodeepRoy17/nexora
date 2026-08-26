@@ -179,6 +179,21 @@ the production build, repeats the critical browser E2E, scans repository history
 audits both dependency graphs. Logs and machine-readable audit output are retained as workflow
 artifacts. See `docs/Phase5Evidence.md` for the exact boundary and reproduction commands.
 
+## Reproducible recommendation evaluation
+
+P0.6 is reproduced from the repository root with:
+
+```bash
+cd backend
+python manage.py evaluate_agent
+```
+
+The command evaluates at least 50 versioned buyer intents through a deterministic Gemini-shaped
+provider response and a forced-failure fallback, while production retrieval, server grounding,
+no-result diagnostics, and add-on policy remain active. Its synthetic catalog and analytics writes
+are rolled back. It regenerates `docs/Evaluation.md` and `docs/evaluation/results.json`; CI publishes
+the same outputs as an artifact and fails when the documented quality thresholds regress.
+
 ## External agent commerce API
 
 `GET /.well-known/nexora-commerce.json` is the machine-readable entry point for the versioned external buyer contract. It links the read-only public catalog, OpenAPI 3.1 document, Catalog Product JSON Schema, money policy, and authenticated quote/approval/Razorpay handoff/status sequence. Catalog pages use opaque cursors capped at 50 and support `ETag`/`Last-Modified` revalidation.

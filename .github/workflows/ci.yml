@@ -71,12 +71,30 @@ jobs:
         run: |
           set -o pipefail
           python manage.py test apps.accounts apps.merchants apps.agents apps.orders apps.analytics apps.commerce --verbosity 2 2>&1 | tee ../artifacts/backend/tests.log
+      - name: Generate the reproducible recommendation evaluation
+        working-directory: backend
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p ../artifacts/evaluation
+          python manage.py evaluate_agent \
+            --output ../artifacts/evaluation/Evaluation.md \
+            --json-output ../artifacts/evaluation/results.json \
+            2>&1 | tee ../artifacts/evaluation/run.log
       - name: Publish backend evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: phase5-backend-${{ github.run_attempt }}
           path: artifacts/backend
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Publish evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase6-evaluation-${{ github.run_attempt }}
+          path: artifacts/evaluation
           if-no-files-found: warn
           retention-days: 14
 
@@ -220,4 +238,3 @@ jobs:
           test "$FRONTEND_RESULT" = success
           test "$E2E_RESULT" = success
           test "$SECURITY_RESULT" = success
-
