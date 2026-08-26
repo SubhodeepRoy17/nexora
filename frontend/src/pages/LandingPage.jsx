@@ -27,11 +27,45 @@ const trustPoints = [
 ]
 
 const steps = [
-  { number: '01', icon: Search, title: 'Describe the outcome', copy: 'Give Nexora your budget, constraints, use case, and trade-offs—not a product keyword list.' },
-  { number: '02', icon: Bot, title: 'Compare grounded options', copy: 'The agent searches live merchant catalogs and explains every recommendation from recorded facts.' },
-  { number: '03', icon: FileCheck2, title: 'Approve the exact quote', copy: 'You see products, quantities, unit prices, limits, expiry, and the precise amount before anything moves.' },
-  { number: '04', icon: CreditCard, title: 'Pay with a safe handoff', copy: 'Razorpay Checkout opens only after approval. Signed webhooks remain the settlement authority.' },
+  { number: '01', icon: Search, title: 'Describe the outcome', authority: 'Buyer-led', accent: 'rgba(125, 211, 252, .55)', copy: 'Give Nexora your budget, constraints, use case, and trade-offs—not a product keyword list.' },
+  { number: '02', icon: Bot, title: 'Compare grounded options', authority: 'Agent-prepared', accent: 'rgba(196, 181, 253, .6)', copy: 'The agent searches live merchant catalogs and explains every recommendation from recorded facts.' },
+  { number: '03', icon: FileCheck2, title: 'Approve the exact quote', authority: 'Human-gated', accent: 'rgba(110, 231, 183, .65)', copy: 'You see products, quantities, unit prices, limits, expiry, and the precise amount before anything moves.' },
+  { number: '04', icon: CreditCard, title: 'Pay with a safe handoff', authority: 'Provider handoff', accent: 'rgba(253, 230, 138, .62)', copy: 'Razorpay Checkout opens only after approval. Signed webhooks remain the settlement authority.' },
 ]
+
+function moveSpotlight(event) {
+  const card = event.currentTarget
+  const bounds = card.getBoundingClientRect()
+  card.style.setProperty('--spotlight-x', `${event.clientX - bounds.left}px`)
+  card.style.setProperty('--spotlight-y', `${event.clientY - bounds.top}px`)
+}
+
+function SpotlightStepCard({ step }) {
+  const { number, icon: Icon, title, authority, accent, copy } = step
+  return (
+    <article
+      className="spotlight-step-card group relative isolate min-h-[330px] overflow-hidden rounded-[2rem] border border-white/80 p-6 shadow-[0_22px_55px_rgba(42,81,68,.11)] sm:p-8"
+      style={{ '--spotlight-color': accent }}
+      onPointerMove={moveSpotlight}
+    >
+      <div className="relative z-10 flex h-full flex-col">
+        <div className="flex items-center justify-between gap-4">
+          <span className="rounded-full border border-white/90 bg-white/65 px-3 py-1.5 font-mono text-[9px] font-semibold tracking-[0.16em] text-[#31594f] shadow-sm backdrop-blur-md">STEP {number}</span>
+          <span className="grid size-12 place-items-center rounded-full border border-white/90 bg-white/70 text-[#17372f] shadow-[0_10px_25px_rgba(42,81,68,.1)] backdrop-blur-md transition duration-300 group-hover:-translate-y-1 group-hover:scale-105"><Icon size={19} strokeWidth={1.8} /></span>
+        </div>
+        <div className="mt-14 sm:mt-16">
+          <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-emerald-800/70">{authority}</p>
+          <h3 className="storybook-title mt-3 text-[1.75rem] font-semibold leading-[1.02] tracking-[-0.035em] text-[#17372f]">{title}</h3>
+          <p className="mt-4 text-sm leading-6 text-[#31594f]">{copy}</p>
+        </div>
+        <div className="mt-auto pt-8" aria-hidden="true">
+          <div className="h-px bg-gradient-to-r from-[#31594f]/25 via-white/80 to-transparent" />
+          <div className="mt-3 flex items-center gap-2 text-[9px] font-semibold text-[#31594f]/65"><span className="size-1.5 rounded-full bg-emerald-500/75" /> Bounded and auditable</div>
+        </div>
+      </div>
+    </article>
+  )
+}
 
 function MerchantPreview() {
   const bars = [42, 58, 51, 68, 64, 78, 72, 91, 84, 96, 88, 100]
@@ -121,11 +155,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="border-y border-slate-300 bg-white px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-[1440px]">
+      <section id="how-it-works" className="spotlight-steps-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <div className="spotlight-steps-cloud spotlight-steps-cloud-left" aria-hidden="true" />
+        <div className="spotlight-steps-cloud spotlight-steps-cloud-right" aria-hidden="true" />
+        <div className="relative z-10 mx-auto max-w-[1440px]">
           <SectionHeading eyebrow="A bounded path to payment" title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." />
-          <div className="mt-12 grid border-l border-t border-slate-300 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map(({ number, icon: Icon, title, copy }) => <article key={number} className="group min-h-[310px] border-b border-r border-slate-300 p-6 transition hover:bg-violet-50 sm:p-8"><div className="flex items-center justify-between"><span className="font-mono text-[10px] font-semibold text-violet-600">{number}</span><span className="grid size-10 place-items-center border border-slate-300 bg-white transition group-hover:border-violet-300 group-hover:text-violet-600"><Icon size={17} /></span></div><h3 className="mt-16 text-xl font-semibold tracking-[-0.025em]">{title}</h3><p className="mt-4 text-sm leading-6 text-slate-600">{copy}</p></article>)}
+          <div className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step) => <SpotlightStepCard key={step.number} step={step} />)}
           </div>
         </div>
       </section>

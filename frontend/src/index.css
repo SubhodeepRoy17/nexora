@@ -94,6 +94,79 @@
   animation: storybook-bob 1.8s ease-in-out infinite;
 }
 
+.spotlight-steps-section {
+  background:
+    radial-gradient(circle at 12% 16%, rgba(186, 230, 253, .52), transparent 32%),
+    radial-gradient(circle at 87% 78%, rgba(216, 180, 254, .34), transparent 31%),
+    linear-gradient(145deg, #f4f8ec 0%, #e8f5ef 48%, #edf4df 100%);
+}
+
+.spotlight-steps-cloud {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .42);
+  filter: blur(36px);
+  pointer-events: none;
+}
+
+.spotlight-steps-cloud-left {
+  width: 26rem;
+  height: 8rem;
+  left: -8rem;
+  top: 18%;
+  transform: rotate(-9deg);
+}
+
+.spotlight-steps-cloud-right {
+  width: 30rem;
+  height: 9rem;
+  right: -10rem;
+  bottom: 8%;
+  transform: rotate(8deg);
+}
+
+.spotlight-step-card {
+  --spotlight-x: 50%;
+  --spotlight-y: 50%;
+  --spotlight-color: rgba(196, 181, 253, .58);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, .76), rgba(255, 255, 255, .42)),
+    rgba(241, 248, 239, .66);
+  backdrop-filter: blur(18px);
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1), box-shadow .35s ease, border-color .35s ease;
+}
+
+.spotlight-step-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  background: radial-gradient(260px circle at var(--spotlight-x) var(--spotlight-y), var(--spotlight-color), transparent 70%);
+  opacity: .42;
+  transition: opacity .3s ease;
+  pointer-events: none;
+}
+
+.spotlight-step-card::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: calc(2rem - 1px);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .42), transparent 58%);
+  pointer-events: none;
+}
+
+.spotlight-step-card:hover {
+  transform: translateY(-7px);
+  border-color: rgba(255, 255, 255, .98);
+  box-shadow: 0 30px 70px rgba(42, 81, 68, .17);
+}
+
+.spotlight-step-card:hover::before {
+  opacity: .95;
+}
+
 @keyframes storybook-arrive {
   from { opacity: 0; transform: translateY(18px) scale(.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -128,6 +201,9 @@
   .storybook-copy,
   .storybook-cloud,
   .storybook-scroll-cue { animation: none; }
+
+  .spotlight-step-card { transition: none; }
+  .spotlight-step-card:hover { transform: none; }
 }
 
 .app-grid {
