@@ -62,7 +62,7 @@ Nexora uses Django session authentication for the React SPA:
 
 The Axios client performs this bootstrap automatically. Merchant routes require a signed-in user who owns a `Merchant`. Product ownership is always assigned server-side; a submitted `merchant` field cannot change scope. Buyers can search publicly but must sign in before requesting a quote. Buyer identity and email are derived from the authenticated account.
 
-For cross-site HTTPS deployments, configure `SESSION_COOKIE_SAMESITE=None` and `CSRF_COOKIE_SAMESITE=None`. Prefer same-site frontend/API domains or a reverse proxy because some browsers block third-party cookies entirely.
+For cross-site HTTPS deployments, configure `SESSION_COOKIE_SAMESITE=None` and `CSRF_COOKIE_SAMESITE=None`. Prefer same-site frontend/API domains or a reverse proxy because some browsers block third-party cookies entirely. Nexora's Vercel deployment proxies `/api/*` to Render; configure its frontend with `VITE_API_BASE_URL=/api/` so login does not depend on third-party cookies.
 
 ## API limits and responses
 
@@ -210,8 +210,9 @@ The client pauses for exact human approval, never imports Django internals, and 
 
 WhiteNoise serves compressed, hashed Django static assets. `render.yaml` and
 `Procfile` provide Render/Gunicorn commands, while all hosts, origins, database,
-Gemini, and Razorpay values remain environment-driven. Set the frontend's
-`VITE_API_BASE_URL` to the deployed API URL ending in `/api/`.
+Gemini, and Razorpay values remain environment-driven. On Vercel, set the
+frontend's `VITE_API_BASE_URL` to `/api/`; the checked-in rewrite forwards that
+path to Render while preserving first-party session and CSRF cookies.
 
 ## Catalog JSON schema
 

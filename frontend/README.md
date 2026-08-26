@@ -22,12 +22,18 @@ Set `VITE_API_BASE_URL` when the Django API is not running at
 `http://localhost:8000/api/`. Buyer search, catalog management, Razorpay order
 creation, transaction timelines, and merchant analytics use live DRF endpoints.
 
+On the Vercel deployment, set `VITE_API_BASE_URL=/api/`. The first rewrite in
+`vercel.json` proxies that path to Render before the React Router fallback. This
+keeps Django's session and CSRF cookies on the frontend origin instead of relying
+on browser support for third-party cookies.
+
 The client bootstraps a Django session and CSRF token from `/api/auth/me/`, sends
 credentialed requests, and attaches `X-CSRFToken` to unsafe methods. Buyer
 search remains public. Checkout requires a signed-in account, and merchant
 routes require an account that owns a merchant profile.
 
-`vercel.json` preserves React Router deep links when deployed as a Vite SPA.
+`vercel.json` proxies API requests first, then preserves React Router deep links
+when deployed as a Vite SPA.
 
 ## Live-state contract
 

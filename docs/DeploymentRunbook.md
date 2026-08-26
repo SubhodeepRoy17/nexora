@@ -23,13 +23,17 @@ database connection details.
    production service.
 3. Add only `rzp_test_...` Razorpay credentials. Use an independently generated webhook secret and
    keep all Razorpay and Gemini values in Render's secret manager.
-4. Import `frontend/` as the Vercel project. Set `VITE_API_BASE_URL` to
-   `https://<render-host>/api/` in the Production environment before building. Select Node 22.x.
-   The build intentionally fails when this variable is absent.
+4. Import `frontend/` as the Vercel project. The checked-in `vercel.json` reverse-proxies
+   `/api/*` to the Render API so browser session and CSRF cookies remain first-party. Set
+   `VITE_API_BASE_URL` to `/api/` in the Production environment before building and select Node
+   22.x. The build intentionally fails when this variable is absent. If the Render hostname
+   changes, update the proxy destination in `frontend/vercel.json` before deploying.
 5. Deploy the API. Render's pre-deploy command runs the deployment checks, migrations, pgvector
    setup/backfill, and readiness verification before replacing the prior release.
 6. Deploy the frontend and confirm `/nexora-deployment.json` identifies
-   `nexora-agentic-commerce`.
+   `nexora-agentic-commerce`. Confirm `/api/health/` on the Vercel hostname returns the Render
+   health response before testing login. Do not configure the browser to call the `onrender.com`
+   hostname directly: those cookies are third-party from a `vercel.app` page and may be blocked.
 7. Register `https://<render-host>/api/orders/webhook/razorpay/` in the Razorpay Test Mode dashboard
    using the events and procedure in `docs/RazorpayRunbook.md`.
 8. Wait for both five-minute cron services to complete at least once. Their sanitized outcomes are
