@@ -14,6 +14,7 @@ from apps.merchants.models import Merchant, Product
 
 from .models import AgentSession, ChatConversation
 from .services import (
+    AgentServiceError,
     BuyerAgentResponse,
     ProductRecommendation,
     _extract_tool_call,
@@ -48,6 +49,13 @@ class ProductSearchSchemaTests(SimpleTestCase):
 
         self.assertEqual(arguments.category, "Laptop Backpacks")
         self.assertEqual(arguments.max_price, 6000)
+
+    def test_deterministic_parser_retains_explicit_color(self):
+        arguments = deterministic_search_arguments("Find a red keyboard under ₹5,000")
+
+        self.assertEqual(arguments.category, "Keyboards")
+        self.assertEqual(arguments.max_price, 5000)
+        self.assertEqual(arguments.required_specs, {"color": "Red"})
 
     @patch("apps.agents.services._record_search")
     @patch("apps.agents.services.fallback_product_search")
@@ -269,6 +277,79 @@ class CatalogRecallTests(TestCase):
         )
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["title"], "Quiet Code Keyboard")
+
+
+class DynamicNoResultTests(TestCase):
+    def setUp(self):
+        owner = get_user_model().objects.create_user(username="no-result-owner")
+        merchant = Merchant.objects.create(
+            owner=owner, name="No Result Catalog", email="no-result@test.invalid"
+        )
+        Product.objects.create(
+            merchant=merchant,
+            title="Black Entry Keyboard",
+            description="Entry keyboard with a structured black color.",
+            category="Keyboards",
+            price="2499.00",
+            stock_quantity=5,
+            rating=4.5,
+            specifications={"color": "Black", "layout": "75%"},
+            tags=["keyboard", "black"],
+        )
+
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    @patch("apps.agents.services._gemini_client", side_effect=AgentServiceError("offline"))
+    def test_budget_failure_names_cheapest_product_and_shortfall(self, _gemini, _vector):
+        result = run_buyer_agent("Find a keyboard under ₹100")
+
+        self.assertEqual(result["_audit_context"]["provider_source"], "FALLBACK")
+        self.assertIn("Black Entry Keyboard", result["summary_reasoning"])
+        self.assertIn("₹2,499", result["summary_reasoning"])
+        self.assertIn("₹2,399", result["summary_reasoning"])
+        self.assertEqual(result["no_result"]["reasons"][0]["code"], "BUDGET_TOO_LOW")
+        self.assertIn("₹2,499", result["suggested_query"])
+
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    @patch("apps.agents.services._gemini_client", side_effect=AgentServiceError("offline"))
+    def test_color_failure_names_requested_and_available_values(self, _gemini, _vector):
+        result = run_buyer_agent("Find a red keyboard")
+
+        self.assertIn("color Red", result["summary_reasoning"])
+        self.assertIn("Black", result["summary_reasoning"])
+        reason = result["no_result"]["reasons"][0]
+        self.assertEqual(reason["code"], "SPEC_UNAVAILABLE")
+        self.assertEqual(reason["requested_value"], "Red")
+        self.assertEqual(reason["available_values"], ["Black"])
+
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    @patch("apps.agents.services._gemini_client")
+    def test_gemini_phrases_only_the_grounded_no_result_diagnostics(
+        self, client_factory, _vector
+    ):
+        captured = {}
+        model_payload = {
+            "summary_reasoning": (
+                "No active keyboard is available under ₹100. The catalog's least expensive "
+                "keyboard is Black Entry Keyboard at ₹2,499, so the budget is short by ₹2,399."
+            ),
+            "suggested_query": "Find a keyboard under ₹2,499",
+        }
+
+        def generate_content(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(text=json.dumps(model_payload))
+
+        client_factory.return_value = SimpleNamespace(
+            models=SimpleNamespace(generate_content=generate_content), close=lambda: None
+        )
+
+        result = run_buyer_agent("Find a keyboard under ₹100")
+
+        self.assertEqual(result["_audit_context"]["provider_source"], "GEMINI")
+        self.assertEqual(result["summary_reasoning"], model_payload["summary_reasoning"])
+        self.assertIn("BUDGET_TOO_LOW", captured["contents"])
+        self.assertIn('"budget_shortfall":2399.0', captured["contents"])
+        self.assertTrue(captured["config"].automatic_function_calling.disable)
 
 
 

@@ -52,14 +52,14 @@ describe('live buyer search', () => {
   })
 
   it('makes a backend no-result response honest and actionable', async () => {
-    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952', summary_reasoning: 'No in-stock catalog product satisfies every constraint.', provider_source: 'FALLBACK', recommendations: [], add_on_suggestions: [] } })
+    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952', summary_reasoning: 'No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.', suggested_query: 'Find a keyboard under ₹2,499', provider_source: 'FALLBACK', recommendations: [], add_on_suggestions: [] } })
     const user = userEvent.setup()
     renderBuyer()
     await user.type(screen.getByLabelText('Shopping intent'), 'impossible product')
     await user.click(screen.getByLabelText('Send shopping intent'))
-    expect(await screen.findByText('No in-stock catalog product satisfies every constraint.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Broaden the request' }))
-    await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue('Show me similar in-stock products with a broader budget'))
+    expect(await screen.findByText('No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Try the suggested search' }))
+    await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue('Find a keyboard under ₹2,499'))
   })
 
   it('deletes the signed-in buyer chat from Recent intents', async () => {

@@ -72,6 +72,8 @@ def _history_metadata(result):
         "add_on_suggestions": strip_tokens(result.get("add_on_suggestions", [])),
         "provider_source": result.get("provider_source"),
         "agent_session_id": result.get("agent_session_id"),
+        "suggested_query": result.get("suggested_query"),
+        "no_result": result.get("no_result"),
     }
 
 

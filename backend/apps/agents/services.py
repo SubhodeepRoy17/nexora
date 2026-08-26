@@ -10,7 +10,11 @@ from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .prompts import BUYER_AGENT_SYSTEM_PROMPT, RECOMMENDATION_SYSTEM_PROMPT
+from .prompts import (
+    BUYER_AGENT_SYSTEM_PROMPT,
+    NO_RESULT_SYSTEM_PROMPT,
+    RECOMMENDATION_SYSTEM_PROMPT,
+)
 from .tools import (
     SEARCH_MERCHANT_PRODUCTS_FUNCTION,
     ProductSearchSchema,
@@ -76,6 +80,13 @@ class BuyerAgentResponse(BaseModel):
     recommendations: list[ProductRecommendation] = Field(default_factory=list, max_length=3)
     add_on_suggestions: list[AddOnSuggestion] = Field(default_factory=list, max_length=3)
     summary_reasoning: str = Field(min_length=1, max_length=1500)
+
+
+class NoResultExplanation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    summary_reasoning: str = Field(min_length=20, max_length=900)
+    suggested_query: str = Field(min_length=3, max_length=300)
 
 
 def _compatibility_matches(relationship) -> bool:
@@ -325,12 +336,233 @@ def _ground_recommendations(
     return response.model_copy(update={"recommendations": grounded})
 
 
-def _empty_response(source_notice: str) -> BuyerAgentResponse:
+def _empty_response(source_notice: str, summary: str) -> BuyerAgentResponse:
     return BuyerAgentResponse(
         thought_process=[source_notice, "No active, in-stock catalog matches were found."],
         recommendations=[],
-        summary_reasoning="Try broadening the category, budget, or required specifications.",
+        summary_reasoning=summary,
     )
+
+
+def _active_catalog_queryset(arguments: ProductSearchSchema):
+    from apps.merchants.models import Product
+
+    queryset = Product.objects.filter(is_active=True, stock_quantity__gt=0)
+    if arguments.category:
+        queryset = queryset.filter(category__icontains=arguments.category)
+    return queryset
+
+
+def _catalog_no_result_diagnostics(arguments: ProductSearchSchema) -> dict[str, Any]:
+    """Build bounded catalog facts for Gemini; no model determines inventory truth."""
+
+    category_queryset = _active_catalog_queryset(arguments)
+    category_count = category_queryset.count()
+    budget_queryset = category_queryset
+    if arguments.max_price is not None:
+        from decimal import Decimal
+
+        budget_queryset = budget_queryset.filter(
+            price__lte=Decimal(str(arguments.max_price))
+        )
+    budget_count = budget_queryset.count()
+    cheapest = category_queryset.order_by("price", "-rating").values(
+        "title", "price", "category"
+    ).first()
+    reasons = []
+    if category_count == 0:
+        reasons.append(
+            {
+                "code": "CATEGORY_UNAVAILABLE",
+                "category": arguments.category,
+                "message": "No active, in-stock product exists in the requested category.",
+            }
+        )
+    elif arguments.max_price is not None and budget_count == 0:
+        cheapest_price = float(cheapest["price"]) if cheapest else None
+        reasons.append(
+            {
+                "code": "BUDGET_TOO_LOW",
+                "requested_max_price": arguments.max_price,
+                "cheapest_product": cheapest["title"] if cheapest else None,
+                "cheapest_price": cheapest_price,
+                "budget_shortfall": (
+                    round(cheapest_price - arguments.max_price, 2)
+                    if cheapest_price is not None
+                    else None
+                ),
+            }
+        )
+
+    spec_base = budget_queryset
+    for key, requested_value in arguments.required_specs.items():
+        values = []
+        for specifications in category_queryset.values_list("specifications", flat=True)[:100]:
+            value = (specifications or {}).get(key)
+            if value not in (None, "", []):
+                rendered = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+                if rendered.casefold() not in {item.casefold() for item in values}:
+                    values.append(rendered)
+        matching = spec_base.filter(**{f"specifications__{key}": requested_value}).count()
+        if matching == 0:
+            reasons.append(
+                {
+                    "code": "SPEC_UNAVAILABLE",
+                    "specification": key,
+                    "requested_value": requested_value,
+                    "available_values": sorted(values, key=str.casefold)[:10],
+                }
+            )
+
+    if not reasons:
+        reasons.append(
+            {
+                "code": "COMBINATION_UNAVAILABLE",
+                "message": "No single active, in-stock product satisfies the complete constraint combination.",
+            }
+        )
+    return {
+        "requested": {
+            "category": arguments.category,
+            "max_price": arguments.max_price,
+            "required_specs": arguments.required_specs,
+        },
+        "catalog": {
+            "active_in_stock_in_category": category_count,
+            "within_budget_before_specs": budget_count,
+            "cheapest_in_category": (
+                {
+                    "title": cheapest["title"],
+                    "price": float(cheapest["price"]),
+                    "category": cheapest["category"],
+                }
+                if cheapest
+                else None
+            ),
+        },
+        "reasons": reasons,
+    }
+
+
+def _money(value: float) -> str:
+    return f"₹{value:,.2f}".rstrip("0").rstrip(".")
+
+
+def _deterministic_no_result_explanation(
+    arguments: ProductSearchSchema, diagnostics: dict[str, Any]
+) -> NoResultExplanation:
+    reasons = diagnostics["reasons"]
+    primary = reasons[0]
+    category = arguments.category or "product"
+    category_label = category.lower()
+    if primary["code"] == "BUDGET_TOO_LOW":
+        cheapest_price = primary.get("cheapest_price")
+        cheapest_title = primary.get("cheapest_product")
+        shortfall = primary.get("budget_shortfall")
+        summary = (
+            f"I couldn't find an active, in-stock {category_label} at or below "
+            f"{_money(arguments.max_price)}. The least expensive current match is "
+            f"{cheapest_title} at {_money(cheapest_price)}, which is "
+            f"{_money(shortfall)} above that budget. Raise the budget to at least "
+            f"{_money(cheapest_price)} or change the requested category."
+        )
+        suggested = f"Find a {category_label.rstrip('s')} under {_money(cheapest_price)}"
+    elif primary["code"] == "SPEC_UNAVAILABLE":
+        specification = primary["specification"].replace("_", " ")
+        requested = primary["requested_value"]
+        available = primary.get("available_values", [])
+        availability = (
+            f" Available catalog values are: {', '.join(available)}."
+            if available
+            else f" Current matching products do not list another structured {specification} value."
+        )
+        budget_phrase = (
+            f" within {_money(arguments.max_price)}" if arguments.max_price is not None else ""
+        )
+        summary = (
+            f"I couldn't find an active, in-stock {category_label} with {specification} "
+            f"{requested}{budget_phrase}.{availability} Try another {specification} or remove that constraint."
+        )
+        suggested = f"Show active in-stock {category_label} without the {specification} constraint"
+    elif primary["code"] == "CATEGORY_UNAVAILABLE":
+        summary = (
+            f"I couldn't find any active, in-stock products in {category}. "
+            "Try a different category or check again after the merchant updates inventory."
+        )
+        suggested = "Show active in-stock products in a similar category"
+    else:
+        summary = (
+            "I couldn't find one active, in-stock catalog product satisfying the complete "
+            "combination of requested constraints. Remove one constraint at a time to see which alternatives remain."
+        )
+        suggested = f"Show active in-stock {category_label} with fewer constraints"
+    return NoResultExplanation(summary_reasoning=summary, suggested_query=suggested)
+
+
+def _gemini_no_result_explanation(client, prompt: str, diagnostics: dict[str, Any]):
+    response = client.models.generate_content(
+        model=_model_name(),
+        contents=(
+            f"Buyer request: {prompt}\n"
+            "Authoritative catalog diagnostics:\n"
+            f"{json.dumps(diagnostics, separators=(',', ':'))}"
+        ),
+        config=genai_types.GenerateContentConfig(
+            system_instruction=NO_RESULT_SYSTEM_PROMPT,
+            thinking_config=_thinking_config(),
+            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(disable=True),
+            response_mime_type="application/json",
+            response_json_schema=NoResultExplanation.model_json_schema(),
+            max_output_tokens=600,
+        ),
+    )
+    return NoResultExplanation.model_validate_json(response.text or "")
+
+
+def _no_result_payload(prompt: str, arguments: ProductSearchSchema) -> dict[str, Any]:
+    diagnostics = _catalog_no_result_diagnostics(arguments)
+    client = None
+    source = "FALLBACK"
+    try:
+        client = _gemini_client()
+        explanation = _gemini_no_result_explanation(client, prompt, diagnostics)
+        source = "GEMINI"
+    except (
+        genai_errors.APIError,
+        httpx.HTTPError,
+        AgentServiceError,
+        ValidationError,
+        ValueError,
+    ) as exc:
+        logger.warning("Gemini no-result fallback after %s", type(exc).__name__)
+        explanation = _deterministic_no_result_explanation(arguments, diagnostics)
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:
+                logger.debug("Gemini client cleanup failed.", exc_info=True)
+
+    result = _empty_response(
+        "Diagnosed the requested constraints against active, in-stock inventory.",
+        explanation.summary_reasoning,
+    ).model_dump(mode="json")
+    result["suggested_query"] = explanation.suggested_query
+    result["no_result"] = diagnostics
+    result["_audit_context"] = {
+        "provider_source": source,
+        "parsed_constraints": arguments.model_dump(mode="json"),
+        "catalog_candidate_ids": [],
+    }
+    _record_search(
+        prompt,
+        [],
+        source,
+        max_price=arguments.max_price,
+        category=arguments.category,
+    )
+    return result
 
 
 def _record_search(
@@ -397,7 +629,12 @@ def _fallback_response(
             "FALLBACK",
             max_price=extract_max_price(user_prompt),
         )
-        return _empty_response("The bounded catalog search completed without a matching item.")
+        diagnostics = _catalog_no_result_diagnostics(constraints)
+        explanation = _deterministic_no_result_explanation(constraints, diagnostics)
+        return _empty_response(
+            "The bounded catalog search completed without a matching item.",
+            explanation.summary_reasoning,
+        )
 
     recommendations = []
     for candidate in candidates[:3]:
@@ -455,22 +692,7 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
     arguments = deterministic_search_arguments(prompt)
     candidates = search_merchant_products(arguments)
     if not candidates:
-        _record_search(
-            prompt,
-            [],
-            "FALLBACK",
-            max_price=arguments.max_price,
-            category=arguments.category,
-        )
-        result = _empty_response(
-            "Parsed the intent and searched active, in-stock merchant inventory."
-        ).model_dump(mode="json")
-        result["_audit_context"] = {
-            "provider_source": "FALLBACK",
-            "parsed_constraints": arguments.model_dump(mode="json"),
-            "catalog_candidate_ids": [],
-        }
-        return result
+        return _no_result_payload(prompt, arguments)
 
     try:
         client = _gemini_client()

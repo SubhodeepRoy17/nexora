@@ -30,6 +30,7 @@ const restoreMessages = (data) => data.messages.map((message) => {
     role: assistant ? 'agent' : 'user',
     text: message.content,
     products,
+    suggestedQuery: assistant ? message.metadata?.suggested_query : undefined,
     evidence: assistant ? `${products.length} SAVED CATALOG MATCH${products.length === 1 ? '' : 'ES'} · HISTORICAL SNAPSHOT` : undefined,
     time: new Date(message.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
   }
@@ -189,6 +190,7 @@ export default function BuyerChat() {
         text: data.summary_reasoning,
         evidence: `${products.length} LIVE CATALOG MATCH${products.length === 1 ? '' : 'ES'}${fallbackUsed ? ' · DETERMINISTIC RETRIEVAL' : ' · GEMINI GROUNDED'}`,
         products,
+        suggestedQuery: data.suggested_query,
         time: 'Now',
       }])
       refreshSessions()
@@ -297,7 +299,7 @@ export default function BuyerChat() {
                           {message.products.map((product, index) => <ProductRecommendationCard key={product.id} product={product} featured={index === 0} onApprove={setSelectedProduct} />)}
                         </div>
                       )}
-                      {message.products?.length === 0 && !message.fixture && message.status !== 'error' && <button type="button" onClick={() => setInput('Show me similar in-stock products with a broader budget')} className="focus-ring mt-3 border border-violet-300 bg-violet-50 px-3 py-2 text-[10px] font-semibold text-violet-700">Broaden the request</button>}
+                      {message.products?.length === 0 && !message.fixture && message.status !== 'error' && <button type="button" onClick={() => setInput(message.suggestedQuery || 'Show me similar active, in-stock products with fewer constraints')} className="focus-ring mt-3 border border-violet-300 bg-violet-50 px-3 py-2 text-[10px] font-semibold text-violet-700">Try the suggested search</button>}
                     </div>
                   </div>
                 )

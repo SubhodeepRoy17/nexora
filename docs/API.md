@@ -14,6 +14,8 @@ The request accepts `query` plus optional `conversation_id`. An authenticated bu
 
 The response identifies the first grounded result in `primary_recommendation_id` and may include up to `GROWTH_MAX_ADDON_OFFERS` entries in `add_on_suggestions`. Each contains a relationship ID/type, exact live incremental cost, compatibility facts, buyer-constraint evidence, merchant-provided benefit/trade-off, an offer ID/token, and an add-on decision ID/token. Missing valid relationships produces an empty list; the agent does not invent an offer.
 
+When no product satisfies the hard constraints, the response includes `no_result` diagnostics and a `suggested_query`. The server derives category counts, the cheapest eligible category product, budget shortfall, requested structured specifications, and available catalog values directly from active inventory. Gemini may phrase those bounded facts into `summary_reasoning`; if Gemini is unavailable, a deterministic formatter explains the same specific constraint. The model never determines prices, availability, or the failure reason itself.
+
 ## 2. Record add-on choice
 
 `POST /api/agents/growth-offers/{offer_id}/respond/` requires an authenticated buyer:

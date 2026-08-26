@@ -44,6 +44,14 @@ TERM_EXPANSIONS = {
     "hot-swappable": ["hot-swap"],
     "hotswap": ["hot-swap"],
 }
+COLOR_CANONICAL = {
+    color: color.title()
+    for color in (
+        "black", "white", "red", "blue", "green", "silver", "gold", "pink",
+        "purple", "orange", "yellow", "brown", "beige", "graphite",
+    )
+}
+COLOR_CANONICAL.update({"gray": "Gray", "grey": "Grey"})
 
 
 class ProductSearchSchema(BaseModel):
@@ -197,6 +205,24 @@ def extract_category(user_prompt: str) -> str | None:
     return next((CATEGORY_ALIASES[token] for token in tokens if token in CATEGORY_ALIASES), None)
 
 
+def extract_required_specs(user_prompt: str) -> dict[str, Any]:
+    """Retain only explicit, reliably parsed structured constraints."""
+
+    lowered = user_prompt.lower()
+    category_terms = "|".join(sorted(CATEGORY_ALIASES, key=len, reverse=True))
+    color_terms = "|".join(COLOR_CANONICAL)
+    patterns = (
+        rf"\b(?:in|color|colour)\s+(?P<color>{color_terms})\b",
+        rf"\b(?P<color>{color_terms})\s+(?:colored?\s+|coloured?\s+)?(?:{category_terms})\b",
+        rf"\b(?:{category_terms})\s+(?:in\s+)?(?P<color>{color_terms})\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, lowered)
+        if match:
+            return {"color": COLOR_CANONICAL[match.group("color")]}
+    return {}
+
+
 def deterministic_search_arguments(user_prompt: str, limit: int = 5) -> ProductSearchSchema:
     """Parse reliable hard constraints without allowing prose to over-constrain retrieval."""
 
@@ -204,6 +230,7 @@ def deterministic_search_arguments(user_prompt: str, limit: int = 5) -> ProductS
         search_query=user_prompt,
         category=extract_category(user_prompt),
         max_price=extract_max_price(user_prompt),
+        required_specs=extract_required_specs(user_prompt),
         limit=min(limit, MAX_SEARCH_RESULTS),
     )
 

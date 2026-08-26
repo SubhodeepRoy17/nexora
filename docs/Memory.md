@@ -172,6 +172,15 @@
 - [x] Added visible keyboard focus, focus trapping/Escape/focus restoration for every dialog, screen-reader live status, reduced-motion behavior, exact error alerts, duplicate-submit prevention, and form/basket preservation on recoverable failures.
 - [x] Added eight Vitest/React Testing Library acceptance tests for search, no-result/empty states, explicit approval, policy blocking, provider failure/retry, webhook-confirmed success, and merchant scoping; added a backend tenant-scoped workspace calculation test.
 - [x] Captured reproducible Phase 12 landing, buyer, and authenticated merchant screenshots with an environment-driven Playwright/installed-Chrome script that never stores credentials.
+- [x] Replaced the stale Track roadmap with an evidence-gated completion plan for AI-readable commerce, buyer-approved growth, Razorpay test settlement, and graceful failure.
+- [x] Added `seed_track_demo`, an offline idempotent command that composes the environment-driven demo-account seed and attaches six CC0 products plus five relationships directly to the login-ready merchant.
+- [x] Added the deterministic `Find a quiet wireless keyboard for travel under ₹9000` path: `Nexora Nomad 75` ranks first and only its compatible ₹999 travel case is eligible, for an exact ₹8,498 basket.
+- [x] Added comparison, incompatible, out-of-stock, and `Find a keyboard under ₹100` no-result fixtures without creating synthetic transactions or overwriting non-demo records.
+- [x] Added four P0.1 tests covering repeat-run identity, unrelated-data preservation, collision refusal, relationship eligibility, fallback recommendation/add-on output, and the no-result path; all four passed against the retained PostgreSQL test database.
+- [x] Passed Django system checks, migration drift checks, Python compilation, and diff validation after P0.1. No production/demo database seed was executed automatically.
+- [x] Replaced the static empty-search message with server-grounded diagnostics for category availability, cheapest price, exact budget shortfall, explicit color constraints, and available structured catalog values.
+- [x] Added a bounded Gemini no-result phrasing pass over authoritative diagnostics plus an equally specific deterministic fallback; both return a dynamic suggested follow-up query and preserve provider provenance.
+- [x] Updated the buyer UI to use the server-suggested query and persist it in authenticated conversation metadata; passed 9 focused backend tests, the seeded-demo no-result regression, and 3 BuyerChat frontend tests.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)

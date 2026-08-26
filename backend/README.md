@@ -42,6 +42,14 @@ the host-managed `DATABASE_URL` secret.
 
    The command imports a pinned MIT-licensed DummyJSON subset and the CC0 Nexora keyboard scenarios documented in `docs/CatalogData.md`. It is idempotent; `--skip-external` works offline.
 
+7. Seed the login-ready Track demo merchant after configuring the `DEMO_*` variables:
+
+   ```bash
+   python manage.py seed_track_demo
+   ```
+
+   This command also runs the idempotent demo-account seed, then creates six CC0 demo products and five relationships only under that configured merchant. Use `Find a quiet wireless keyboard for travel under ₹9000` for the deterministic primary-plus-add-on path and `Find a keyboard under ₹100` for the no-result path. Re-running the command resets only its named `is_demo` products; it refuses to overwrite a colliding non-demo product.
+
 ## Browser authentication and CSRF
 
 Nexora uses Django session authentication for the React SPA:
@@ -83,6 +91,7 @@ open only their own history at `GET /api/agents/conversations/` and
 `GET /api/agents/conversations/{id}/`. Anonymous searches receive a short-lived,
 signed continuation token but cannot use either history endpoint; guest browser
 transcripts are memory-only.
+Empty searches are diagnosed against live inventory before responding. Budget failures name the current cheapest category match and exact shortfall; supported explicit structured constraints such as color name the requested and available catalog values. Gemini phrases these server-derived facts when available, with a specific deterministic explanation and suggested follow-up query as fallback.
 It may also return up to `GROWTH_MAX_ADDON_OFFERS` deterministic, Pydantic-validated add-ons. The buyer records an explicit accept or reject through `POST /api/agents/growth-offers/{offer_id}/respond/`; accepted offers still require a fresh exact quote and approval.
 
 Catalog search applies indexed SQL constraints before hybrid ranking. If the
