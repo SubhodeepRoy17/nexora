@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -23,7 +23,6 @@
   .mono-label { @apply font-mono text-[10px] font-medium uppercase tracking-[0.16em]; }
 }
 
-.landing-grid,
 .login-grid {
   background-image:
     linear-gradient(rgba(71, 85, 105, 0.09) 1px, transparent 1px),
@@ -31,45 +30,97 @@
   background-size: 48px 48px;
 }
 
-.landing-grid::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(90deg, rgba(246,245,241,.8), transparent 20%, transparent 80%, rgba(246,245,241,.8));
+.storybook-hero-art {
+  background-image: url('/images/nexora-storybook-hero.png');
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  transform: scale(1.015);
+  animation: storybook-breathe 14s ease-in-out infinite alternate;
 }
 
-.landing-orb {
+.storybook-hero-scrim {
+  background:
+    radial-gradient(circle at 50% 39%, rgba(250, 254, 243, .76) 0%, rgba(250, 254, 243, .48) 28%, transparent 58%),
+    linear-gradient(180deg, rgba(228, 247, 245, .28) 0%, transparent 45%, rgba(231, 241, 213, .22) 74%, rgba(246, 245, 241, .72) 100%);
+}
+
+.storybook-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-variation-settings: 'SOFT' 70, 'WONK' 1;
+}
+
+.storybook-copy {
+  animation: storybook-arrive .85s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.storybook-cloud {
   position: absolute;
+  z-index: -15;
   border-radius: 999px;
-  filter: blur(2px);
-  opacity: .65;
+  background: rgba(255, 255, 255, .28);
+  filter: blur(22px);
   pointer-events: none;
+  animation: storybook-drift 16s ease-in-out infinite alternate;
 }
 
-.landing-orb-one {
-  width: 32rem;
-  height: 32rem;
-  right: -12rem;
-  top: -15rem;
-  background: radial-gradient(circle, rgba(139,92,246,.32), rgba(139,92,246,0) 68%);
+.storybook-cloud-one {
+  width: 19rem;
+  height: 4rem;
+  left: -5rem;
+  top: 22%;
 }
 
-.landing-orb-two {
-  width: 24rem;
-  height: 24rem;
-  left: -14rem;
-  bottom: -12rem;
-  background: radial-gradient(circle, rgba(52,211,153,.2), rgba(52,211,153,0) 68%);
+.storybook-cloud-two {
+  width: 15rem;
+  height: 3.5rem;
+  right: 5%;
+  top: 13%;
+  animation-delay: -6s;
 }
 
-@keyframes landing-rise {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+.storybook-hero-fade {
+  background: linear-gradient(180deg, transparent, rgba(246, 245, 241, .82));
 }
 
-.landing-grid > div {
-  animation: landing-rise .7s cubic-bezier(.2,.8,.2,1) both;
+.storybook-scroll-cue {
+  animation: storybook-bob 1.8s ease-in-out infinite;
+}
+
+@keyframes storybook-arrive {
+  from { opacity: 0; transform: translateY(18px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes storybook-breathe {
+  from { transform: scale(1.015); }
+  to { transform: scale(1.045); }
+}
+
+@keyframes storybook-drift {
+  from { transform: translateX(-1.5rem); opacity: .35; }
+  to { transform: translateX(2.5rem); opacity: .7; }
+}
+
+@keyframes storybook-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+
+@media (max-width: 640px) {
+  .storybook-hero-art { background-position: 38% center; }
+  .storybook-hero-scrim {
+    background:
+      linear-gradient(180deg, rgba(243, 252, 246, .7) 0%, rgba(243, 252, 246, .48) 57%, rgba(246, 245, 241, .74) 100%),
+      radial-gradient(circle at 50% 34%, rgba(255, 255, 255, .64), transparent 64%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storybook-hero-art,
+  .storybook-copy,
+  .storybook-cloud,
+  .storybook-scroll-cue { animation: none; }
 }
 
 .app-grid {

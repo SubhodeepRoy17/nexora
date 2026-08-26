@@ -1,7 +1,9 @@
 import {
+  ArrowRight,
   Bot,
   Check,
   CheckCircle2,
+  ChevronDown,
   Code2,
   CreditCard,
   Database,
@@ -9,17 +11,14 @@ import {
   Fingerprint,
   Globe2,
   LineChart,
-  LockKeyhole,
-  PackageCheck,
   Search,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
-  Store,
   Webhook,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
-import { Eyebrow, GridCard, SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
+import { GridCard, SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
 
 const trustPoints = [
   { icon: Database, label: 'Catalog-grounded', detail: 'Live price, stock, specs' },
@@ -33,52 +32,6 @@ const steps = [
   { number: '03', icon: FileCheck2, title: 'Approve the exact quote', copy: 'You see products, quantities, unit prices, limits, expiry, and the precise amount before anything moves.' },
   { number: '04', icon: CreditCard, title: 'Pay with a safe handoff', copy: 'Razorpay Checkout opens only after approval. Signed webhooks remain the settlement authority.' },
 ]
-
-function DecisionTrace() {
-  return (
-    <div className="relative mx-auto w-full max-w-[610px] lg:ml-auto">
-      <div className="absolute -inset-5 translate-x-5 translate-y-5 border border-violet-300/50 bg-violet-200/40" aria-hidden="true" />
-      <div className="relative border border-slate-300 bg-white p-3 shadow-[0_30px_90px_rgba(50,31,104,.16)] sm:p-5">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-violet-500" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-slate-600">Deterministic UI example</span></div>
-          <span className="font-mono text-[8px] text-violet-700">NOT LIVE DATA</span>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="font-mono text-[8px] uppercase tracking-[0.16em] text-violet-700">Buyer intent</p>
-          <p className="mt-2 text-sm leading-6 text-slate-950">“A quiet wireless keyboard under ₹8,000, with Mac support and no compromise on battery.”</p>
-        </div>
-
-        <div className="my-3 grid gap-2 sm:grid-cols-3">
-          {[
-            ['Catalog search', '18 eligible', Search],
-            ['Policy check', '7 guardrails', ShieldCheck],
-            ['Recommendation', '3 grounded', Sparkles],
-          ].map(([label, value, Icon]) => (
-            <div key={label} className="border border-slate-200 bg-slate-50 p-3">
-              <Icon size={13} className="text-violet-700" />
-              <p className="mt-3 font-mono text-[7px] uppercase tracking-wider text-slate-500">{label}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-900">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="border border-violet-300 bg-violet-50 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><StatusPill>Best grounded fit</StatusPill><h3 className="mt-3 text-lg font-semibold tracking-tight text-slate-950">Keychron K8 Pro</h3><p className="mt-1 text-[10px] text-slate-600">Wireless · hot-swap · 240h battery · Mac/Windows</p></div>
-            <div className="text-right"><p className="text-xl font-semibold text-slate-950">₹7,499</p><p className="mt-1 font-mono text-[8px] text-violet-700">EXAMPLE FIXTURE</p></div>
-          </div>
-          <p className="mt-4 border-l-2 border-violet-400 pl-3 text-[11px] leading-5 text-slate-700">Fits the budget and platform constraints. Trade-off: the aluminium frame adds weight versus the lighter alternative.</p>
-        </div>
-
-        <div className="mt-3 flex flex-col gap-3 border border-emerald-300 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-full bg-emerald-100 text-emerald-700"><LockKeyhole size={16} /></span><div><p className="text-xs font-semibold text-slate-950">Nothing happens without you.</p><p className="mt-1 font-mono text-[7px] text-slate-600">EXACT QUOTE · SINGLE USE · EXPIRES</p></div></div>
-          <span className="bg-emerald-400 px-4 py-2.5 text-[10px] font-bold text-slate-950">Example action · Review exact quote</span>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function MerchantPreview() {
   const bars = [42, 58, 51, 68, 64, 78, 72, 91, 84, 96, 88, 100]
@@ -106,19 +59,43 @@ function MerchantPreview() {
 export default function LandingPage() {
   return (
     <main className="overflow-hidden bg-[#f6f5f1] text-slate-950">
-      <section className="landing-grid relative border-b border-slate-300 px-4 pb-16 pt-12 sm:px-6 sm:pb-24 sm:pt-20 lg:px-8">
-        <div className="landing-orb landing-orb-one" aria-hidden="true" />
-        <div className="landing-orb landing-orb-two" aria-hidden="true" />
-        <div className="relative z-10 mx-auto grid max-w-[1440px] items-center gap-14 lg:grid-cols-[.92fr_1.08fr]">
-          <div>
-            <Eyebrow><Sparkles size={11} /> Human-approved agent commerce</Eyebrow>
-            <h1 className="mt-7 max-w-3xl text-balance text-[clamp(3.2rem,7vw,7.2rem)] font-semibold leading-[0.88] tracking-[-0.065em]">From intent<br />to <span className="text-violet-600">order.</span></h1>
-            <p className="mt-7 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">Nexora finds the right product across live merchant catalogs, explains the trade-offs, grows baskets with relevant add-ons, and waits for your exact approval before money moves.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><SignalButton to="/buyer" variant="violet"><ShoppingBag size={15} /> Shop with Nexora</SignalButton><SignalButton to="/merchant" variant="secondary"><Store size={15} /> Open merchant OS</SignalButton></div>
-            <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-300 pt-5 font-mono text-[8px] font-semibold uppercase tracking-[0.13em] text-slate-500"><span className="flex items-center gap-2"><Check size={12} className="text-emerald-600" /> Razorpay test mode</span><span className="flex items-center gap-2"><Check size={12} className="text-emerald-600" /> Exact approval gate</span><span className="flex items-center gap-2"><Check size={12} className="text-emerald-600" /> Auditable by design</span></div>
+      <section className="storybook-hero relative isolate min-h-[calc(100svh-4rem)] overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
+        <div className="storybook-hero-art absolute inset-0 -z-30" aria-hidden="true" />
+        <div className="storybook-hero-scrim absolute inset-0 -z-20" aria-hidden="true" />
+        <div className="storybook-cloud storybook-cloud-one" aria-hidden="true" />
+        <div className="storybook-cloud storybook-cloud-two" aria-hidden="true" />
+
+        <div className="mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1440px] flex-col items-center justify-center pb-32 pt-16 text-center sm:pb-36 sm:pt-20">
+          <div className="storybook-copy relative z-10 flex max-w-4xl flex-col items-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-4 py-2 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-950 shadow-[0_10px_35px_rgba(30,64,52,.12)] backdrop-blur-md">
+              <Sparkles size={12} className="text-violet-700" /> A gentler way to find the right thing
+            </div>
+            <h1 className="storybook-title mt-7 max-w-[13ch] text-balance text-[clamp(3.35rem,7.4vw,7.3rem)] font-semibold leading-[0.88] tracking-[-0.055em] text-[#17372f] drop-shadow-[0_2px_0_rgba(255,255,255,.35)]">
+              Tell us what matters. We’ll find what fits.
+            </h1>
+            <p className="mt-7 max-w-2xl text-balance text-base font-medium leading-7 text-[#24483f] sm:text-lg">
+              Nexora searches live merchant catalogs, explains the trade-offs, and waits for your exact approval before money moves.
+            </p>
+            <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+              <Link to="/buyer" className="focus-ring group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#17372f] px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(23,55,47,.25)] transition duration-300 hover:-translate-y-0.5 hover:bg-violet-700 sm:w-auto">
+                Start with your intent <ArrowRight size={16} className="transition group-hover:translate-x-1" />
+              </Link>
+              <Link to="/merchant" className="focus-ring inline-flex min-h-12 w-full items-center justify-center rounded-full border border-white/80 bg-white/65 px-7 py-3.5 text-sm font-semibold text-[#17372f] shadow-[0_12px_30px_rgba(54,88,71,.12)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:bg-white sm:w-auto">
+                Explore merchant OS
+              </Link>
+            </div>
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[10px] font-semibold text-[#31594f]">
+              {['Grounded in live catalogs', 'Human-approved checkout', 'Webhook-verified payment'].map((item) => (
+                <span key={item} className="flex items-center gap-1.5"><span className="grid size-4 place-items-center rounded-full bg-white/65"><Check size={10} /></span>{item}</span>
+              ))}
+            </div>
           </div>
-          <DecisionTrace />
+
+          <a href="#product" className="focus-ring absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 rounded-full px-4 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-950/75 transition hover:text-emerald-950" aria-label="Scroll to discover Nexora">
+            Discover the system <ChevronDown size={17} className="storybook-scroll-cue" />
+          </a>
         </div>
+        <div className="storybook-hero-fade absolute inset-x-0 bottom-0 -z-10 h-32" aria-hidden="true" />
       </section>
 
       <section className="border-b border-slate-300 bg-white">

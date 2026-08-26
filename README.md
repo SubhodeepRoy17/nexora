@@ -10,7 +10,7 @@ can discover and transact with a Nexora merchant through public HTTP APIs.
 
 [![CI](https://github.com/SubhodeepRoy17/nexora/actions/workflows/ci.yml/badge.svg)](https://github.com/SubhodeepRoy17/nexora/actions/workflows/ci.yml)
 
-![Nexora landing page showing the intent-to-order product story](docs/screenshots/phase12-landing.png)
+![Nexora landing page showing the intent-to-order product story](docs/screenshots/nexora-landing-page.png)
 
 ## Try the deployed build
 
@@ -98,7 +98,7 @@ graceful-failure, and order-lifecycle diagrams.
 
 | Buyer agent | Merchant OS |
 | --- | --- |
-| ![Live buyer workspace](docs/screenshots/phase12-buyer.png) | ![Owner-scoped merchant workspace](docs/screenshots/phase12-merchant.png) |
+| ![Live buyer agent workspace](docs/screenshots/buyer-agent-workspace.png) | ![Owner-scoped merchant operations dashboard](docs/screenshots/merchant-operations-dashboard.png) |
 
 | Safe failure | Merchant audit evidence |
 | --- | --- |
