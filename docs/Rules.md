@@ -12,7 +12,7 @@
 
 ## 3. Boundary & Error Handling Standards
 - **Provider fallback:** Gemini function arguments and recommendation output are strictly validated. If hosted inference fails or produces an empty over-constrained query, retry with deterministic hard constraints and SQL/pgvector ranking.
-- **Structured Output Safety:** Enforce `pydantic` schemas on all LLM JSON outputs. Reject and retry if JSON parsing fails.
+- **Structured Output Safety:** Enforce `pydantic` schemas on all LLM JSON outputs. Reject and retry if JSON parsing fail.
 - **Razorpay Webhooks:** Always verify Razorpay signatures server-side before updating order states in PostgreSQL.
 - **Narrow Razorpay adapter:** Use the reviewed `httpx` adapter only for the exact order, payment, and refund operations Nexora needs. Escape resource IDs, bound network timeouts, and never log credentials or provider payloads.
 - **Conversation privacy:** Logged-in conversation history is always buyer-owned. Anonymous continuation requires a matching signed token, guest conversations have no public list/detail API, and guest transcripts must never be persisted in shared browser storage.
