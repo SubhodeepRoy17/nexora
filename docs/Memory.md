@@ -95,7 +95,7 @@
 - [x] Added CSRF-protected Django session login/logout plus session-aware current-user bootstrap endpoints with rotated CSRF tokens.
 - [x] Added explicit buyer/merchant role payloads, a custom session authentication challenge for consistent 401 responses, and server-side merchant role permissions.
 - [x] Scoped merchant profiles, products, audits, orders, and analytics to `request.user`; client merchant IDs can no longer grant access or assign product ownership.
-- [x] Kept only buyer catalog-agent search and health/auth bootstrap public; protected checkout and all merchant business APIs.
+- [x] Kept only buyer catalog-agent search and health/auth bootstrap public; protected checkout and all merchant business API.
 - [x] Added bounded pagination, a 1 MiB request default, environment-configurable DRF throttles, generic credential errors, and JSON security-event logging without secrets or full emails.
 - [x] Added an idempotent `seed_demo_accounts` command whose usernames, emails, passwords, and merchant name are required from environment variables.
 - [x] Added React session/CSRF bootstrap, login/logout, role-protected merchant routes, expired-session handling, authenticated buyer checkout, and live account/merchant identity rendering.
