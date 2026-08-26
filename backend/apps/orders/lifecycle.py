@@ -149,7 +149,10 @@ def expire_stale_checkouts(*, now=None, limit=500):
     )
     for quote_id in quote_ids:
         with transaction.atomic():
-            quote = Quote.objects.select_for_update().select_related("cart").get(pk=quote_id)
+            # PostgreSQL rejects FOR UPDATE when select_related() introduces the
+            # nullable Quote.cart side through an outer join. Lock the quote row
+            # by itself and fetch the cart lazily inside this transaction.
+            quote = Quote.objects.select_for_update().get(pk=quote_id)
             if quote.status != Quote.Status.ACTIVE or quote.expires_at > now:
                 continue
             quote.status = Quote.Status.EXPIRED

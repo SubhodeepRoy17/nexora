@@ -174,7 +174,7 @@
 - [x] Captured reproducible Phase 12 landing, buyer, and authenticated merchant screenshots with an environment-driven Playwright/installed-Chrome script that never stores credentials.
 - [x] Replaced the stale Track roadmap with an evidence-gated completion plan for AI-readable commerce, buyer-approved growth, Razorpay test settlement, and graceful failure.
 - [x] Added `seed_track_demo`, an offline idempotent command that composes the environment-driven demo-account seed and attaches six CC0 products plus five relationships directly to the login-ready merchant.
-- [x] Added the deterministic `Find a quiet wireless keyboard for travel under ₹9000` path: `Nexora Nomad 75` ranks first and only its compatible ₹999 travel case is eligible, for an exact ₹8,498 basket.
+- [x] Added the deterministic `Find the Nexora Nomad 75 quiet travel keyboard under ₹9000` path: `Nexora Nomad 75` ranks first and only its compatible ₹999 travel case is eligible, for an exact ₹8,498 basket.
 - [x] Added comparison, incompatible, out-of-stock, and `Find a keyboard under ₹100` no-result fixtures without creating synthetic transactions or overwriting non-demo records.
 - [x] Added four P0.1 tests covering repeat-run identity, unrelated-data preservation, collision refusal, relationship eligibility, fallback recommendation/add-on output, and the no-result path; all four passed against the retained PostgreSQL test database.
 - [x] Passed Django system checks, migration drift checks, Python compilation, and diff validation after P0.1. No production/demo database seed was executed automatically.

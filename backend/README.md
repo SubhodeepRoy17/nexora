@@ -48,7 +48,7 @@ the host-managed `DATABASE_URL` secret.
    python manage.py seed_track_demo
    ```
 
-   This command also runs the idempotent demo-account seed, then creates six CC0 demo products and five relationships only under that configured merchant. Use `Find a quiet wireless keyboard for travel under ₹9000` for the deterministic primary-plus-add-on path and `Find a keyboard under ₹100` for the no-result path. Re-running the command resets only its named `is_demo` products; it refuses to overwrite a colliding non-demo product.
+   This command also runs the idempotent demo-account seed, then creates six CC0 demo products and five relationships only under that configured merchant. Use `Find the Nexora Nomad 75 quiet travel keyboard under ₹9000` for the deterministic primary-plus-add-on path and `Find a keyboard under ₹100` for the no-result path. Re-running the command resets only its named `is_demo` products; it refuses to overwrite a colliding non-demo product.
 
 ## Browser authentication and CSRF
 

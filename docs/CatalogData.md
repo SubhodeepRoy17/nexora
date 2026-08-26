@@ -33,7 +33,7 @@ The command is offline, idempotent, and scoped to the configured demo merchant. 
 - one active but incompatible relationship that must not be offered;
 - one zero-stock relationship that remains inactive and must not be offered.
 
-Recommended successful prompt: `Find a quiet wireless keyboard for travel under ₹9000`.
+Recommended successful prompt: `Find the Nexora Nomad 75 quiet travel keyboard under ₹9000`.
 
 Recommended no-result prompt: `Find a keyboard under ₹100`.
 

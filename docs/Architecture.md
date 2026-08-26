@@ -63,7 +63,7 @@ An external buyer uses the same trust boundary through the published contract:
   -> explicit single-use approval grant
   -> policy revalidation + atomic stock reservation
   -> Razorpay test Checkout handoff
-  -> authoritative order polling -> verified webhook settlement
+  -> authoritative order polling -> verified webhook or strict provider reconciliation
 ```
 
 The reference client imports no Django models or private services. External-agent calls do not bypass Phase 7 policy, buyer ownership, approval, expiry, idempotency, or webhook authority.
@@ -131,7 +131,7 @@ DRAFT -> QUOTED -> APPROVED -> PAYMENT_PENDING -> PAID
 - Relationship CRUD requires both products to be active, the target to be in stock, the products to differ, structured compatibility to be a JSON object, and both products to belong to the authenticated merchant.
 - Only `ACCESSORY`, `COMPLEMENT`, and `BUNDLE` links may become add-ons; `SUBSTITUTE` remains discovery metadata. Invalid, inactive, incompatible, over-budget, or out-of-stock links produce no offer.
 - An add-on decision cannot enter a cart without its matching accepted `GrowthOffer`. Each offer can enter at most one cart, and rejected offers cannot be replayed as accepted cart lines.
-- Quote and order snapshots retain the growth-offer correlation. A paid attachment exists only when Razorpay's verified webhook marks the containing order `PAID`.
+- Quote and order snapshots retain the growth-offer correlation. A paid attachment exists only when a verified Razorpay webhook or strict provider reconciliation marks the containing order `PAID`.
 - Analytics expose real and synthetic segments independently. Paid add-on revenue is a recorded attribution total and is never described as causal revenue lift.
 
 ## 7. Folder and File Structure

@@ -20,7 +20,7 @@ Nexora uses its own versioned commerce contract. It is conceptually aligned with
 
 ## Current completion snapshot
 
-The core product implementation is approximately 85% complete. The remaining work is primarily end-to-end proof, evaluation, deployment verification, and submission packaging.
+The core product implementation is approximately 88% complete. The remaining work is primarily the deliberate quantity-limit proof, browser automation, evaluation, deployment verification, and submission packaging.
 
 ### Implemented
 
@@ -41,11 +41,11 @@ The core product implementation is approximately 85% complete. The remaining wor
 - Public capability discovery, catalog, JSON Schema, OpenAPI, money policy, and an HTTP-only reference AI buyer.
 - Buyer and merchant interfaces backed by live APIs, including blocked-action and recovery states.
 - A deliberate UI failure path that requests a quantity above the configured limit.
+- A real Razorpay Test Mode paid order containing an explicitly accepted ₹999 add-on, with strict provider reconciliation, consumed reservations, correlated audits, and paid attachment analytics.
+- An idempotent reconciliation re-run that performed no duplicate mutation.
 
 ### Not yet proven complete
 
-- A recorded deployed Razorpay test payment containing a buyer-approved add-on.
-- Evidence that payment updates order, reservation, audit, and add-on revenue exactly once.
 - A recorded graceful failure with its stable reason code and corresponding audit entry.
 - Browser automation of the complete buyer-to-merchant journey.
 - A broad, reproducible agent and growth evaluation report with measured results.
@@ -137,24 +137,35 @@ Acceptance evidence:
 - `docs/CatalogData.md` and `backend/README.md` document the exact successful and no-result prompts.
 - Clean-database execution still requires verification in the target PostgreSQL/pgvector environment before the final definition-of-done checkbox is marked.
 
-### P0.2 — Prove one paid growth transaction
+### P0.2 — Prove one paid growth transaction — LOCALLY VERIFIED
 
 Goal: demonstrate actual track value, not only payment code.
 
-- Configure only `rzp_test_` credentials and register the public webhook URL.
+- Configure only `rzp_test_` credentials; register the public webhook URL when running on a public deployment.
 - Search with the deterministic demo prompt and explicitly accept the add-on.
 - Generate and approve the exact multi-line quote.
-- Complete Razorpay test Checkout and wait for backend-authoritative `PAID`.
+- Complete Razorpay test Checkout and wait for backend-authoritative `PAID` through a verified webhook or strict provider reconciliation.
 - Confirm the reservation is consumed without a second stock deduction.
 - Confirm the merchant sees the paid order and linked money-action timeline.
 - Confirm paid attachment and add-on line revenue increase exactly once.
-- Redeliver the webhook and prove that stock, revenue, and audit mutations are not duplicated.
+- Redeliver the webhook or rerun strict reconciliation and prove that stock, revenue, and audit mutations are not duplicated.
 
 Acceptance evidence:
 
 - Redacted capture of quote, Razorpay handoff, paid result, audit, and non-zero add-on revenue.
-- Safe identifiers correlate session, decision, offer, quote, approval, order, and webhook.
+- Safe identifiers correlate session, decision, offer, quote, approval, order, and authoritative payment confirmation.
 - No secrets, instrument data, raw webhook payload, or buyer PII appear in artifacts.
+
+Verified local result:
+
+- `docs/Phase2Evidence.md` records the safe correlation chain and exactly-once checks.
+- Razorpay Test Mode captured the exact ₹8,498 order through hosted Checkout.
+- Strict provider reconciliation established backend-authoritative `PAID`; two reservations became `CONSUMED`.
+- The accepted ₹999 add-on is the only order line linked to the growth offer, and real-traffic analytics report one paid attachment with ₹999.00 attributed add-on revenue.
+- Re-running reconciliation produced no new payment, stock, audit, or revenue mutation.
+- A hosted Checkout authorization screenshot is stored without credentials, payment instrument data, or buyer PII.
+
+Deployment caveat: this local environment has no public HTTPS webhook URL, so the proof used the already-implemented strict reconciliation path. Public webhook registration and real delivery/redelivery evidence remain explicitly gated under P0.7; they are not claimed here.
 
 ### P0.3 — Prove the graceful failure
 

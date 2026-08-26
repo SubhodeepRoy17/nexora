@@ -140,7 +140,7 @@ const options = {json.dumps(values)};
 options.name = 'Nexora';
 options.description = 'Human-approved agent commerce checkout';
 options.handler = () => document.getElementById('status').textContent =
-  'Browser authorization received. Settlement remains pending until the verified webhook.';
+  'Browser authorization received. Settlement remains pending until verified backend confirmation.';
 const checkout = new Razorpay(options);
 checkout.on('payment.failed', () => document.getElementById('status').textContent =
   'Payment failed. The backend remains authoritative.');
