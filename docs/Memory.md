@@ -2,9 +2,9 @@
 
 ## 1. Project State Overview
 - **Current Phase:** Phase 12 — COMPLETE LOCALLY (complete live buyer and merchant experience)
-- **Active Task:** Phase 11 deployed Razorpay evidence remains the external prerequisite before Phase 13 evaluation work
+- **Active Task:** P0.4 browser E2E is locally verified; P0.5 clean CI is next while deployed Razorpay evidence remains externally gated
 - **Overall Progress:** Phases 1-10 and Phase 12 complete locally; Phase 11 deployment evidence remains open; roadmap continues through Phase 16
-- **Last Updated:** 2026-08-25
+- **Last Updated:** 2026-08-26
 
 ### Phase Completion
 - [x] Phase 1 — Foundation & Merchant Catalog (100%)
@@ -183,6 +183,9 @@
 - [x] Updated the buyer UI to use the server-suggested query and persist it in authenticated conversation metadata; passed 9 focused backend tests, the seeded-demo no-result regression, and 3 BuyerChat frontend tests.
 - [x] Completed the P0.3 quantity-limit proof: quantity 6 against a maximum of 5 returns `QUANTITY_LIMIT_EXCEEDED`, creates no approval/order/reservation, leaves stock unchanged, never invokes Razorpay, and records an immutable buyer/merchant-scoped `MONEY_BLOCKED` audit.
 - [x] Added explicit zero-side-effect and recovery copy to the checkout, verified return-to-basket and valid retry behavior, and captured redacted buyer and merchant evidence in `docs/Phase3Evidence.md`.
+- [x] Completed P0.4 with a Playwright/Django live-server harness that keeps real PostgreSQL search, policy, quote, approval, reservation, audit, reconciliation, and analytics behavior while doubling only Gemini and Razorpay network edges.
+- [x] Added one `npm run test:e2e` command covering buyer/merchant authentication, offer reject/accept, quantity failure and fresh retry, keyboard/focus/mobile behavior, duplicate submission, pending refresh/resume, authoritative paid state, merchant analytics, and the published HTTP-only reference buyer.
+- [x] Added database-level P0.4 assertions for exactly one provider initialization/order/payment/capture audit/purchased audit, exactly-once stock and reservation consumption, a side-effect-free blocked quote, and ₹999.00 of real paid add-on attribution; documented the boundary in `docs/Phase4Evidence.md`.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
@@ -242,6 +245,7 @@
 - `backend/apps/analytics/services.py` (Complete — merchant search/loss aggregation plus real/synthetic paid add-on attribution)
 - `backend/apps/analytics/views.py` (Complete — analytics API)
 - `backend/apps/commerce/` (Complete — public v1 discovery, safe catalog, machine schemas, transaction adapters, and contract tests)
+- `backend/apps/e2e/` (Complete — P0.4 Playwright live-server orchestration and PostgreSQL exactly-once assertions)
 - `backend/examples/reference_ai_buyer.py` (Complete — external HTTP-only discover-to-checkout client)
 - `backend/apps/analytics/migrations/0001_initial.py` (Applied)
 - `backend/Procfile` and `backend/render.yaml` (Complete — Gunicorn/Render deployment)

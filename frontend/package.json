@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "node scripts/run-p04-e2e.mjs",
     "screenshots": "node scripts/capture-screenshots.mjs",
     "evidence:p03": "node scripts/capture-p03-graceful-failure.mjs"
   },

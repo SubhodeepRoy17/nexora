@@ -40,9 +40,12 @@ The merchant workspace loads its authenticated profile, calculated catalog healt
 ```bash
 npm test
 npm run build
+npm run test:e2e
 ```
 
 Vitest and React Testing Library cover live search, honest no-result behavior, explicit approval, policy blocking, provider failure/retry, webhook-confirmed success, merchant scoping, and empty states.
+The P0.4 Playwright command additionally drives the complete browser and refresh lifecycle against a
+Django live server and PostgreSQL test database, with only Gemini/Razorpay network edges doubled.
 
 To regenerate `docs/screenshots/`, run Django and Vite, then:
 

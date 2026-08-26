@@ -20,7 +20,7 @@ Nexora uses its own versioned commerce contract. It is conceptually aligned with
 
 ## Current completion snapshot
 
-The core product implementation is approximately 90% complete. The remaining work is primarily full browser automation, evaluation, deployment verification, and submission packaging.
+The core product implementation is approximately 92% complete. The remaining work is primarily clean CI, evaluation, deployment verification, and submission packaging.
 
 ### Implemented
 
@@ -44,10 +44,12 @@ The core product implementation is approximately 90% complete. The remaining wor
 - A locally verified quantity-limit failure with buyer recovery, zero provider/inventory side effects, an immutable owner-scoped audit, and redacted buyer/merchant captures.
 - A real Razorpay Test Mode paid order containing an explicitly accepted ₹999 add-on, with strict provider reconciliation, consumed reservations, correlated audits, and paid attachment analytics.
 - An idempotent reconciliation re-run that performed no duplicate mutation.
+- A locally verified Playwright critical journey covering authentication, deterministic search,
+  offer choice, safe failure/recovery, exact checkout, duplicate retry, pending refresh/resume,
+  authoritative paid state, mobile interaction, merchant analytics, and the HTTP-only reference buyer.
 
 ### Not yet proven complete
 
-- Browser automation of the complete buyer-to-merchant journey.
 - A broad, reproducible agent and growth evaluation report with measured results.
 - A clean-clone CI gate for backend, frontend, migrations, build, security, and critical E2E behavior.
 - A verified public deployment with webhook, expiry scheduler, reconciliation scheduler, and environment safeguards.
@@ -188,7 +190,7 @@ Acceptance evidence:
 
 Deployment caveat: this is a deterministic local policy proof and intentionally does not call Razorpay. The public deployment and webhook evidence boundary remains P0.7.
 
-### P0.4 — Full browser E2E coverage
+### P0.4 — Full browser E2E coverage — LOCALLY VERIFIED
 
 Goal: ensure the exact demo survives a clean browser session and refresh.
 
@@ -204,6 +206,22 @@ Acceptance evidence:
 - One command runs the critical browser suite.
 - It asserts exactly-once stock, payment, audit, and add-on revenue outcomes.
 - It does not depend on uncontrolled Gemini wording or a live payment network.
+
+Verified local result:
+
+- `cd frontend && npm run test:e2e` runs the Playwright critical path and the HTTP-only reference
+  buyer against Django live servers and the configured PostgreSQL test database.
+- Playwright covers session authentication, deterministic search, recommendation, explicit reject
+  and accept responses, quantity blocking, fresh recovery, exact quote/approval, keyboard and focus
+  behavior, duplicate order submission, `PAYMENT_PENDING` refresh/resume, authoritative `PAID`, a
+  mobile viewport, and owner-scoped merchant analytics.
+- Database assertions prove one provider order, one approval, one paid order, two exactly-once
+  consumed reservations, one capture audit, one purchased audit, and exactly ₹999.00 of recorded
+  paid add-on revenue. The blocked quote has no approval or order.
+- `docs/Phase4Evidence.md` documents the harness, trust boundary, browser journey, and invariants.
+
+Deployment caveat: Gemini and Razorpay are deterministic provider doubles in this repeatable suite.
+Public HTTPS webhook delivery/redelivery remains P0.7 and is not claimed by P0.4.
 
 ### P0.5 — Clean CI quality gate
 

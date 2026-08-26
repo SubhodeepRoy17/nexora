@@ -155,6 +155,21 @@ merchant audit captures with `cd frontend && npm run evidence:p03`. The quantity
 blocked before approval, reservation, or Razorpay order creation; return-to-basket recovery is covered
 by the checkout acceptance test.
 
+## Critical browser E2E
+
+P0.4 is reproduced with one command from the repository's frontend directory:
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+The command drives installed Chrome with Playwright against Vite, Django live servers, and the
+isolated PostgreSQL test database. Gemini and Razorpay network edges are deterministic doubles; the
+real identity, CSRF, catalog retrieval, money policy, quote, approval, idempotency, reservation,
+reconciliation, audit, analytics, refresh, and HTTP-only reference-client paths remain active. See
+`docs/Phase4Evidence.md` for the complete journey and exactly-once assertions.
+
 ## External agent commerce API
 
 `GET /.well-known/nexora-commerce.json` is the machine-readable entry point for the versioned external buyer contract. It links the read-only public catalog, OpenAPI 3.1 document, Catalog Product JSON Schema, money policy, and authenticated quote/approval/Razorpay handoff/status sequence. Catalog pages use opaque cursors capped at 50 and support `ETag`/`Last-Modified` revalidation.
