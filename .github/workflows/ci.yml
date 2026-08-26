@@ -78,6 +78,8 @@ jobs:
       - name: Run all non-browser backend tests
         working-directory: backend
         shell: bash
+        env:
+          DJANGO_SECURE_SSL_REDIRECT: "False"
         run: |
           set -o pipefail
           python manage.py test apps.accounts apps.merchants apps.agents apps.orders apps.analytics apps.commerce nexora_core --verbosity 2 2>&1 | tee ../artifacts/backend/tests.log
