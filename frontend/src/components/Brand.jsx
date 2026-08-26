@@ -1,6 +1,10 @@
 import { Sparkles } from 'lucide-react'
 
-export default function Brand({ compact = false, inverse = false }) {
+export default function Brand({ compact = false, inverse = false, wordmark = false }) {
+  if (wordmark) {
+    return <span className="nexora-wordmark text-[1.7rem] font-semibold leading-none text-[#17372f] sm:text-[2rem]">NEXORA</span>
+  }
+
   return (
     <div className="flex items-center gap-2.5">
       <div className="relative grid size-8 place-items-center bg-violet-600 text-white shadow-[3px_3px_0_#111827]">

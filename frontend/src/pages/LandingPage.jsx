@@ -59,13 +59,13 @@ function MerchantPreview() {
 export default function LandingPage() {
   return (
     <main className="overflow-hidden bg-[#f6f5f1] text-slate-950">
-      <section className="storybook-hero relative isolate min-h-[calc(100svh-4rem)] overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
+      <section className="storybook-hero relative isolate min-h-svh overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
         <div className="storybook-hero-art absolute inset-0 -z-30" aria-hidden="true" />
         <div className="storybook-hero-scrim absolute inset-0 -z-20" aria-hidden="true" />
         <div className="storybook-cloud storybook-cloud-one" aria-hidden="true" />
         <div className="storybook-cloud storybook-cloud-two" aria-hidden="true" />
 
-        <div className="mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1440px] flex-col items-center justify-center pb-32 pt-16 text-center sm:pb-36 sm:pt-20">
+        <div className="mx-auto flex min-h-svh max-w-[1440px] flex-col items-center justify-center pb-32 pt-24 text-center sm:pb-36 sm:pt-24">
           <div className="storybook-copy relative z-10 flex max-w-4xl flex-col items-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-4 py-2 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-950 shadow-[0_10px_35px_rgba(30,64,52,.12)] backdrop-blur-md">
               <Sparkles size={12} className="text-violet-700" /> A gentler way to find the right thing
