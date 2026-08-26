@@ -61,7 +61,7 @@ handoff page and uses the already-installed `playwright-core`. The helper contai
 
 ## Deployment boundary
 
-This local proof used strict provider reconciliation because the local environment has no public HTTPS
-webhook URL. Signed webhook handling and deduplication are already covered by backend tests. Registering
-and redelivering a real public webhook is a deployment acceptance item in P0.7 and must not be claimed
-complete until a public endpoint exists.
+This local proof used strict provider reconciliation because the local environment had no public HTTPS
+webhook URL. A public endpoint now exists, and signed handling/deduplication remain covered by backend
+tests, but Razorpay dashboard registration plus real delivery/redelivery evidence are still open P0.7
+acceptance items. They must not be claimed complete until the redacted deployed evidence is recorded.

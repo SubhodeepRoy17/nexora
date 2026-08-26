@@ -2,8 +2,8 @@
 
 ## 1. Project State Overview
 - **Current Phase:** Phase 12 — COMPLETE LOCALLY (complete live buyer and merchant experience)
-- **Active Task:** P0.7 deployment safeguards and operations evidence are implemented; public Render/Vercel/Razorpay verification remains externally gated
-- **Overall Progress:** Phases 1-10 and Phase 12 complete locally; Phase 11 deployment evidence remains open; roadmap continues through Phase 16
+- **Active Task:** P0.8 repository submission package is implemented; public repository visibility, final video/form, and remaining P0.7 operations evidence are externally gated
+- **Overall Progress:** Core product and repository-controlled submission package are approximately 98% complete; Phase 11 deployment evidence and final external submission actions remain open
 - **Last Updated:** 2026-08-26
 
 ### Phase Completion
@@ -186,6 +186,16 @@
 - [x] Completed P0.4 with a Playwright/Django live-server harness that keeps real PostgreSQL search, policy, quote, approval, reservation, audit, reconciliation, and analytics behavior while doubling only Gemini and Razorpay network edges.
 - [x] Added one `npm run test:e2e` command covering buyer/merchant authentication, offer reject/accept, quantity failure and fresh retry, keyboard/focus/mobile behavior, duplicate submission, pending refresh/resume, authoritative paid state, merchant analytics, and the published HTTP-only reference buyer.
 - [x] Added database-level P0.4 assertions for exactly one provider initialization/order/payment/capture audit/purchased audit, exactly-once stock and reservation consumption, a side-effect-free blocked quote, and ₹999.00 of real paid add-on attribution; documented the boundary in `docs/Phase4Evidence.md`.
+- [x] Added the P0.8 evaluator package: a root README with live surfaces, screenshots, evidence,
+  architecture, setup, tests, limitations, and Track thesis; four Mermaid trust/payment/failure/state
+  diagrams; a timed five-minute pitch with safe fallback pivots; and a copy-ready submission audit.
+- [x] Added the MIT project license, prevented recording binaries from entering Git history, completed
+  the scheduler readiness environment example, and corrected stale Razorpay SDK/webhook-only claims.
+- [x] Audited the official Razorpay page and linked application form on 2026-08-26. The observed form
+  requires applicant identity/eligibility, Track selection, project title/objectives, GitHub URL,
+  five-minute video, technical challenges, and final confirmation; no deadline was displayed.
+- [ ] Make the repository publicly readable, upload and verify the final five-minute video, complete
+  P0.7 operational evidence, recheck the official form/deadline, and submit as the applicant.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
@@ -213,7 +223,7 @@
 - `frontend/src/services/api.js` (Complete — Axios APIs, adapters, errors, and Razorpay loader)
 - `frontend/src/App.jsx` (Complete — global route map)
 - `frontend/src/pages/merchant/AgentAnalytics.jsx` (Complete — live search, loss, add-on, denominator, and compatibility-gap analytics)
-- `frontend/vercel.json` (Complete — Vite SPA deep-link routing)
+- `frontend/vercel.json` (Complete in repository — API-first same-origin proxy plus Vite SPA deep-link routing; live proxy deployment remains unverified)
 
 ## 4. Backend Component Tracker
 - `backend/nexora_core/settings.py` (Complete — PostgreSQL and production security/static configuration)
@@ -253,11 +263,13 @@
 ## 5. Deployment Notes
 - The local Windows PostgreSQL 18 server now provides pgvector 0.8.6. The `vector` extension, 128-dimensional product embedding table, and HNSW cosine index are active and backfilled; indexed SQL fallback remains available for hosts without the extension.
 - The WSL Node.js runtime is 18.19 and cannot parse the installed Vite version; production builds use the installed Windows Node 22.20 runtime and pass.
-- Backend dependencies are installed and reproducibly declared in `backend/requirements.txt`.
+- Backend dependencies are installed from the hash-locked `backend/requirements.lock`; compatible
+  direct ranges remain documented in `backend/requirements.txt`.
 - Gemini inference defaults to the stable, latency-optimized `gemini-3.5-flash-lite` model through `GEMINI_MODEL`; provider and Razorpay credentials remain environment-managed, and deterministic retrieval works without model availability.
 - Live-looking credentials were found in `.env.example`; the example file was scrubbed back to placeholders. Rotate any affected historical provider key and database password before continuing, even though the real `.env` remains gitignored.
 - Phase 11 implementation and local acceptance tests are complete, but Phase 11 remains in progress until the deployed public webhook is registered and redacted evidence captures one real Razorpay test success, one graceful failure, and duplicate delivery. No dashboard registration or real test-mode charge was claimed from the local environment. The browser callback intentionally never marks an order paid.
-- Razorpay Python 1.4.x imports deprecated `pkg_resources`; requirements temporarily pin `setuptools<81` until the upstream SDK removes that dependency.
+- The Razorpay Python SDK and its deprecated `pkg_resources`/setuptools dependency were removed.
+  Nexora uses a narrow, timeout-bounded `httpx` adapter for the five provider operations it needs.
 - Local `check --deploy` reports the expected development-only warnings because `.env` intentionally has `DEBUG=True`, HTTP redirects/HSTS disabled, and non-secure cookies. Render production values enable HTTPS, secure cookies, redirects, and HSTS.
 - Credentialed cross-site sessions require `SameSite=None` over HTTPS. Prefer same-site frontend/API domains or a reverse proxy because browser third-party-cookie blocking can override cookie configuration.
 - Phase 12 acceptance is complete locally: 8/8 frontend tests, 60/60 backend tests on a clean PostgreSQL test database, Django checks, zero migration drift, and the 1,661-module production build pass. Phase 11 still truthfully remains open only for deployed Razorpay dashboard/webhook evidence; Phase 12 does not claim that external evidence.
@@ -265,3 +277,7 @@
 - Neon PostgreSQL 18 in AWS US West 2 (Oregon) is populated from the retained local backup: all 35 public tables and 254 rows matched, migrations/checks passed, and the pgvector HNSW index is ready. Local Django loads the ignored `.env.neon` connection; the undeployed Render Blueprint now pins Oregon and requests the same Neon URL as a secret for the API and both workers.
 - Public registration now atomically creates buyer access and a new owner-scoped merchant profile; client input cannot select or join an existing merchant. The existing `subhodeeproy37@gmail.com` account was granted its own merchant workspace in Neon.
 - Replaced the Groq/GPT-OSS inference adapter with the official Google Gen AI SDK; the interactive buyer path now uses stable `gemini-3.5-flash-lite` after Gemini 3.7 exceeded the synchronous latency budget. New provider events use `GEMINI` while historical `GROQ` audit provenance is preserved, and structured recommendation validation, live catalog grounding, and deterministic fallback remain mandatory.
+- The public frontend, API readiness, and commerce capability are reachable at their documented HTTPS
+  URLs. The GitHub repository returned 404 to an unauthenticated API request and the deployed Vercel
+  `/api/health/` path returned SPA HTML, so public repository permission and same-origin session proxy
+  acceptance remain explicit pre-submit blockers.

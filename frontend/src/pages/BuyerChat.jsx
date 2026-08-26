@@ -231,7 +231,7 @@ export default function BuyerChat() {
 
   return (
     <div className="app-grid flex h-[calc(100dvh-4rem)] min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
-      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed inset-0 z-30 bg-slate-950/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[272px] right-0 top-16 z-30 bg-slate-950/40 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[272px] flex-col border-r border-slate-300 bg-white p-4 transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-12 items-center justify-between px-1"><div><p className="text-xs font-semibold text-slate-950">Buyer workspace</p><p className="mt-1 font-mono text-[8px] text-slate-500">PERSONAL SHOPPING AGENT</p></div><button type="button" aria-label="Close navigation" className="text-slate-500 lg:hidden" onClick={() => setSidebarOpen(false)}>×</button></div>

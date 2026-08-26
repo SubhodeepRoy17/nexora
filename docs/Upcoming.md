@@ -20,8 +20,9 @@ Nexora uses its own versioned commerce contract. It is conceptually aligned with
 
 ## Current completion snapshot
 
-The core product implementation is approximately 96% complete. The remaining work is public
-deployment verification and submission packaging.
+The core product and repository-controlled submission package are approximately 98% complete. The
+remaining work is external operational evidence, public repository permission, and the final video
+and form submission.
 
 ### Implemented
 
@@ -52,11 +53,19 @@ deployment verification and submission packaging.
   tests, production build, critical E2E, dependency audits, secret scanning, and evidence artifacts.
 - A rollback-only 56-intent evaluation covering constraints, grounding, relevance, safe no-result
   behavior, growth-offer compatibility/refusal, prompt injection, and forced-provider fallback.
+- An evaluator-facing root README with live links, screenshots, measured evidence, architecture,
+  safety boundaries, setup, verification, limitations, and the external buyer contract.
+- Mermaid system, successful-payment, graceful-failure, and lifecycle diagrams plus a timed
+  five-minute pitch/fallback runbook and copy-ready official-form checklist.
+- An MIT project license, media ignore rules, complete scheduler environment example, and a claim
+  hygiene pass over Razorpay adapter and settlement-authority documentation.
 
 ### Not yet proven complete
 
-- A verified public deployment with webhook, expiry scheduler, reconciliation scheduler, and environment safeguards.
-- A root README, architecture diagrams, pitch script, demo recording, and final submission evidence package.
+- Real public webhook delivery/redelivery, fresh expiry/reconciliation scheduler heartbeats, and a
+  deployed same-origin session proxy.
+- A public-readable GitHub repository, recorded/uploaded five-minute video, final signed-out link
+  audit, and applicant-completed official form.
 
 ## Required end-to-end flow
 
@@ -312,7 +321,7 @@ Acceptance evidence:
 - Verified webhook, expiry scheduler, and reconciliation scheduler.
 - No critical demo step depends on localhost or manual database edits.
 
-### P0.8 — Final submission package
+### P0.8 — Final submission package — REPOSITORY PACKAGE IMPLEMENTED
 
 Goal: let an evaluator understand and verify Nexora quickly.
 
@@ -328,6 +337,30 @@ Acceptance evidence:
 
 - Repository, deployed product, five-minute video, architecture, and project-description artifacts are ready.
 - A new evaluator can run the project using only repository documentation.
+
+Repository-controlled result:
+
+- `README.md` now presents the Track thesis, live surfaces, connected ₹8,498/₹999 proof,
+  screenshots, safety architecture, measured evaluation, public agent contract, setup, tests, and
+  honest limitations.
+- `docs/ArchitectureDiagrams.md` contains evaluator-facing system, successful-payment,
+  graceful-failure, and order-lifecycle diagrams.
+- `docs/Pitch.md` provides a timed five-minute narration, exact demo prompts/actions, preflight,
+  safe outage pivots, and fallback-recording contract.
+- `docs/Submission.md` records the 2026-08-26 official page/form audit, copy-ready objectives and
+  technical challenges, observed form fields, signed-out checklist, and unresolved gates.
+- The project now has an MIT license; recording binaries are ignored; environment examples include
+  scheduler readiness; stale Razorpay SDK and webhook-only settlement claims were corrected.
+
+External gates still open:
+
+- The repository was not publicly readable during the audit and requires an owner visibility
+  change plus signed-out verification.
+- The five-minute fallback/live demo must be recorded, uploaded, and linked by the applicant.
+- P0.7 operational items remain open, including the live Vercel API proxy, scheduler heartbeats,
+  Razorpay webhook delivery/redelivery, and deployed recovery evidence.
+- The official page/form must be checked again immediately before submission; neither displayed a
+  deadline during the audit.
 
 ## Optional post-submission enhancements
 
@@ -357,20 +390,20 @@ These must not delay required track proof:
 
 Nexora is 100% track-ready only when every item has current evidence:
 
-- [ ] A clean database can be migrated and seeded without manual editing.
-- [ ] The demo intent returns a grounded primary recommendation and compatible add-on.
-- [ ] The buyer explicitly accepts or rejects every displayed offer.
-- [ ] The buyer sees and approves an exact, bounded, expiring quote.
-- [ ] Razorpay test Checkout completes and only verified backend evidence marks it paid.
-- [ ] Stock reservation and paid consumption occur exactly once.
-- [ ] The merchant sees the correlated order and immutable audit timeline.
-- [ ] Paid attachment and add-on revenue update once and are labelled as attribution.
-- [ ] The quantity-limit failure creates no provider order or stock mutation and appears in the audit.
-- [ ] The reference AI buyer reaches approved checkout using only the public contract.
+- [x] A clean database can be migrated and seeded without manual editing.
+- [x] The demo intent returns a grounded primary recommendation and compatible add-on.
+- [x] The buyer explicitly accepts or rejects every displayed offer.
+- [x] The buyer sees and approves an exact, bounded, expiring quote.
+- [x] Razorpay test Checkout completes and only verified backend evidence marks it paid.
+- [x] Stock reservation and paid consumption occur exactly once.
+- [x] The merchant sees the correlated order and immutable audit timeline.
+- [x] Paid attachment and add-on revenue update once and are labelled as attribution.
+- [x] The quantity-limit failure creates no provider order or stock mutation and appears in the audit.
+- [x] The reference AI buyer reaches approved checkout using only the public contract.
 - [ ] Backend, frontend, E2E, migration, security, and build gates pass in CI.
-- [ ] Evaluation is reproducible and submission claims match measured results.
+- [x] Evaluation is reproducible and submission claims match measured results.
 - [ ] Deployment, webhook, expiry processing, and reconciliation are verified.
-- [ ] The repository is documented, reproducible, secret-free, and makes no misleading claims.
+- [x] The repository is documented, reproducible, secret-free, and makes no misleading claims.
 - [ ] The video demonstrates successful revenue growth and graceful failure.
 - [ ] Every submission URL and permission is verified before submission.
 

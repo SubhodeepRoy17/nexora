@@ -55,3 +55,8 @@ pnpm-debug.log*
 *.swp
 *.swo
 ~$*
+
+# Submission recordings stay on the configured video host, not in Git history
+*.mp4
+*.mov
+*.webm

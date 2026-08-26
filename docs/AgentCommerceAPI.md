@@ -51,7 +51,7 @@ Catalog methods are read-only. `POST`, `PUT`, `PATCH`, and `DELETE` are not expo
 5. Only after exact confirmation, call `POST /api/commerce/v1/quotes/{quote_id}/approve/` with `{"confirmed":true}` and a new idempotency key.
 6. Pass the returned single-use approval token to `POST /api/commerce/v1/checkout-orders/` with a third idempotency key. Nexora revalidates ownership, quote contents/expiry, policy, prices, stock, test-mode configuration, and reserves stock before creating the exact Razorpay order.
 7. Open Razorpay Checkout with the returned `key`, `razorpay_order_id`, `amount`, and `currency` handoff fields.
-8. Poll `GET /api/commerce/v1/orders/{order_id}/`. A browser callback is not settlement evidence; only a verified Razorpay webhook can make the order `PAID`.
+8. Poll `GET /api/commerce/v1/orders/{order_id}/`. A browser callback is not settlement evidence; only a verified Razorpay webhook or strict server-to-server reconciliation of one exact captured payment can make the order `PAID`.
 
 All money-adjacent requests are bound to the authenticated buyer. Quote, approval, and checkout retries with the same key and same payload return the existing result. Reusing a key for a different payload returns `IDEMPOTENCY_CONFLICT`. Correlation IDs join the external request to recommendation, quote, approval, order, webhook, and audit records. Quote and approval expiry is server-authoritative.
 

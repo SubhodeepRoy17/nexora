@@ -153,7 +153,7 @@ export default function MerchantDashboard() {
 
   return (
     <div className="merchant-light merchant-grid flex min-h-[calc(100dvh-4rem)] bg-[#f6f5f1] text-slate-950">
-      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed inset-0 z-30 bg-slate-950/70 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[272px] right-0 top-16 z-30 bg-slate-950/70 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[252px] flex-col border-r border-slate-800 bg-slate-950 p-4 transition-transform duration-300 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-12 items-center justify-between px-1"><div><p className="text-xs font-semibold text-slate-200">Merchant workspace</p><p className="mt-1 font-mono text-[8px] text-slate-600">AGENT COMMERCE OS</p></div><button type="button" aria-label="Close navigation" className="text-slate-500 lg:hidden" onClick={() => setSidebarOpen(false)}><X size={18} /></button></div>
         <div className="mt-6 flex w-full items-center gap-2.5 border border-slate-800 bg-slate-900 p-3" aria-label={`Selected merchant: ${workspace?.merchant?.name ?? user?.merchant?.name}`}>
