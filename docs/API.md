@@ -51,6 +51,11 @@ Each `items[]` entry contains immutable quote evidence: product/merchant IDs and
 
 The single-line `POST /api/orders/quotes/` contract remains as a compatibility adapter and creates the same Cart, CartItem, Quote, and QuoteItem records.
 
+For example, a quantity above `policy_snapshot.limits.max_item_quantity` returns `409` with
+`reason_code: "QUANTITY_LIMIT_EXCEEDED"`, a `BLOCKED` quote, the requested quantity, and the failed
+`quantity_limit` check. The block creates an immutable `MONEY_BLOCKED` audit but creates no approval,
+order, reservation, provider request, or stock mutation. A fresh cart and quote are required to retry.
+
 ## 5. Approve with idempotency
 
 `POST /api/orders/quotes/{quote_id}/approve/` requires ownership and:

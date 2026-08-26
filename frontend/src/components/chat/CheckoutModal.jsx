@@ -104,6 +104,17 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const choicesComplete = (product?.addOns ?? []).every((item) => typeof addOnChoices[item.offerId] === 'boolean')
   const total = quote?.total_amount ?? product?.price * quantity + selectedAddOns.reduce((sum, item) => sum + item.price, 0)
   const countdown = useMemo(() => `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`, [remainingSeconds])
+  const quantityBlock = useMemo(() => {
+    if (reasonCode !== 'QUANTITY_LIMIT_EXCEEDED') return null
+    const limit = Number(quote?.policy_snapshot?.limits?.max_item_quantity)
+    const requested = Math.max(...(quote?.items ?? []).map((item) => Number(item.quantity)), 0)
+    if (!Number.isFinite(limit) || !requested) return null
+    return {
+      requested,
+      limit,
+      explanation: `Quantity ${requested} was blocked because the server limit is ${limit} per item. No approval grant, Razorpay order, or stock reservation was created. Return to the basket and choose ${limit} or fewer to continue.`,
+    }
+  }, [quote, reasonCode])
 
   if (!product) return null
 
@@ -239,7 +250,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
   const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : ['approving', 'reserving', 'opening'].includes(stage) ? 2 : 3
-  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : stage === 'refunding' ? 'Refund confirmation pending' : stage === 'opening' ? 'Preparing Razorpay Checkout' : ['verifying', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : processing ? 'Securing your checkout' : 'Checkout stopped safely'
+  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment verified' : stage === 'refunding' ? 'Refund confirmation pending' : stage === 'opening' ? 'Preparing Razorpay Checkout' : ['verifying', 'cancelling'].includes(stage) ? 'Waiting for backend verification' : stage === 'terminal' ? statusLabel : stage === 'blocked' ? 'Money action blocked safely' : processing ? 'Securing your checkout' : 'Checkout stopped safely'
   const stageCopy = stage === 'paid' ? 'Razorpay’s signed webhook or exact server reconciliation confirmed payment, and the reservation was consumed exactly once.' : stage === 'refunding' ? statusMessages.REFUND_PENDING : stage === 'opening' ? 'Loading the secure payment handoff before Nexora consumes your approval or reserves inventory.' : ['verifying', 'cancelling'].includes(stage) ? `The browser cannot mark this order paid. Nexora is polling the authoritative backend status.${checkoutProofVerified ? ' The Checkout signature was valid; Razorpay capture confirmation is still pending.' : ''}` : statusMessages[order?.status] ?? 'Review each line, see the exact total, and approve only when the basket matches your intent.'
   const displayLines = lines.length ? lines : [
     { product_title: product.name, merchant_name: product.merchant.name, quantity, line_total: product.price * quantity },
@@ -268,7 +279,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         <div className="grid lg:grid-cols-[1.18fr_.82fr]">
           <div className="border-slate-300 p-5 sm:p-7 lg:border-r">
             {processing && <div className="mb-5 flex items-center gap-3 border border-violet-200 bg-violet-50 p-4" aria-live="polite"><LoaderCircle size={16} className="animate-spin text-violet-600" /><div><p className="text-xs font-semibold text-violet-900">Securing the transaction</p><p className="mt-1 font-mono text-[8px] text-violet-600">LOCKING PRODUCTS · CHECKING STOCK · PRESERVING SNAPSHOTS</p></div></div>}
-            {error && <div className="mb-5 border border-rose-300 bg-rose-50 p-4 text-xs text-rose-800" role="alert"><p className="font-semibold">{error}</p>{reasonCode && <span className="mt-2 block font-mono text-[8px]">REASON · {reasonCode}</span>}</div>}
+            {error && <div className="mb-5 border border-rose-300 bg-rose-50 p-4 text-xs text-rose-800" role="alert"><p className="font-semibold">{error}</p>{reasonCode && <span className="mt-2 block font-mono text-[8px]">REASON · {reasonCode}</span>}{quantityBlock && <div className="mt-3 border-t border-rose-200 pt-3" aria-label="Safe block outcome"><p className="leading-5">{quantityBlock.explanation}</p><p className="mt-2 font-mono text-[8px] font-semibold">ZERO PROVIDER CALLS · ZERO INVENTORY MUTATIONS · IMMUTABLE AUDIT RECORDED</p></div>}</div>}
 
             {stage === 'cart' && <>
               <section aria-labelledby="basket-product"><div className="flex items-center justify-between"><div><p className="mono-label text-violet-600">01 · Selected product</p><h3 id="basket-product" className="mt-2 text-lg font-semibold">Review quantity</h3></div><span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[8px] text-emerald-700">LIVE STOCK</span></div>

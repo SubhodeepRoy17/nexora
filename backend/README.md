@@ -149,6 +149,12 @@ It is idempotent and repairs only one exact Razorpay-captured payment. Its JSON 
 
 See `docs/API.md` for request/response contracts and stable money-action reason codes.
 
+The deliberate graceful-failure proof is recorded in `docs/Phase3Evidence.md`. With both apps
+running and credentials supplied only through the environment, reproduce the buyer block and scoped
+merchant audit captures with `cd frontend && npm run evidence:p03`. The quantity-six request is
+blocked before approval, reservation, or Razorpay order creation; return-to-basket recovery is covered
+by the checkout acceptance test.
+
 ## External agent commerce API
 
 `GET /.well-known/nexora-commerce.json` is the machine-readable entry point for the versioned external buyer contract. It links the read-only public catalog, OpenAPI 3.1 document, Catalog Product JSON Schema, money policy, and authenticated quote/approval/Razorpay handoff/status sequence. Catalog pages use opaque cursors capped at 50 and support `ETag`/`Last-Modified` revalidation.

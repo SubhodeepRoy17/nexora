@@ -20,7 +20,7 @@ Nexora uses its own versioned commerce contract. It is conceptually aligned with
 
 ## Current completion snapshot
 
-The core product implementation is approximately 88% complete. The remaining work is primarily the deliberate quantity-limit proof, browser automation, evaluation, deployment verification, and submission packaging.
+The core product implementation is approximately 90% complete. The remaining work is primarily full browser automation, evaluation, deployment verification, and submission packaging.
 
 ### Implemented
 
@@ -41,12 +41,12 @@ The core product implementation is approximately 88% complete. The remaining wor
 - Public capability discovery, catalog, JSON Schema, OpenAPI, money policy, and an HTTP-only reference AI buyer.
 - Buyer and merchant interfaces backed by live APIs, including blocked-action and recovery states.
 - A deliberate UI failure path that requests a quantity above the configured limit.
+- A locally verified quantity-limit failure with buyer recovery, zero provider/inventory side effects, an immutable owner-scoped audit, and redacted buyer/merchant captures.
 - A real Razorpay Test Mode paid order containing an explicitly accepted ₹999 add-on, with strict provider reconciliation, consumed reservations, correlated audits, and paid attachment analytics.
 - An idempotent reconciliation re-run that performed no duplicate mutation.
 
 ### Not yet proven complete
 
-- A recorded graceful failure with its stable reason code and corresponding audit entry.
 - Browser automation of the complete buyer-to-merchant journey.
 - A broad, reproducible agent and growth evaluation report with measured results.
 - A clean-clone CI gate for backend, frontend, migrations, build, security, and critical E2E behavior.
@@ -167,7 +167,7 @@ Verified local result:
 
 Deployment caveat: this local environment has no public HTTPS webhook URL, so the proof used the already-implemented strict reconciliation path. Public webhook registration and real delivery/redelivery evidence remain explicitly gated under P0.7; they are not claimed here.
 
-### P0.3 — Prove the graceful failure
+### P0.3 — Prove the graceful failure — LOCALLY VERIFIED
 
 Goal: satisfy the requirement that a money failure stops safely and visibly.
 
@@ -180,8 +180,13 @@ Goal: satisfy the requirement that a money failure stops safely and visibly.
 
 Acceptance evidence:
 
-- A capture showing the buyer block and merchant audit entry.
-- An automated assertion that provider order creation was never called.
+- [Buyer capture](screenshots/p03-buyer-quantity-block.png) showing the exact limit, stable reason code, zero-side-effect statement, and recovery action.
+- [Merchant capture](screenshots/p03-merchant-blocked-audit.png) showing the owner-scoped immutable audit entry.
+- `docs/Phase3Evidence.md` records safe correlation IDs and authoritative database invariants.
+- The focused backend test asserts that neither the Razorpay client nor provider order creation is called for the blocked request, while a fresh valid retry reaches the mocked provider exactly once.
+- The checkout component test drives the actual demo control, verifies the reason and zero-side-effect UX, returns to the preserved basket, and completes a valid retry.
+
+Deployment caveat: this is a deterministic local policy proof and intentionally does not call Razorpay. The public deployment and webhook evidence boundary remains P0.7.
 
 ### P0.4 — Full browser E2E coverage
 

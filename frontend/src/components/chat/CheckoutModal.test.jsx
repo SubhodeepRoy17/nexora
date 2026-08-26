@@ -67,6 +67,40 @@ describe('approval-gated checkout', () => {
     expect(window.Razorpay).not.toHaveBeenCalled()
   })
 
+  it('proves the quantity demo block has no money side effects and supports a valid retry', async () => {
+    const blockedQuote = {
+      ...quote,
+      quote_id: 'f63df6f8-e6b3-4cf8-a723-4a82f9466df0',
+      status: 'BLOCKED',
+      total_amount: '44994.00',
+      reason_code: 'QUANTITY_LIMIT_EXCEEDED',
+      detail: 'The requested quantity exceeds the per-item limit.',
+      items: [{ ...quote.items[0], quantity: 6, line_total: '44994.00' }],
+    }
+    apiMocks.createCartQuote
+      .mockResolvedValueOnce({ data: quote })
+      .mockRejectedValueOnce({ response: { data: blockedQuote } })
+      .mockResolvedValueOnce({ data: quote })
+
+    const user = userEvent.setup(); renderCheckout(); await reachQuote(user)
+    await user.click(screen.getByRole('button', { name: /Demo safe block: exceed quantity limit/i }))
+
+    expect(await screen.findByRole('heading', { name: 'Money action blocked safely' })).toBeInTheDocument()
+    expect(screen.getByText(/REASON · QUANTITY_LIMIT_EXCEEDED/)).toBeInTheDocument()
+    expect(screen.getByText(/Quantity 6 was blocked because the server limit is 5/)).toBeInTheDocument()
+    expect(screen.getByText(/ZERO PROVIDER CALLS · ZERO INVENTORY MUTATIONS/)).toBeInTheDocument()
+    expect(apiMocks.approveQuote).not.toHaveBeenCalled()
+    expect(apiMocks.createOrder).not.toHaveBeenCalled()
+    expect(window.Razorpay).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Return to basket and retry' }))
+    expect(screen.getByRole('heading', { name: 'Review quantity' })).toBeInTheDocument()
+    await reachQuote(user)
+    expect(apiMocks.createCart.mock.calls.at(-1)[0][0].quantity).toBe(1)
+    await approve(user)
+    await waitFor(() => expect(apiMocks.createOrder).toHaveBeenCalledOnce())
+  })
+
   it('preserves the reviewed basket and offers a recoverable retry when checkout initialization fails', async () => {
     apiMocks.createOrder.mockRejectedValue({ response: { data: { detail: 'Payment provider is temporarily unavailable.', reason_code: 'PAYMENT_PROVIDER_ERROR' } } })
     const user = userEvent.setup(); renderCheckout(); await reachQuote(user); await approve(user)

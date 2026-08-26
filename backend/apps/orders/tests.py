@@ -198,14 +198,70 @@ class ApprovalGatedMoneyActionTests(TestCase):
         self.assertEqual(response.status_code, 201)
         return Order.objects.prefetch_related("items", "reservations").get(pk=response.json()["order_id"])
 
-    def test_policy_limit_is_blocked_and_audited_without_side_effects(self):
+    @patch("apps.orders.views.create_razorpay_order")
+    @patch("apps.orders.views.get_razorpay_client")
+    def test_policy_limit_is_blocked_and_audited_without_side_effects(
+        self, get_gateway_client, create_gateway_order
+    ):
         response = self.create_quote(quantity=6)
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["reason_code"], "QUANTITY_LIMIT_EXCEEDED")
+        self.assertEqual(response.json()["status"], Quote.Status.BLOCKED)
+        self.assertEqual(response.json()["items"][0]["quantity"], 6)
+        self.assertEqual(
+            response.json()["policy_snapshot"]["limits"]["max_item_quantity"], 5
+        )
+        get_gateway_client.assert_not_called()
+        create_gateway_order.assert_not_called()
         self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(ApprovalGrant.objects.count(), 0)
+        self.assertEqual(StockReservation.objects.count(), 0)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 5)
-        self.assertTrue(MoneyActionAudit.objects.filter(reason_code="QUANTITY_LIMIT_EXCEEDED").exists())
+        audit = MoneyActionAudit.objects.get(reason_code="QUANTITY_LIMIT_EXCEEDED")
+        self.assertEqual(audit.action, MoneyActionAudit.Action.MONEY_BLOCKED)
+        self.assertEqual(audit.outcome, "BLOCKED")
+        self.assertIsNone(audit.approval_id)
+        self.assertIsNone(audit.order_id)
+        self.assertEqual(audit.metadata["items"][0]["quantity"], 6)
+        quantity_check = next(
+            check for check in audit.metadata["policy_checks"]
+            if check["check"] == "quantity_limit"
+        )
+        self.assertFalse(quantity_check["passed"])
+
+        buyer_results = self.client.get("/api/orders/money-audits/").json()["results"]
+        self.assertEqual([item["audit_id"] for item in buyer_results], [str(audit.audit_id)])
+        self.client.force_login(self.owner)
+        merchant_results = self.client.get("/api/orders/money-audits/").json()["results"]
+        self.assertEqual([item["audit_id"] for item in merchant_results], [str(audit.audit_id)])
+        self.client.force_login(self.other_owner)
+        self.assertEqual(self.client.get("/api/orders/money-audits/").json()["results"], [])
+
+        # The buyer can recover with a fresh, valid quote. The provider path is
+        # reached exactly once for that valid retry, never for the blocked one.
+        self.client.force_login(self.buyer)
+        quote_id, approval_token = self.approve_quote()
+        get_gateway_client.return_value = object()
+        create_gateway_order.return_value = {
+            "id": "order_quantity_retry",
+            "amount": 250000,
+            "currency": "INR",
+        }
+        retry = self.client.post(
+            "/api/orders/create/",
+            {"quote_id": quote_id, "approval_token": approval_token},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=f"payment-{quote_id}",
+        )
+        self.assertEqual(retry.status_code, 201)
+        get_gateway_client.assert_called_once_with()
+        create_gateway_order.assert_called_once()
+        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(ApprovalGrant.objects.count(), 1)
+        self.assertEqual(StockReservation.objects.count(), 1)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 4)
 
     def test_order_value_and_live_mode_policy_limits_are_deterministic(self):
         with self.settings(MONEY_MAX_ORDER_VALUE=Decimal("100.00")):

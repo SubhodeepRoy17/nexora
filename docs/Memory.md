@@ -181,6 +181,8 @@
 - [x] Replaced the static empty-search message with server-grounded diagnostics for category availability, cheapest price, exact budget shortfall, explicit color constraints, and available structured catalog values.
 - [x] Added a bounded Gemini no-result phrasing pass over authoritative diagnostics plus an equally specific deterministic fallback; both return a dynamic suggested follow-up query and preserve provider provenance.
 - [x] Updated the buyer UI to use the server-suggested query and persist it in authenticated conversation metadata; passed 9 focused backend tests, the seeded-demo no-result regression, and 3 BuyerChat frontend tests.
+- [x] Completed the P0.3 quantity-limit proof: quantity 6 against a maximum of 5 returns `QUANTITY_LIMIT_EXCEEDED`, creates no approval/order/reservation, leaves stock unchanged, never invokes Razorpay, and records an immutable buyer/merchant-scoped `MONEY_BLOCKED` audit.
+- [x] Added explicit zero-side-effect and recovery copy to the checkout, verified return-to-basket and valid retry behavior, and captured redacted buyer and merchant evidence in `docs/Phase3Evidence.md`.
 
 ## 3. Frontend Component Tracker
 - `frontend/src/pages/BuyerChat.jsx` (Complete — live agent API integration)
