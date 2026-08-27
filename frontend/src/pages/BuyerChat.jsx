@@ -26,6 +26,12 @@ const liveThinkingSteps = [
   },
 ]
 
+const welcomePrompts = [
+  'What are you looking for?',
+  'What is your budget?',
+  'Which details matter most?',
+]
+
 function AgentMark({ active = false }) {
   return (
     <span className={`grid size-9 shrink-0 place-items-center rounded-full border border-violet-200 bg-white shadow-[0_8px_22px_rgba(109,40,217,.1)] ${active ? 'ring-4 ring-violet-100' : ''}`}>
@@ -49,7 +55,6 @@ const restoreMessages = (data) =>
       text: message.content,
       products,
       suggestedQuery: assistant ? message.metadata?.suggested_query : undefined,
-      evidence: assistant ? `${products.length} saved result${products.length === 1 ? '' : 's'} · Details may have changed` : undefined,
       time: new Date(message.created_at).toLocaleString('en-IN', {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -328,7 +333,14 @@ export default function BuyerChat() {
           <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8 md:py-12">
             {!visibleMessages.length && (
               <div className="buyer-welcome flex min-h-[34vh] items-end justify-center pb-8 text-center">
-                <h1 className="text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">What are you looking for?</h1>
+                <h1 className="relative min-h-[3.5rem] w-full text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">
+                  <span className="sr-only">Tell Nexora what you want to buy</span>
+                  <span aria-hidden="true">
+                    {welcomePrompts.map((prompt, index) => (
+                      <span key={prompt} className="buyer-welcome-prompt absolute inset-x-0 top-1/2 -translate-y-1/2" style={{ animationDelay: `${index * 3}s` }}>{prompt}</span>
+                    ))}
+                  </span>
+                </h1>
               </div>
             )}
 
@@ -357,7 +369,7 @@ export default function BuyerChat() {
                   </div>
                 )
               })}
-              {activeRun && <AgentThinkingStep steps={activeRun.steps} activeIndex={activeRun.activeIndex} />}
+              {activeRun && <AgentThinkingStep />}
             </div>
           </div>
         </div>

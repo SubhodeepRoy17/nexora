@@ -97,6 +97,11 @@
 
 .buyer-welcome { animation: buyer-welcome-enter .7s cubic-bezier(.2,.8,.2,1) both; }
 .buyer-message { animation: buyer-message-enter .5s cubic-bezier(.2,.8,.2,1) both; }
+.buyer-welcome-prompt {
+  opacity: 0;
+  animation: buyer-welcome-prompt 9s cubic-bezier(.4,0,.2,1) infinite;
+}
+.buyer-typing-dot { animation: buyer-typing-dot 1.2s ease-in-out infinite; }
 
 .buyer-composer {
   background: linear-gradient(180deg, rgba(248,250,246,0), rgba(248,250,246,.9) 28%, rgba(248,250,246,.98));
@@ -127,6 +132,17 @@
 @keyframes buyer-message-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes buyer-welcome-prompt {
+  0%, 27% { opacity: 1; transform: translateY(-50%); filter: blur(0); }
+  33% { opacity: 0; transform: translateY(calc(-50% - 8px)); filter: blur(4px); }
+  34%, 100% { opacity: 0; transform: translateY(8px); filter: blur(4px); }
+}
+
+@keyframes buyer-typing-dot {
+  0%, 60%, 100% { opacity: .4; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
 }
 
 .storybook-hero-art {
@@ -1034,11 +1050,15 @@
   .auth-shell,
   .auth-proof,
   .buyer-welcome,
-  .buyer-message { animation: none; }
+  .buyer-message,
+  .buyer-welcome-prompt,
+  .buyer-typing-dot { animation: none; }
   .auth-shell,
   .auth-proof,
   .buyer-welcome,
   .buyer-message { opacity: 1; transform: none; }
+  .buyer-welcome-prompt { display: none; }
+  .buyer-welcome-prompt:first-child { display: block; opacity: 1; transform: translateY(-50%); filter: none; }
   .buyer-input,
   .buyer-input:focus-within { transition: none; transform: none; }
 

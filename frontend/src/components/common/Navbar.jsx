@@ -35,7 +35,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className={`${landing ? 'absolute' : 'sticky backdrop-blur-md'} top-0 z-[60] h-16 w-full bg-transparent px-3 text-slate-950 sm:px-5`}>
+    <header className={`${landing ? 'fixed backdrop-blur-md' : 'sticky backdrop-blur-md'} top-0 z-[60] h-16 w-full bg-transparent px-3 text-slate-950 sm:px-5`}>
       <div className="relative mx-auto flex h-full max-w-[1440px] items-center justify-between gap-4">
         <Link to="/" className="focus-ring shrink-0" aria-label="Nexora home"><Brand /></Link>
 
