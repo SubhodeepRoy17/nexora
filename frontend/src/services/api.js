@@ -47,7 +47,7 @@ export function getApiError(error, fallback = 'Something went wrong. Please try 
   }
   if (error?.code === 'ECONNABORTED') return 'The server took too long to respond. Please try again.'
   if (error?.code === 'RAZORPAY_SDK_LOAD_FAILED') return 'Razorpay Checkout could not load. Check your internet connection or content blocker, then retry.'
-  if (!error?.response) return 'Cannot reach the Nexora backend. Make sure Django is running on port 8000.'
+  if (!error?.response) return 'Nexora is unavailable right now. Please try again in a moment.'
   return fallback
 }
 
@@ -236,7 +236,7 @@ export function toMoneyTimelineEvent(audit) {
     actionLabel: audit.action.replaceAll('_', ' '),
     product: audit.product_title ?? 'Money action',
     buyer: audit.buyer_reference,
-    reason: `${audit.summary} [${audit.reason_code}]`,
+    reason: audit.summary,
     time: relativeTime(audit.created_at),
     score: null,
     amount: paid ? Number(audit.approved_amount) : null,

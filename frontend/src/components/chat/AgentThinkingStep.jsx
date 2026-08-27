@@ -7,7 +7,7 @@ export default function AgentThinkingStep({ steps, activeIndex }) {
       <span className="grid size-9 shrink-0 place-items-center rounded-full border border-violet-200 bg-white shadow-[0_8px_22px_rgba(109,40,217,.1)]"><LogoMark className="size-6" alt="" /></span>
       <div className="thinking-border w-full rounded-2xl bg-white/78 p-4 shadow-[0_12px_34px_rgba(109,40,217,.1)] backdrop-blur-md">
         <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3">
-          <div className="flex items-center gap-2"><Search size={13} className="animate-pulse text-violet-600" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-violet-700">Agent working</span></div>
+          <div className="flex items-center gap-2"><Search size={13} className="animate-pulse text-violet-600" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-violet-700">Finding your best options</span></div>
           <span className="font-mono text-[8px] text-slate-400">STEP {Math.min(activeIndex + 1, steps.length)}/{steps.length}</span>
         </div>
         <div className="space-y-3">

@@ -29,8 +29,8 @@ const pendingOrder = {
 
 const renderCheckout = (props = {}) => render(<MemoryRouter><CheckoutModal product={product} onClose={vi.fn()} onOrderPlaced={vi.fn()} {...props} /></MemoryRouter>)
 const reachQuote = async (user) => {
-  await user.click(screen.getByRole('button', { name: /Generate exact quote/i }))
-  expect(await screen.findByRole('heading', { name: 'Confirm the precise basket' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /See final total/i }))
+  expect(await screen.findByRole('heading', { name: 'Confirm your basket' })).toBeInTheDocument()
 }
 const approve = async (user) => {
   await user.click(screen.getByRole('checkbox', { name: /I approve this exact quote/i }))
@@ -61,9 +61,9 @@ describe('approval-gated checkout', () => {
   it('surfaces a deterministic policy block without opening Razorpay', async () => {
     apiMocks.createCartQuote.mockRejectedValue({ response: { data: { detail: 'Quantity exceeds the configured limit.', reason_code: 'QUANTITY_LIMIT_EXCEEDED' } } })
     const user = userEvent.setup(); renderCheckout()
-    await user.click(screen.getByRole('button', { name: /Generate exact quote/i }))
+    await user.click(screen.getByRole('button', { name: /See final total/i }))
     expect(await screen.findByText('Quantity exceeds the configured limit.')).toBeInTheDocument()
-    expect(screen.getByText(/QUANTITY_LIMIT_EXCEEDED/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Checkout paused safely' })).toBeInTheDocument()
     expect(window.Razorpay).not.toHaveBeenCalled()
   })
 
@@ -83,12 +83,11 @@ describe('approval-gated checkout', () => {
       .mockResolvedValueOnce({ data: quote })
 
     const user = userEvent.setup(); renderCheckout(); await reachQuote(user)
-    await user.click(screen.getByRole('button', { name: /Demo safe block: exceed quantity limit/i }))
+    await user.click(screen.getByRole('button', { name: /See how Nexora safely stops an over-limit order/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Money action blocked safely' })).toBeInTheDocument()
-    expect(screen.getByText(/REASON · QUANTITY_LIMIT_EXCEEDED/)).toBeInTheDocument()
-    expect(screen.getByText(/Quantity 6 was blocked because the server limit is 5/)).toBeInTheDocument()
-    expect(screen.getByText(/ZERO PROVIDER CALLS · ZERO INVENTORY MUTATIONS/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Checkout paused safely' })).toBeInTheDocument()
+    expect(screen.getByText(/You requested 6, but the maximum is 5 per item/)).toBeInTheDocument()
+    expect(screen.getByText(/NO PAYMENT STARTED · NO STOCK CHANGED/)).toBeInTheDocument()
     expect(apiMocks.approveQuote).not.toHaveBeenCalled()
     expect(apiMocks.createOrder).not.toHaveBeenCalled()
     expect(window.Razorpay).not.toHaveBeenCalled()
@@ -125,7 +124,7 @@ describe('approval-gated checkout', () => {
     apiMocks.getOrder.mockResolvedValue({ data: paidOrder })
     const placed = vi.fn()
     const user = userEvent.setup(); renderCheckout({ onOrderPlaced: placed }); await reachQuote(user); await approve(user)
-    expect(await screen.findByRole('heading', { name: 'Payment verified' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Payment confirmed' })).toBeInTheDocument()
     expect(placed).toHaveBeenCalledWith({ product, order: paidOrder })
   })
 })

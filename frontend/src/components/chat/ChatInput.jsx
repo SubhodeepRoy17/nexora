@@ -36,7 +36,7 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
         />
         <button type="submit" disabled={!value.trim() || disabled} aria-label="Send shopping intent" className="focus-ring grid size-10 shrink-0 place-items-center rounded-full bg-[#17372f] text-white shadow-[0_8px_20px_rgba(23,55,47,.2)] transition hover:-translate-y-0.5 hover:bg-violet-700 disabled:translate-y-0 disabled:bg-[#dce5dc] disabled:text-[#31594f]/45 disabled:shadow-none"><ArrowUp size={17} /></button>
       </form>
-      <p className="mt-2 hidden text-center font-mono text-[8px] text-[#31594f]/55 sm:block"><Command size={9} className="mr-1 inline" /> Nexora can make mistakes. Live evidence and your approval remain authoritative.</p>
+      <p className="mt-2 hidden text-center font-mono text-[8px] text-[#31594f]/55 sm:block"><Command size={9} className="mr-1 inline" /> Nexora can make mistakes. Check the product details and final total before paying.</p>
     </div>
   )
 }

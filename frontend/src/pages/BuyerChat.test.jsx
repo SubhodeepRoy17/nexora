@@ -47,7 +47,7 @@ describe('live buyer search', () => {
     await user.type(input, 'wireless keyboard under 8000')
     await user.click(screen.getByLabelText('Send shopping intent'))
     expect(await screen.findByText('Backend Keyboard')).toBeInTheDocument()
-    expect(screen.getByText(/DETERMINISTIC RETRIEVAL/)).toBeInTheDocument()
+    expect(screen.getByText(/DETAILS CHECKED/)).toBeInTheDocument()
     expect(apiMocks.searchProducts).toHaveBeenCalledWith('wireless keyboard under 8000', expect.any(AbortSignal), { conversationId: null, conversationToken: null })
   })
 

@@ -21,12 +21,12 @@ export default function Navbar() {
         ['Product', '#product'],
         ['How it works', '#how-it-works'],
         ['Safety', '#safety'],
-        ['Agent API', agentApiUrl],
+        ['For AI shoppers', agentApiUrl],
       ]
     : [
-        ['Buyer agent', '/buyer'],
-        ['Merchant OS', '/merchant'],
-        ['Agent API', agentApiUrl],
+        ['Shopping assistant', '/buyer'],
+        ['Seller workspace', '/merchant'],
+        ['For AI shoppers', agentApiUrl],
       ]
 
   const go = (path) => {
@@ -62,8 +62,8 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="absolute inset-x-0 top-16 border-b border-emerald-950/10 bg-[#f6f8f2]/95 p-4 shadow-xl backdrop-blur-xl lg:hidden">
           <div className="grid gap-2">
-            {landing && <><a href="#product" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Product</a><a href="#how-it-works" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">How it works</a><a href="#safety" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Safety</a><a href={agentApiUrl} onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Agent API</a></>}
-            {!landing && <><button type="button" onClick={() => go('/buyer')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Bot size={14} /> Buyer agent</button><button type="button" onClick={() => go('/merchant')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Store size={14} /> Merchant OS</button><a href={agentApiUrl} onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Agent API</a></>}
+            {landing && <><a href="#product" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Product</a><a href="#how-it-works" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">How it works</a><a href="#safety" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Safety</a><a href={agentApiUrl} onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">For AI shoppers</a></>}
+            {!landing && <><button type="button" onClick={() => go('/buyer')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Bot size={14} /> Shopping assistant</button><button type="button" onClick={() => go('/merchant')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Store size={14} /> Seller workspace</button><a href={agentApiUrl} onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">For AI shoppers</a></>}
             {!loading && !user && <button type="button" onClick={() => go('/login?mode=signup')} className="flex items-center justify-center gap-2 border border-violet-300 bg-violet-50 px-4 py-3 text-xs font-semibold text-violet-700"><UserPlus size={14} /> Sign up</button>}
             {!loading && <button type="button" onClick={() => { setMobileOpen(false); user ? signOut() : navigate('/login') }} className="flex items-center justify-center gap-2 bg-slate-950 px-4 py-3 text-xs font-semibold text-white">{user ? <LogOut size={14} /> : <LogIn size={14} />}{user ? 'Sign out' : 'Sign in'}</button>}
           </div>

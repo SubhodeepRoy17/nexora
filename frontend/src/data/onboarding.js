@@ -1,8 +1,8 @@
 export const onboardingMessages = [{
   id: 'onboarding',
   role: 'agent',
-  text: 'Tell me what you need and what matters most. I’ll search the live catalog, compare recorded facts, and bring back up to three grounded options.',
-  evidence: 'ONBOARDING EXAMPLE · NO CATALOG RESULT YET',
+  text: 'Tell me what you need and what matters most. I’ll check current products, compare their details, and bring back up to three suitable options.',
+  evidence: 'WELCOME EXAMPLE · NO SEARCH YET',
   time: 'Welcome',
   fixture: true,
 }]

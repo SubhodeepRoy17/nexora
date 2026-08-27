@@ -17,7 +17,7 @@ export default function DataFreshness({ updatedAt, loading = false, staleAfterMs
   return (
     <span className={`inline-flex items-center gap-1.5 font-mono text-[8px] ${stale ? 'text-amber-500' : dark ? 'text-emerald-400' : 'text-emerald-700'}`} title={updatedAt ? new Date(updatedAt).toLocaleString('en-IN') : undefined}>
       {loading ? <RefreshCw size={9} className="animate-spin" /> : <Clock3 size={9} />}
-      {loading ? 'UPDATING' : stale ? `STALE · ${label}` : `UPDATED ${label}`}
+      {loading ? 'UPDATING' : stale ? `REFRESH NEEDED · ${label}` : `UPDATED ${label}`}
     </span>
   )
 }

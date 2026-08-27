@@ -69,10 +69,15 @@ page.on('request', (request) => {
 })
 
 async function login(username, password, merchant = false) {
-  await page.goto(`${frontendUrl}/login${merchant ? '?role=merchant' : ''}`, { waitUntil: 'networkidle' })
-  await page.getByLabel('Username').fill(username)
-  await page.getByLabel('Password').fill(password)
-  await page.getByRole('button', { name: /Sign in securely/i }).click()
+  const session = await context.request.get(`${backendUrl}/api/auth/me/`)
+  if (!session.ok()) throw new Error(`Could not prepare sign in: ${session.status()}`)
+  const { csrf_token: csrfToken } = await session.json()
+  const response = await context.request.post(`${backendUrl}/api/auth/login/`, {
+    data: { username, password },
+    headers: { 'X-CSRFToken': csrfToken },
+  })
+  if (!response.ok()) throw new Error(`Sign in failed with status ${response.status()}`)
+  await page.goto(`${frontendUrl}${merchant ? '/merchant' : '/buyer'}`, { waitUntil: 'networkidle' })
 }
 
 try {
@@ -89,11 +94,10 @@ try {
   }
 
   await login(buyerUsername, buyerPassword)
-  await page.waitForURL('**/buyer')
   await page.getByRole('textbox', { name: 'Shopping intent' }).fill('Find the P0.4 Nomad Keyboard under ₹9000')
   await page.getByRole('button', { name: 'Send shopping intent' }).click()
   await page.getByRole('heading', { name: productTitle, exact: true }).waitFor({ timeout: 30000 })
-  await page.getByText('DETERMINISTIC RETRIEVAL').waitFor()
+  await page.getByText('DETAILS CHECKED').waitFor()
   await page.getByRole('button', { name: /Approve & Buy/i }).first().click()
 
   const dialog = page.getByRole('dialog', { name: 'Review your basket' })
@@ -110,12 +114,12 @@ try {
   // Rejecting is as easy as accepting and leaves the first offer out of the
   // cart, so its one-cart correlation cannot be reused accidentally.
   await page.getByRole('button', { name: 'No thanks' }).click()
-  await page.getByRole('button', { name: 'Generate exact quote' }).click()
-  await page.getByRole('heading', { name: 'Confirm the precise basket' }).waitFor()
-  await page.getByRole('button', { name: /Demo safe block: exceed quantity limit/i }).click()
-  await page.getByRole('heading', { name: 'Money action blocked safely' }).waitFor()
-  await page.getByText(/QUANTITY_LIMIT_EXCEEDED/).waitFor()
-  await page.getByText(/ZERO PROVIDER CALLS · ZERO INVENTORY MUTATIONS/i).waitFor()
+  await page.getByRole('button', { name: 'See final total' }).click()
+  await page.getByRole('heading', { name: 'Confirm your basket' }).waitFor()
+  await page.getByRole('button', { name: /See how Nexora safely stops an over-limit order/i }).click()
+  await page.getByRole('heading', { name: 'Checkout paused safely' }).waitFor()
+  await page.getByText(/You requested 6, but the maximum is 5 per item/i).waitFor()
+  await page.getByText(/NO PAYMENT STARTED · NO STOCK CHANGED/i).waitFor()
 
   await page.getByRole('button', { name: 'Return to basket and retry' }).click()
   await page.getByRole('button', { name: 'Close checkout' }).click()
@@ -126,8 +130,8 @@ try {
   await page.getByRole('button', { name: /Approve & Buy/i }).first().click()
   await page.getByText(addonTitle, { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Add to basket' }).click()
-  await page.getByRole('button', { name: 'Generate exact quote' }).click()
-  await page.getByRole('heading', { name: 'Confirm the precise basket' }).waitFor()
+  await page.getByRole('button', { name: 'See final total' }).click()
+  await page.getByRole('heading', { name: 'Confirm your basket' }).waitFor()
   const approval = page.getByRole('checkbox', { name: /I approve this exact quote/i })
   await approval.focus()
   await page.keyboard.press('Space')
@@ -163,13 +167,13 @@ try {
   await receipt.waitFor()
   await page.getByRole('button', { name: 'Resume Razorpay payment' }).click()
   await receipt.getByText('PAID', { exact: true }).waitFor({ timeout: 30000 })
-  await receipt.getByText(/Payment and inventory fulfillment were confirmed by the backend/i).waitFor()
+  await receipt.getByText(/Payment was confirmed and your order is complete/i).waitFor()
 
   await page.setViewportSize({ width: 390, height: 844 })
   const size = await receipt.evaluate((node) => ({ width: node.getBoundingClientRect().width, viewport: window.innerWidth }))
   if (size.width > size.viewport + 1) throw new Error('Order dialog overflows the mobile viewport')
   await page.goto(`${frontendUrl}/buyer`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('heading', { name: 'AI Buyer Agent' }).waitFor()
+  await page.getByRole('heading', { name: 'Nexora Buyer' }).waitFor()
   await page.getByRole('button', { name: 'Open navigation' }).click()
   await page.getByText('Recent intents', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Close navigation' }).first().click()
@@ -177,11 +181,10 @@ try {
   await page.setViewportSize({ width: 1440, height: 960 })
   await page.getByRole('button', { name: 'Sign out' }).click()
   await login(merchantUsername, merchantPassword, true)
-  await page.waitForURL('**/merchant')
   await page.goto(`${frontendUrl}/merchant/analytics`, { waitUntil: 'networkidle' })
-  await page.getByRole('heading', { name: 'Agent insights', exact: true }).waitFor()
+  await page.getByRole('heading', { name: 'Sales insights', exact: true }).waitFor()
   await page.getByText('₹999').first().waitFor({ timeout: 30000 })
-  await page.getByText(/1 paid \/ 2 impressions/i).waitFor()
+  await page.getByText(/1 purchased \/ 2 offered/i).waitFor()
 
   process.stdout.write(`${JSON.stringify({
     order_id: orderId,
