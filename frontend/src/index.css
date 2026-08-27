@@ -24,16 +24,16 @@
   .mono-label { @apply font-mono text-[10px] font-medium uppercase tracking-[0.16em]; }
 }
 
-/* Keep cursor behavior familiar: a slightly larger Windows-style arrow for the
-   default pointer, with native platform shapes for every interaction state. */
+/* Keep cursor behavior familiar: slightly larger Windows-style arrow and hand
+   shapes, while preserving native text, drag, resize, and disabled states. */
 @media (pointer: fine) {
   html,
   body {
     cursor: url('/cursors/nexora-arrow.svg') 4 2, default;
   }
 
-  :is(a[href], button:not(:disabled), select:not(:disabled), summary, label[for], [role="button"], [role="link"], [role="menuitem"], [role="option"], [role="tab"], input[type="button"]:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), input[type="range"]:not(:disabled), input[type="reset"]:not(:disabled), input[type="submit"]:not(:disabled)) {
-    cursor: pointer;
+  :is(a[href], button:not(:disabled), select:not(:disabled), summary, label[for], [role="button"], [role="link"], [role="menuitem"], [role="option"], [role="tab"], input[type="button"]:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), input[type="range"]:not(:disabled), input[type="reset"]:not(:disabled), input[type="submit"]:not(:disabled)):not([aria-disabled="true"]):not([data-cursor="resize-x"]) {
+    cursor: url('/cursors/nexora-pointer.svg') 15 2, pointer;
   }
 
   :is(input:not([type]), input[type="email"], input[type="number"], input[type="password"], input[type="search"], input[type="tel"], input[type="text"], input[type="url"], textarea, [contenteditable="true"]) {
@@ -41,6 +41,7 @@
   }
 
   :is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; }
+  [data-cursor="resize-x"] { cursor: ew-resize; }
   [draggable="true"] { cursor: grab; }
   [draggable="true"]:active { cursor: grabbing; }
 }

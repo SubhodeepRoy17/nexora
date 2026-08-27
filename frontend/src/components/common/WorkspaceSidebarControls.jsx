@@ -23,6 +23,7 @@ export function WorkspaceSidebarToggle({ open, onToggle, controls, label }) {
       title={accessibleLabel}
       aria-controls={controls}
       aria-expanded={open}
+      data-cursor="resize-x"
       onClick={onToggle}
       className="focus-ring grid size-10 shrink-0 cursor-ew-resize place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]"
     >
