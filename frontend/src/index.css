@@ -334,14 +334,14 @@
 }
 
 .product-bento-card:hover {
-  transform: translateY(-4px);
+  transform: none;
   border-color: rgba(23, 55, 47, .18);
   box-shadow: 0 28px 70px rgba(42, 81, 68, .13);
 }
 
-.product-bento-motion-left:hover { transform: translateY(-4px) rotateY(1.2deg); }
-.product-bento-motion-right:hover { transform: translateY(-4px) rotateY(-1.2deg); }
-.product-bento-motion-scale:hover { transform: translateY(-5px) scale(1.008); }
+.product-bento-motion-left:hover,
+.product-bento-motion-right:hover,
+.product-bento-motion-scale:hover { transform: none; }
 
 .product-bento-card svg {
   transition: transform .35s cubic-bezier(.2, .8, .2, 1);
@@ -372,7 +372,7 @@
 }
 
 .product-bento-card:hover .product-intent-demo {
-  transform: translateY(-5px) rotate(-.25deg);
+  transform: none;
   box-shadow: 0 28px 68px rgba(49, 89, 79, .18);
 }
 
