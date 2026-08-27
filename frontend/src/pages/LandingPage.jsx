@@ -15,6 +15,7 @@ import {
   Sparkles,
   Webhook,
 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
 import { SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
@@ -87,7 +88,7 @@ function JourneyStepCard({ step }) {
   )
 }
 
-function ProductFeatureCard({ children, className = '', tone = 'paper' }) {
+function ProductFeatureCard({ children, className = '', tone = 'paper', motion = 'rise', index = 0 }) {
   const tones = {
     paper: 'border-emerald-950/10 bg-white/80',
     sky: 'border-sky-900/10 bg-gradient-to-br from-[#ddf2f4] via-[#edf7e7] to-[#f7f3d9]',
@@ -95,10 +96,29 @@ function ProductFeatureCard({ children, className = '', tone = 'paper' }) {
     mint: 'border-emerald-900/10 bg-gradient-to-br from-[#e0f5ea] to-[#f3f8e8]',
     gold: 'border-amber-900/10 bg-gradient-to-br from-[#fbf4d8] to-[#eff6df]',
   }
-  return <article className={`product-bento-card relative isolate overflow-hidden rounded-[1.65rem] border p-6 shadow-[0_18px_50px_rgba(42,81,68,.07)] sm:p-7 ${tones[tone]} ${className}`}>{children}</article>
+  return <article className={`product-bento-card product-bento-motion-${motion} relative isolate overflow-hidden rounded-[1.65rem] border p-6 shadow-[0_18px_50px_rgba(42,81,68,.07)] sm:p-7 ${tones[tone]} ${className}`} style={{ '--product-delay': `${index * 90}ms` }}>{children}</article>
 }
 
 export default function LandingPage() {
+  const productSectionRef = useRef(null)
+  const [productVisible, setProductVisible] = useState(false)
+
+  useEffect(() => {
+    const section = productSectionRef.current
+    if (!section) return undefined
+    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setProductVisible(true)
+      return undefined
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setProductVisible(true)
+      observer.disconnect()
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <main className="overflow-hidden bg-[#f6f5f1] text-slate-950">
       <section className="storybook-hero relative isolate min-h-svh overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
@@ -143,11 +163,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="product" className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+      <section ref={productSectionRef} id="product" className={`product-section px-4 py-20 sm:px-6 sm:py-28 lg:px-8 ${productVisible ? 'product-section-visible' : ''}`}>
         <div className="mx-auto max-w-[1440px]">
-          <SectionHeading align="center" eyebrow="One system · two growth loops" title="Everything a better purchase needs." description="From an open-ended intent to webhook-confirmed revenue, every part of Nexora stays grounded, explainable, and under human control." />
+          <div className="product-bento-heading"><SectionHeading align="center" eyebrow="One system · two growth loops" title="Everything a better purchase needs." description="From an open-ended intent to webhook-confirmed revenue, every part of Nexora stays grounded, explainable, and under human control." /></div>
           <div className="product-bento-grid mt-12 grid gap-4 lg:grid-cols-12 lg:auto-rows-[240px]">
-            <ProductFeatureCard tone="sky" className="min-h-[470px] lg:col-span-7 lg:row-span-2">
+            <ProductFeatureCard tone="sky" motion="scale" index={0} className="min-h-[470px] lg:col-span-7 lg:row-span-2">
               <div className="product-bento-orb product-bento-orb-one" aria-hidden="true" />
               <div className="relative z-10 flex h-full flex-col">
                 <div className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/65 px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-[#31594f] backdrop-blur-md"><Bot size={13} /> Buyer agent</span><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-[#31594f]/55">Grounded discovery</span></div>
@@ -156,30 +176,30 @@ export default function LandingPage() {
                 <div className="mt-auto pt-8">
                   <div className="product-intent-demo rounded-2xl border border-white/85 bg-white/70 p-3 shadow-[0_22px_55px_rgba(49,89,79,.13)] backdrop-blur-md sm:p-4">
                     <div className="flex items-center gap-3 rounded-xl bg-white/85 px-4 py-3"><Search size={15} className="shrink-0 text-violet-600" /><p className="min-w-0 flex-1 truncate text-xs font-semibold text-[#17372f]">Quiet wireless keyboard for travel under ₹9,000</p><ArrowRight size={14} className="text-[#31594f]" /></div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3">{[['92%', 'Best fit'], ['₹7,499', 'Live price'], ['In stock', 'Verified']].map(([value, label]) => <div key={label} className="rounded-xl border border-emerald-950/10 bg-[#f6f8f2]/90 px-3 py-3"><p className="text-sm font-semibold text-[#17372f]">{value}</p><p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[#31594f]/65">{label}</p></div>)}</div>
+                    <div className="product-evidence-row mt-3 grid gap-2 sm:grid-cols-3">{[['92%', 'Best fit'], ['₹7,499', 'Live price'], ['In stock', 'Verified']].map(([value, label], itemIndex) => <div key={label} className="rounded-xl border border-emerald-950/10 bg-[#f6f8f2]/90 px-3 py-3" style={{ '--evidence-index': itemIndex }}><p className="text-sm font-semibold text-[#17372f]">{value}</p><p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[#31594f]/65">{label}</p></div>)}</div>
                   </div>
                 </div>
               </div>
             </ProductFeatureCard>
 
-            <ProductFeatureCard tone="paper" className="min-h-[220px] lg:col-span-5">
-              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-11 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Database size={18} /></span><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-emerald-700">Live evidence</span></div><div className="mt-auto pt-7"><div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Catalog-grounded</h3><p className="mt-2 max-w-sm text-xs leading-5 text-[#31594f]">Current price, stock, specifications, and merchant ownership.</p></div><span className="text-4xl font-semibold tracking-[-0.06em] text-emerald-700">LIVE</span></div><div className="mt-4 flex flex-wrap gap-2">{['PRICE', 'STOCK', 'SPECS'].map((item) => <span key={item} className="rounded-full border border-emerald-900/10 bg-emerald-50 px-2.5 py-1 font-mono text-[7px] text-emerald-800">{item}</span>)}</div></div></div>
+            <ProductFeatureCard tone="paper" motion="right" index={1} className="min-h-[220px] lg:col-span-5">
+              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-11 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Database size={18} /></span><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-emerald-700">Live evidence</span></div><div className="mt-auto pt-7"><div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Catalog-grounded</h3><p className="mt-2 max-w-sm text-xs leading-5 text-[#31594f]">Current price, stock, specifications, and merchant ownership.</p></div><span className="product-live-signal text-4xl font-semibold tracking-[-0.06em] text-emerald-700">LIVE</span></div><div className="mt-4 flex flex-wrap gap-2">{['PRICE', 'STOCK', 'SPECS'].map((item) => <span key={item} className="rounded-full border border-emerald-900/10 bg-emerald-50 px-2.5 py-1 font-mono text-[7px] text-emerald-800">{item}</span>)}</div></div></div>
             </ProductFeatureCard>
 
-            <ProductFeatureCard tone="violet" className="min-h-[220px] lg:col-span-5">
-              <div className="flex h-full items-end justify-between gap-6"><div className="max-w-sm"><span className="grid size-11 place-items-center rounded-full bg-white/80 text-violet-700"><Fingerprint size={18} /></span><h3 className="mt-6 text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Human approval</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The exact quote is visible and signed before checkout can open.</p></div><div className="shrink-0 text-right"><span className="block text-7xl font-semibold leading-none tracking-[-0.08em] text-violet-600">1</span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-violet-700">decision</span></div></div>
+            <ProductFeatureCard tone="violet" motion="right" index={2} className="min-h-[220px] lg:col-span-5">
+              <div className="flex h-full items-end justify-between gap-6"><div className="max-w-sm"><span className="grid size-11 place-items-center rounded-full bg-white/80 text-violet-700"><Fingerprint size={18} /></span><h3 className="mt-6 text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Human approval</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The exact quote is visible and signed before checkout can open.</p></div><div className="shrink-0 text-right"><span className="product-approval-number block text-7xl font-semibold leading-none tracking-[-0.08em] text-violet-600">1</span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-violet-700">decision</span></div></div>
             </ProductFeatureCard>
 
-            <ProductFeatureCard tone="mint" className="min-h-[220px] lg:col-span-4">
-              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-emerald-800"><Webhook size={17} /></span><StatusPill>Authority</StatusPill></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Webhook settles truth.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The browser never marks an order paid. Signed Razorpay events do.</p><div className="mt-4 flex items-center gap-2" aria-hidden="true"><span className="size-2 rounded-full bg-violet-500" /><span className="h-px flex-1 bg-emerald-950/15" /><span className="size-2 rounded-full bg-emerald-500" /><span className="h-px flex-1 bg-emerald-950/15" /><CheckCircle2 size={16} className="text-emerald-700" /></div></div></div>
+            <ProductFeatureCard tone="mint" motion="left" index={3} className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-emerald-800"><Webhook size={17} /></span><StatusPill>Authority</StatusPill></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Webhook settles truth.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The browser never marks an order paid. Signed Razorpay events do.</p><div className="product-webhook-flow mt-4 flex items-center gap-2" aria-hidden="true"><span className="product-flow-packet size-2 rounded-full bg-violet-500" /><span className="h-px flex-1 bg-emerald-950/15" /><span className="size-2 rounded-full bg-emerald-500" /><span className="h-px flex-1 bg-emerald-950/15" /><CheckCircle2 size={16} className="text-emerald-700" /></div></div></div>
             </ProductFeatureCard>
 
-            <ProductFeatureCard tone="paper" className="min-h-[220px] lg:col-span-4">
-              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-full bg-violet-100 text-violet-700"><Globe2 size={17} /></span><Code2 size={17} className="text-[#31594f]/45" /></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Readable by AI buyers.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Versioned capabilities, cursor catalogs, JSON Schema, OpenAPI, and idempotent quotes.</p><div className="mt-4 truncate rounded-lg bg-[#17372f] px-3 py-2 font-mono text-[7px] text-emerald-100">/.well-known/nexora-commerce.json</div></div></div>
+            <ProductFeatureCard tone="paper" motion="rise" index={4} className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-full bg-violet-100 text-violet-700"><Globe2 size={17} /></span><Code2 size={17} className="text-[#31594f]/45" /></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Readable by AI buyers.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Versioned capabilities, cursor catalogs, JSON Schema, OpenAPI, and idempotent quotes.</p><div className="product-api-line mt-4 truncate rounded-lg bg-[#17372f] px-3 py-2 font-mono text-[7px] text-emerald-100">/.well-known/nexora-commerce.json</div></div></div>
             </ProductFeatureCard>
 
-            <ProductFeatureCard tone="gold" className="min-h-[220px] lg:col-span-4">
-              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-amber-800"><LineChart size={17} /></span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-amber-800">Merchant growth</span></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Revenue signals, honestly scoped.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Webhook-confirmed conversions, offer outcomes, and catalog gaps—with denominators intact.</p><div className="mt-4 flex h-9 items-end gap-1" aria-label="Illustrative merchant signal chart">{[38, 54, 46, 68, 61, 82, 74, 96].map((height, index) => <span key={index} className={`flex-1 rounded-t-sm ${index === 7 ? 'bg-emerald-500' : 'bg-violet-400/75'}`} style={{ height: `${height}%` }} />)}</div></div></div>
+            <ProductFeatureCard tone="gold" motion="right" index={5} className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-amber-800"><LineChart size={17} /></span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-amber-800">Merchant growth</span></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Revenue signals, honestly scoped.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Webhook-confirmed conversions, offer outcomes, and catalog gaps—with denominators intact.</p><div className="mt-4 flex h-9 items-end gap-1" aria-label="Illustrative merchant signal chart">{[38, 54, 46, 68, 61, 82, 74, 96].map((height, index) => <span key={index} className={`product-growth-bar flex-1 origin-bottom rounded-t-sm ${index === 7 ? 'bg-emerald-500' : 'bg-violet-400/75'}`} style={{ height: `${height}%`, '--bar-index': index }} />)}</div></div></div>
             </ProductFeatureCard>
           </div>
         </div>

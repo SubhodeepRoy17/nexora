@@ -98,6 +98,49 @@
   perspective: 1200px;
 }
 
+.product-bento-heading,
+.product-bento-card {
+  will-change: transform, opacity;
+}
+
+.product-section:not(.product-section-visible) .product-bento-heading,
+.product-section:not(.product-section-visible) .product-bento-card {
+  opacity: 0;
+}
+
+.product-section:not(.product-section-visible) .product-bento-heading,
+.product-section:not(.product-section-visible) .product-bento-motion-rise {
+  transform: translateY(34px);
+}
+
+.product-section:not(.product-section-visible) .product-bento-motion-left {
+  transform: translateX(-38px) rotateY(-2deg);
+}
+
+.product-section:not(.product-section-visible) .product-bento-motion-right {
+  transform: translateX(38px) rotateY(2deg);
+}
+
+.product-section:not(.product-section-visible) .product-bento-motion-scale {
+  transform: translateY(26px) scale(.965);
+}
+
+.product-section-visible .product-bento-heading {
+  animation: product-heading-enter .72s cubic-bezier(.2, .8, .2, 1) backwards;
+}
+
+.product-section-visible .product-bento-card {
+  animation-delay: var(--product-delay);
+  animation-duration: .78s;
+  animation-fill-mode: backwards;
+  animation-timing-function: cubic-bezier(.2, .8, .2, 1);
+}
+
+.product-section-visible .product-bento-motion-rise { animation-name: product-card-rise; }
+.product-section-visible .product-bento-motion-left { animation-name: product-card-left; }
+.product-section-visible .product-bento-motion-right { animation-name: product-card-right; }
+.product-section-visible .product-bento-motion-scale { animation-name: product-card-scale; }
+
 .product-bento-card {
   transition: transform .38s cubic-bezier(.2, .8, .2, 1), border-color .3s ease, box-shadow .38s ease;
 }
@@ -115,6 +158,18 @@
   transform: translateY(-4px);
   border-color: rgba(23, 55, 47, .18);
   box-shadow: 0 28px 70px rgba(42, 81, 68, .13);
+}
+
+.product-bento-motion-left:hover { transform: translateY(-4px) rotateY(1.2deg); }
+.product-bento-motion-right:hover { transform: translateY(-4px) rotateY(-1.2deg); }
+.product-bento-motion-scale:hover { transform: translateY(-5px) scale(1.008); }
+
+.product-bento-card svg {
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1);
+}
+
+.product-bento-card:hover svg {
+  transform: scale(1.08) rotate(-5deg);
 }
 
 .product-bento-orb {
@@ -140,6 +195,126 @@
 .product-bento-card:hover .product-intent-demo {
   transform: translateY(-5px) rotate(-.25deg);
   box-shadow: 0 28px 68px rgba(49, 89, 79, .18);
+}
+
+.product-section-visible .product-evidence-row > div {
+  animation: product-evidence-enter .55s cubic-bezier(.2, .8, .2, 1) backwards;
+  animation-delay: calc(620ms + (var(--evidence-index) * 100ms));
+}
+
+.product-section-visible .product-live-signal {
+  animation: product-live-pulse 2.4s ease-in-out 1s infinite;
+}
+
+.product-section-visible .product-approval-number {
+  animation: product-approval-breathe 3s ease-in-out 1.15s infinite;
+  transform-origin: bottom center;
+}
+
+.product-webhook-flow {
+  position: relative;
+}
+
+.product-webhook-flow::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: .42rem;
+  height: .42rem;
+  border-radius: 999px;
+  background: #8b5cf6;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, .12);
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.product-section-visible .product-webhook-flow::after {
+  animation: product-packet-flow 2.2s ease-in-out 1.2s infinite;
+}
+
+.product-flow-packet {
+  opacity: 0;
+}
+
+.product-api-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.product-api-line::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(167, 243, 208, .22), transparent);
+  transform: skewX(-18deg);
+}
+
+.product-section-visible .product-api-line::after {
+  animation: product-api-scan 3s ease-in-out 1.35s infinite;
+}
+
+.product-section-visible .product-growth-bar {
+  animation: product-bar-grow .65s cubic-bezier(.2, .8, .2, 1) backwards;
+  animation-delay: calc(780ms + (var(--bar-index) * 70ms));
+}
+
+@keyframes product-heading-enter {
+  from { opacity: 0; transform: translateY(28px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes product-card-rise {
+  from { opacity: 0; transform: translateY(38px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes product-card-left {
+  from { opacity: 0; transform: translateX(-42px) rotateY(-2deg); }
+  to { opacity: 1; transform: translateX(0) rotateY(0); }
+}
+
+@keyframes product-card-right {
+  from { opacity: 0; transform: translateX(42px) rotateY(2deg); }
+  to { opacity: 1; transform: translateX(0) rotateY(0); }
+}
+
+@keyframes product-card-scale {
+  from { opacity: 0; transform: translateY(26px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes product-evidence-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes product-live-pulse {
+  0%, 100% { opacity: .78; transform: scale(.98); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes product-approval-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.045); }
+}
+
+@keyframes product-packet-flow {
+  0% { left: 0; opacity: 0; }
+  18%, 76% { opacity: 1; }
+  100% { left: calc(100% - .5rem); opacity: 0; }
+}
+
+@keyframes product-api-scan {
+  0%, 18% { left: -40%; opacity: 0; }
+  35%, 72% { opacity: 1; }
+  86%, 100% { left: 112%; opacity: 0; }
+}
+
+@keyframes product-bar-grow {
+  from { opacity: .2; transform: scaleY(.08); }
+  to { opacity: 1; transform: scaleY(1); }
 }
 
 @keyframes product-orb-drift {
@@ -357,9 +532,25 @@
   .storybook-cloud,
   .storybook-scroll-cue { animation: none; }
 
+  .product-section:not(.product-section-visible) .product-bento-heading,
+  .product-section:not(.product-section-visible) .product-bento-card {
+    opacity: 1;
+    transform: none;
+  }
+  .product-bento-heading,
   .product-bento-card,
+  .product-intent-demo,
+  .product-evidence-row > div,
+  .product-live-signal,
+  .product-approval-number,
+  .product-webhook-flow::after,
+  .product-api-line::after,
+  .product-growth-bar { animation: none !important; }
+  .product-bento-card,
+  .product-bento-card svg,
   .product-intent-demo { transition: none; }
   .product-bento-card:hover,
+  .product-bento-card:hover svg,
   .product-bento-card:hover .product-intent-demo { transform: none; }
   .product-bento-orb { animation: none; }
 
