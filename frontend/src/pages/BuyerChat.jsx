@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Clock3, Menu, Plus, Trash2 } from 'lucide-react'
+import { Clock3, PanelLeftClose, PanelLeftOpen, SquarePen, Trash2 } from 'lucide-react'
 import LogoMark from '../components/LogoMark'
 import AgentThinkingStep from '../components/chat/AgentThinkingStep'
 import ChatInput from '../components/chat/ChatInput'
@@ -31,6 +31,28 @@ const welcomePrompts = [
   'What is your budget?',
   'Which details matter most?',
 ]
+
+const SIDEBAR_PREFERENCE_KEY = 'nexora:buyer-sidebar'
+
+function initialSidebarOpen() {
+  if (typeof window === 'undefined' || !window.matchMedia?.('(min-width: 1024px)').matches) return false
+  try {
+    return window.localStorage.getItem(SIDEBAR_PREFERENCE_KEY) !== 'closed'
+  } catch {
+    return true
+  }
+}
+
+function accountIdentity(user) {
+  if (!user) return { name: 'Guest mode', initials: 'G', detail: 'History is not saved' }
+  const name = (user.display_name || user.username || user.email || 'Nexora user').trim()
+  const initialSource = name.includes('@') ? name.split('@')[0] : name
+  const parts = initialSource.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  const initials = parts.length > 1
+    ? `${parts[0][0]}${parts.at(-1)[0]}`
+    : parts[0]?.slice(0, 2) || 'N'
+  return { name, initials: initials.toUpperCase(), detail: 'Signed in' }
+}
 
 function AgentMark({ active = false }) {
   return (
@@ -68,7 +90,7 @@ export default function BuyerChat() {
   const [input, setInput] = useState('')
   const [activeRun, setActiveRun] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen)
   const [conversationId, setConversationId] = useState(null)
   const [conversationToken, setConversationToken] = useState(null)
   const [chatSessions, setChatSessions] = useState([])
@@ -79,6 +101,11 @@ export default function BuyerChat() {
   const logRef = useRef(null)
   const runTimers = useRef([])
   const requestRef = useRef(null)
+  const identity = accountIdentity(user)
+
+  const closeSidebarOnMobile = () => {
+    if (!window.matchMedia?.('(min-width: 1024px)').matches) setSidebarOpen(false)
+  }
 
   const clearRunTimers = () => {
     runTimers.current.forEach(window.clearTimeout)
@@ -92,6 +119,25 @@ export default function BuyerChat() {
     },
     [],
   )
+
+  useEffect(() => {
+    const desktop = window.matchMedia?.('(min-width: 1024px)')
+    if (!desktop?.matches) return
+    try {
+      window.localStorage.setItem(SIDEBAR_PREFERENCE_KEY, sidebarOpen ? 'open' : 'closed')
+    } catch {
+      // The sidebar remains usable when storage is unavailable.
+    }
+  }, [sidebarOpen])
+
+  useEffect(() => {
+    if (!sidebarOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setSidebarOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [sidebarOpen])
 
   useEffect(() => {
     if (authLoading) return undefined
@@ -141,7 +187,7 @@ export default function BuyerChat() {
     setConversationToken(null)
     setMessages(onboardingMessages)
     setInput('')
-    setSidebarOpen(false)
+    closeSidebarOnMobile()
   }
 
   const refreshSessions = async () => {
@@ -164,7 +210,7 @@ export default function BuyerChat() {
       setMessages(restored.length ? restored : onboardingMessages)
       setConversationId(data.conversation_id)
       setConversationToken(null)
-      setSidebarOpen(false)
+      closeSidebarOnMobile()
     } catch (error) {
       setHistoryError(getApiError(error, 'Could not open this chat.'))
     } finally {
@@ -286,48 +332,75 @@ export default function BuyerChat() {
     <div className="buyer-shell flex h-[calc(100dvh-4rem)] min-h-[576px] overflow-hidden text-slate-950">
       {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-16 z-30 bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`buyer-sidebar fixed bottom-0 left-0 top-16 z-40 flex w-[288px] flex-col border-r border-emerald-950/10 p-3 transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex justify-end lg:hidden">
-          <button type="button" aria-label="Close navigation" className="grid size-8 place-items-center rounded-full text-[#31594f] hover:bg-white/70 lg:hidden" onClick={() => setSidebarOpen(false)}>
-            ×
+      <aside
+        id="buyer-history-sidebar"
+        aria-label="Buyer conversations"
+        aria-hidden={!sidebarOpen}
+        {...(!sidebarOpen ? { inert: '' } : {})}
+        className={`buyer-sidebar fixed bottom-0 left-0 top-16 z-40 flex w-[288px] shrink-0 flex-col overflow-hidden border-r border-emerald-950/10 transition-[transform,width,padding,border-color] duration-300 ease-out lg:static lg:inset-auto lg:z-auto ${sidebarOpen ? 'translate-x-0 p-3' : '-translate-x-full p-3 lg:w-0 lg:border-transparent lg:p-0'}`}
+      >
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <LogoMark className="size-7 shrink-0" alt="" />
+            <span className="truncate text-sm font-semibold tracking-[-.02em] text-[#17372f]">Nexora</span>
+          </div>
+          <button type="button" aria-label="Close sidebar" title="Close sidebar" aria-controls="buyer-history-sidebar" aria-expanded="true" className="focus-ring grid size-9 shrink-0 place-items-center rounded-lg text-[#31594f] transition hover:bg-white/70 hover:text-[#17372f]" onClick={() => setSidebarOpen(false)}>
+            <PanelLeftClose size={19} strokeWidth={1.8} />
           </button>
         </div>
-        <button type="button" aria-label="New intent" onClick={startNewIntent} className="focus-ring mt-2 flex w-full items-center gap-3 rounded-xl border border-emerald-950/10 bg-white/72 px-4 py-3 text-sm font-semibold text-[#17372f] shadow-[0_8px_24px_rgba(49,89,79,.07)] transition hover:-translate-y-0.5 hover:bg-white lg:mt-0">
-          <span className="grid size-7 place-items-center rounded-lg bg-[#17372f] text-white">
-            <Plus size={14} />
-          </span>{' '}
+
+        <button type="button" aria-label="New intent" onClick={startNewIntent} className="focus-ring mt-3 flex w-full items-center gap-3 rounded-xl border border-emerald-950/10 bg-white/72 px-3 py-2.5 text-sm font-semibold text-[#17372f] shadow-[0_8px_24px_rgba(49,89,79,.07)] transition hover:bg-white">
+          <span className="grid size-8 place-items-center rounded-lg bg-[#17372f] text-white">
+            <SquarePen size={15} />
+          </span>
           New search
         </button>
 
-        <div className="mt-6">
-          <p className="px-2 text-sm font-semibold text-[#17372f]">Recent searches</p>
-          <div className="mt-2 space-y-1">
-            {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-xs leading-5 text-[#31594f]/70">Sign in to save your searches.</div>}
-            {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
-            {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">No saved searches yet.</p>}
-            {user &&
-              chatSessions.map((session) => (
-                <div key={session.conversation_id} className="group relative">
-                  <button type="button" disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-11 text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
-                    <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} />
-                    <span className="truncate">{session.title}</span>
-                  </button>
-                  <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => removeChatSession(session.conversation_id)} aria-label={`Delete ${session.title} chat history`} title="Delete chat history" className="focus-ring absolute right-2 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-rose-600 opacity-100 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
-            {historyError && <p className="px-3 py-2 text-xs leading-5 text-rose-600">{historyError}</p>}
+        <div className="modal-scroll mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="mt-3">
+            <p className="px-2 text-xs font-semibold text-[#17372f]/75">Recent searches</p>
+            <div className="mt-2 space-y-1">
+              {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-xs leading-5 text-[#31594f]/70">Sign in to save your searches.</div>}
+              {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
+              {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">No saved searches yet.</p>}
+              {user &&
+                chatSessions.map((session) => (
+                  <div key={session.conversation_id} className="group relative">
+                    <button type="button" disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-11 text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
+                      <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} />
+                      <span className="truncate">{session.title}</span>
+                    </button>
+                    <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => removeChatSession(session.conversation_id)} aria-label={`Delete ${session.title} chat history`} title="Delete chat history" className="focus-ring absolute right-2 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-rose-600 opacity-100 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              {historyError && <p className="px-3 py-2 text-xs leading-5 text-rose-600">{historyError}</p>}
+            </div>
           </div>
+
+          <BuyerOrders user={user} refreshNonce={orderRefreshNonce} onRetry={retryOrderSearch} />
         </div>
 
-        <BuyerOrders user={user} refreshNonce={orderRefreshNonce} onRetry={retryOrderSearch} />
+        <div className="mt-3 border-t border-emerald-950/10 pt-3">
+          <div className="flex items-center gap-3 rounded-xl px-2 py-2" aria-label={user ? `Signed in as ${identity.name}` : 'Browsing as guest'}>
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-slate-300 text-xs font-semibold tracking-wide text-slate-700 ring-1 ring-slate-400/35">
+              {identity.initials}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-slate-800">{identity.name}</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">{identity.detail}</span>
+            </span>
+          </div>
+        </div>
       </aside>
 
       <main className="buyer-main relative flex min-w-0 flex-1 flex-col">
-        <button type="button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)} className="focus-ring absolute left-4 top-4 z-20 grid size-10 place-items-center rounded-full border border-emerald-950/10 bg-white/80 text-[#31594f] shadow-sm backdrop-blur hover:bg-white lg:hidden">
-          <Menu size={19} />
-        </button>
+        {!sidebarOpen && (
+          <button type="button" aria-label="Open sidebar" title="Open sidebar" aria-controls="buyer-history-sidebar" aria-expanded="false" onClick={() => setSidebarOpen(true)} className="focus-ring absolute left-3 top-3 z-20 grid size-10 place-items-center rounded-xl border border-emerald-950/10 bg-white/85 text-[#31594f] shadow-sm backdrop-blur transition hover:bg-white hover:text-[#17372f]">
+            <PanelLeftOpen size={20} strokeWidth={1.8} />
+          </button>
+        )}
 
         <div ref={logRef} className="buyer-log flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8 md:py-12">

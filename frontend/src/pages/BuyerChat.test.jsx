@@ -76,9 +76,25 @@ describe('live buyer search', () => {
     const user = userEvent.setup()
     renderBuyer()
 
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     const remove = await screen.findByRole('button', { name: 'Delete Quiet keyboard search chat history' })
     await user.click(remove)
     await waitFor(() => expect(apiMocks.deleteChatSession).toHaveBeenCalledWith(conversation.conversation_id))
     expect(screen.queryByText('Quiet keyboard search')).not.toBeInTheDocument()
+  })
+
+  it('toggles the conversation sidebar and identifies the signed-in buyer', async () => {
+    authState.user = { id: 8, display_name: 'Soumyadip Roy', email: 'soumya@example.test' }
+    apiMocks.getChatSessions.mockResolvedValue({ data: { results: [] } })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await screen.findByText('No saved searches yet.')
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(screen.getByLabelText('Signed in as Soumyadip Roy')).toHaveTextContent('SR')
+    await user.click(screen.getByRole('button', { name: 'Close sidebar' }))
+    expect(screen.getByRole('button', { name: 'Open sidebar' })).toHaveAttribute('aria-expanded', 'false')
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(screen.getByRole('button', { name: 'Close sidebar' })).toBeInTheDocument()
   })
 })
