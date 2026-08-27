@@ -12,13 +12,12 @@ import {
   Globe2,
   LineChart,
   Search,
-  ShieldCheck,
   Sparkles,
   Webhook,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
-import { GridCard, SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
+import { SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
 
 const trustPoints = [
   { icon: Database, label: 'Catalog-grounded', detail: 'Live price, stock, specs' },
@@ -88,27 +87,15 @@ function JourneyStepCard({ step }) {
   )
 }
 
-function MerchantPreview() {
-  const bars = [42, 58, 51, 68, 64, 78, 72, 91, 84, 96, 88, 100]
-  return (
-    <div className="border border-slate-300 bg-white p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[8px] uppercase tracking-[0.16em] text-violet-700">Deterministic UI example</p><p className="mt-2 text-lg font-semibold text-slate-950">Merchant intelligence</p></div><StatusPill>Not live data</StatusPill></div>
-      <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          ['Agent impressions', '1,284'],
-          ['Paid conversions', '86'],
-          ['Attributed revenue', '₹3.4L'],
-          ['Add-on revenue', '₹28K'],
-        ].map(([label, value], index) => <div key={label} className={`border p-3 ${index === 3 ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}><p className="font-mono text-[7px] uppercase text-slate-500">{label}</p><p className={`mt-2 text-lg font-semibold ${index === 3 ? 'text-emerald-700' : 'text-slate-950'}`}>{value}</p></div>)}
-      </div>
-      <div className="mt-3 border border-slate-200 bg-slate-50 p-4">
-        <div className="flex items-end justify-between"><div><p className="text-xs font-semibold text-slate-950">Webhook-confirmed revenue</p><p className="mt-1 text-[9px] text-slate-500">Illustrative product preview · real UI uses backend data</p></div><LineChart size={16} className="text-violet-700" /></div>
-        <div className="mt-7 flex h-28 items-end gap-1.5" aria-label="Illustrative revenue chart">
-          {bars.map((height, index) => <span key={index} className={`flex-1 transition hover:bg-violet-300 ${index === bars.length - 1 ? 'bg-emerald-400' : 'bg-violet-500/70'}`} style={{ height: `${height}%` }} />)}
-        </div>
-      </div>
-    </div>
-  )
+function ProductFeatureCard({ children, className = '', tone = 'paper' }) {
+  const tones = {
+    paper: 'border-emerald-950/10 bg-white/80',
+    sky: 'border-sky-900/10 bg-gradient-to-br from-[#ddf2f4] via-[#edf7e7] to-[#f7f3d9]',
+    violet: 'border-violet-900/10 bg-gradient-to-br from-[#eee9ff] to-[#f8f5ff]',
+    mint: 'border-emerald-900/10 bg-gradient-to-br from-[#e0f5ea] to-[#f3f8e8]',
+    gold: 'border-amber-900/10 bg-gradient-to-br from-[#fbf4d8] to-[#eff6df]',
+  }
+  return <article className={`product-bento-card relative isolate overflow-hidden rounded-[1.65rem] border p-6 shadow-[0_18px_50px_rgba(42,81,68,.07)] sm:p-7 ${tones[tone]} ${className}`}>{children}</article>
 }
 
 export default function LandingPage() {
@@ -158,17 +145,42 @@ export default function LandingPage() {
 
       <section id="product" className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="mx-auto max-w-[1440px]">
-          <SectionHeading eyebrow="One system · two growth loops" title="Better buying for people. Better signals for merchants." description="Nexora connects grounded discovery, explicit human choice, safe payment execution, and webhook-confirmed merchant analytics in one traceable loop." />
-          <div className="mt-12 grid auto-rows-[minmax(240px,auto)] gap-3 lg:grid-cols-12">
-            <GridCard className="lg:col-span-7 lg:row-span-2">
-              <div className="flex h-full flex-col"><div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center bg-violet-600 text-white"><Bot size={20} /></span><span className="font-mono text-[9px] text-slate-400">01 / BUYER</span></div><h3 className="mt-8 max-w-lg text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">A shopping agent that shows its work.</h3><p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">Every recommendation is grounded in current catalog facts. You see why it fits, what it compromises, what an add-on costs, and which policy limits apply.</p><div className="mt-8 grid gap-2 sm:grid-cols-3">{['Live catalog evidence', 'Concise trade-offs', 'No silent add-ons'].map((item) => <div key={item} className="border border-slate-200 bg-[#f6f5f1] p-3 font-mono text-[8px] font-semibold uppercase tracking-wider text-slate-600"><CheckCircle2 size={13} className="mb-3 text-emerald-600" />{item}</div>)}</div><SignalButton to="/buyer" variant="ghost" className="mt-auto w-fit px-0 pt-8">Try the buyer agent</SignalButton></div>
-            </GridCard>
+          <SectionHeading align="center" eyebrow="One system · two growth loops" title="Everything a better purchase needs." description="From an open-ended intent to webhook-confirmed revenue, every part of Nexora stays grounded, explainable, and under human control." />
+          <div className="product-bento-grid mt-12 grid gap-4 lg:grid-cols-12 lg:auto-rows-[240px]">
+            <ProductFeatureCard tone="sky" className="min-h-[470px] lg:col-span-7 lg:row-span-2">
+              <div className="product-bento-orb product-bento-orb-one" aria-hidden="true" />
+              <div className="relative z-10 flex h-full flex-col">
+                <div className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/65 px-3 py-2 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-[#31594f] backdrop-blur-md"><Bot size={13} /> Buyer agent</span><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-[#31594f]/55">Grounded discovery</span></div>
+                <h3 className="mt-7 max-w-xl text-3xl font-semibold leading-[1.02] tracking-[-0.04em] text-[#17372f] sm:text-4xl">One conversation.<br />A shortlist that shows its work.</h3>
+                <p className="mt-4 max-w-xl text-sm leading-6 text-[#31594f]">Describe the outcome, constraints, and trade-offs. Nexora searches live merchant evidence and explains every match without inventing catalog facts.</p>
+                <div className="mt-auto pt-8">
+                  <div className="product-intent-demo rounded-2xl border border-white/85 bg-white/70 p-3 shadow-[0_22px_55px_rgba(49,89,79,.13)] backdrop-blur-md sm:p-4">
+                    <div className="flex items-center gap-3 rounded-xl bg-white/85 px-4 py-3"><Search size={15} className="shrink-0 text-violet-600" /><p className="min-w-0 flex-1 truncate text-xs font-semibold text-[#17372f]">Quiet wireless keyboard for travel under ₹9,000</p><ArrowRight size={14} className="text-[#31594f]" /></div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">{[['92%', 'Best fit'], ['₹7,499', 'Live price'], ['In stock', 'Verified']].map(([value, label]) => <div key={label} className="rounded-xl border border-emerald-950/10 bg-[#f6f8f2]/90 px-3 py-3"><p className="text-sm font-semibold text-[#17372f]">{value}</p><p className="mt-1 font-mono text-[7px] uppercase tracking-[0.12em] text-[#31594f]/65">{label}</p></div>)}</div>
+                  </div>
+                </div>
+              </div>
+            </ProductFeatureCard>
 
-            <GridCard dark className="lg:col-span-5"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center bg-violet-50 text-violet-700"><ShieldCheck size={18} /></span><span className="font-mono text-[9px] text-slate-600">02 / CONTROL</span></div><h3 className="mt-7 text-2xl font-semibold tracking-[-0.035em]">Money actions have boundaries.</h3><p className="mt-3 text-sm leading-6 text-slate-600">Quantity, order value, currency, stock, price, expiry, ownership, and test mode are checked deterministically—not left to an LLM.</p><div className="mt-6 flex flex-wrap gap-2">{['EXACT QUOTE', 'SIGNED GRANT', 'SINGLE USE', 'SAFE FAILURE'].map((item) => <span key={item} className="border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-[7px] text-slate-700">{item}</span>)}</div></GridCard>
+            <ProductFeatureCard tone="paper" className="min-h-[220px] lg:col-span-5">
+              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-11 place-items-center rounded-full bg-emerald-100 text-emerald-800"><Database size={18} /></span><span className="font-mono text-[8px] uppercase tracking-[0.14em] text-emerald-700">Live evidence</span></div><div className="mt-auto pt-7"><div className="flex items-end justify-between gap-4"><div><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Catalog-grounded</h3><p className="mt-2 max-w-sm text-xs leading-5 text-[#31594f]">Current price, stock, specifications, and merchant ownership.</p></div><span className="text-4xl font-semibold tracking-[-0.06em] text-emerald-700">LIVE</span></div><div className="mt-4 flex flex-wrap gap-2">{['PRICE', 'STOCK', 'SPECS'].map((item) => <span key={item} className="rounded-full border border-emerald-900/10 bg-emerald-50 px-2.5 py-1 font-mono text-[7px] text-emerald-800">{item}</span>)}</div></div></div>
+            </ProductFeatureCard>
 
-            <GridCard violet className="lg:col-span-5"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center bg-white text-violet-700"><Globe2 size={18} /></span><span className="font-mono text-[9px] text-violet-700">03 / OPEN</span></div><h3 className="mt-7 text-2xl font-semibold tracking-[-0.035em]">Readable by external AI buyers.</h3><p className="mt-3 text-sm leading-6 text-violet-900">A versioned capability document, cursor catalog, JSON Schema, OpenAPI, idempotent quotes, and a reference HTTP-only buyer.</p><div className="mt-6 flex items-center gap-2 font-mono text-[8px] text-violet-950"><Code2 size={14} /> /.well-known/nexora-commerce.json</div></GridCard>
+            <ProductFeatureCard tone="violet" className="min-h-[220px] lg:col-span-5">
+              <div className="flex h-full items-end justify-between gap-6"><div className="max-w-sm"><span className="grid size-11 place-items-center rounded-full bg-white/80 text-violet-700"><Fingerprint size={18} /></span><h3 className="mt-6 text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Human approval</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The exact quote is visible and signed before checkout can open.</p></div><div className="shrink-0 text-right"><span className="block text-7xl font-semibold leading-none tracking-[-0.08em] text-violet-600">1</span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-violet-700">decision</span></div></div>
+            </ProductFeatureCard>
 
-            <GridCard dark className="lg:col-span-12"><div className="grid items-center gap-8 lg:grid-cols-[.62fr_1.38fr]"><div><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-emerald-300">04 / MERCHANT GROWTH</span><h3 className="mt-5 text-3xl font-semibold tracking-[-0.04em]">Revenue insights with honest denominators.</h3><p className="mt-4 text-sm leading-7 text-slate-400">See real impressions, paid conversions, accepted and rejected offers, compatibility gaps, and incremental paid add-on revenue—without pretending recorded attribution proves causality.</p><SignalButton to="/merchant" variant="dark" className="mt-7">Explore merchant analytics</SignalButton></div><MerchantPreview /></div></GridCard>
+            <ProductFeatureCard tone="mint" className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-emerald-800"><Webhook size={17} /></span><StatusPill>Authority</StatusPill></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Webhook settles truth.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">The browser never marks an order paid. Signed Razorpay events do.</p><div className="mt-4 flex items-center gap-2" aria-hidden="true"><span className="size-2 rounded-full bg-violet-500" /><span className="h-px flex-1 bg-emerald-950/15" /><span className="size-2 rounded-full bg-emerald-500" /><span className="h-px flex-1 bg-emerald-950/15" /><CheckCircle2 size={16} className="text-emerald-700" /></div></div></div>
+            </ProductFeatureCard>
+
+            <ProductFeatureCard tone="paper" className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-start justify-between"><span className="grid size-10 place-items-center rounded-full bg-violet-100 text-violet-700"><Globe2 size={17} /></span><Code2 size={17} className="text-[#31594f]/45" /></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Readable by AI buyers.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Versioned capabilities, cursor catalogs, JSON Schema, OpenAPI, and idempotent quotes.</p><div className="mt-4 truncate rounded-lg bg-[#17372f] px-3 py-2 font-mono text-[7px] text-emerald-100">/.well-known/nexora-commerce.json</div></div></div>
+            </ProductFeatureCard>
+
+            <ProductFeatureCard tone="gold" className="min-h-[220px] lg:col-span-4">
+              <div className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="grid size-10 place-items-center rounded-full bg-white/75 text-amber-800"><LineChart size={17} /></span><span className="font-mono text-[7px] uppercase tracking-[0.12em] text-amber-800">Merchant growth</span></div><div className="mt-auto pt-6"><h3 className="text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Revenue signals, honestly scoped.</h3><p className="mt-2 text-xs leading-5 text-[#31594f]">Webhook-confirmed conversions, offer outcomes, and catalog gaps—with denominators intact.</p><div className="mt-4 flex h-9 items-end gap-1" aria-label="Illustrative merchant signal chart">{[38, 54, 46, 68, 61, 82, 74, 96].map((height, index) => <span key={index} className={`flex-1 rounded-t-sm ${index === 7 ? 'bg-emerald-500' : 'bg-violet-400/75'}`} style={{ height: `${height}%` }} />)}</div></div></div>
+            </ProductFeatureCard>
           </div>
         </div>
       </section>
@@ -202,7 +214,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="bg-[#f6f5f1] px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1440px]"><div className="flex flex-col justify-between gap-8 border-b border-slate-300 pb-9 sm:flex-row sm:items-center"><Brand inverse /><nav className="flex flex-wrap gap-5 text-[11px] font-semibold text-slate-600" aria-label="Footer"><a href="#product" className="hover:text-violet-600">Product</a><a href="#how-it-works" className="hover:text-violet-600">How it works</a><a href="#safety" className="hover:text-violet-600">Safety</a><a href="/api/commerce/v1/openapi.json" className="hover:text-violet-600">Agent API</a></nav></div><div className="flex flex-col justify-between gap-3 pt-6 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500 sm:flex-row"><p>Grounded commerce intelligence.</p><p>Human approval · Razorpay test mode · Webhook authority</p></div></div>
+        <div className="mx-auto max-w-[1440px]"><div className="flex flex-col justify-between gap-8 border-b border-slate-300 pb-9 sm:flex-row sm:items-center"><Brand /><nav className="flex flex-wrap gap-5 text-[11px] font-semibold text-slate-600" aria-label="Footer"><a href="#product" className="hover:text-violet-600">Product</a><a href="#how-it-works" className="hover:text-violet-600">How it works</a><a href="#safety" className="hover:text-violet-600">Safety</a><a href="/api/commerce/v1/openapi.json" className="hover:text-violet-600">Agent API</a></nav></div><div className="flex flex-col justify-between gap-3 pt-6 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500 sm:flex-row"><p>Grounded commerce intelligence.</p><p>Human approval · Razorpay test mode · Webhook authority</p></div></div>
       </footer>
     </main>
   )

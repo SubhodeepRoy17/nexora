@@ -94,6 +94,59 @@
   animation: storybook-bob 1.8s ease-in-out infinite;
 }
 
+.product-bento-grid {
+  perspective: 1200px;
+}
+
+.product-bento-card {
+  transition: transform .38s cubic-bezier(.2, .8, .2, 1), border-color .3s ease, box-shadow .38s ease;
+}
+
+.product-bento-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(145deg, rgba(255, 255, 255, .32), transparent 48%);
+  pointer-events: none;
+}
+
+.product-bento-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(23, 55, 47, .18);
+  box-shadow: 0 28px 70px rgba(42, 81, 68, .13);
+}
+
+.product-bento-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.product-bento-orb-one {
+  width: 18rem;
+  height: 18rem;
+  right: -5rem;
+  top: 4rem;
+  background: rgba(196, 181, 253, .34);
+  animation: product-orb-drift 8s ease-in-out infinite alternate;
+}
+
+.product-intent-demo {
+  transition: transform .45s cubic-bezier(.2, .8, .2, 1), box-shadow .45s ease;
+}
+
+.product-bento-card:hover .product-intent-demo {
+  transform: translateY(-5px) rotate(-.25deg);
+  box-shadow: 0 28px 68px rgba(49, 89, 79, .18);
+}
+
+@keyframes product-orb-drift {
+  from { transform: translate3d(-8px, -6px, 0) scale(.96); }
+  to { transform: translate3d(12px, 10px, 0) scale(1.06); }
+}
+
 .journey-steps-section {
   background:
     radial-gradient(circle at 9% 8%, rgba(186, 230, 253, .28), transparent 28%),
@@ -303,6 +356,12 @@
   .storybook-copy,
   .storybook-cloud,
   .storybook-scroll-cue { animation: none; }
+
+  .product-bento-card,
+  .product-intent-demo { transition: none; }
+  .product-bento-card:hover,
+  .product-bento-card:hover .product-intent-demo { transform: none; }
+  .product-bento-orb { animation: none; }
 
   .journey-step-card,
   .journey-step-signal,
