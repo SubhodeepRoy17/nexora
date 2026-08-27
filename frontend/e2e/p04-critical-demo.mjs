@@ -97,7 +97,7 @@ try {
   await page.getByRole('textbox', { name: 'Shopping intent' }).fill('Find the P0.4 Nomad Keyboard under ₹9000')
   await page.getByRole('button', { name: 'Send shopping intent' }).click()
   await page.getByRole('heading', { name: productTitle, exact: true }).waitFor({ timeout: 30000 })
-  await page.getByText('DETAILS CHECKED').waitFor()
+  await page.getByText('Details checked').waitFor()
   await page.getByRole('button', { name: /Approve & Buy/i }).first().click()
 
   const dialog = page.getByRole('dialog', { name: 'Review your basket' })
@@ -173,9 +173,10 @@ try {
   const size = await receipt.evaluate((node) => ({ width: node.getBoundingClientRect().width, viewport: window.innerWidth }))
   if (size.width > size.viewport + 1) throw new Error('Order dialog overflows the mobile viewport')
   await page.goto(`${frontendUrl}/buyer`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('heading', { name: 'Nexora Buyer' }).waitFor()
-  await page.getByRole('button', { name: 'Open navigation' }).click()
-  await page.getByText('Recent intents', { exact: true }).waitFor()
+  const openNavigation = page.getByRole('button', { name: 'Open navigation' })
+  await openNavigation.waitFor()
+  await openNavigation.click()
+  await page.getByText('Recent searches', { exact: true }).waitFor()
   await page.getByRole('button', { name: 'Close navigation' }).first().click()
 
   await page.setViewportSize({ width: 1440, height: 960 })

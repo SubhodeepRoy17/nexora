@@ -1,4 +1,4 @@
-import { ArrowUp, Command, Search, Sparkles } from 'lucide-react'
+import { ArrowUp, Search } from 'lucide-react'
 
 export default function ChatInput({ value, onChange, onSubmit, presets, disabled = false }) {
   const submit = (event) => {
@@ -9,14 +9,13 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-3 flex items-center justify-center gap-2 overflow-x-auto pb-1" aria-label="Example shopping prompts">
-        <span className="hidden shrink-0 items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-slate-400 md:flex"><Sparkles size={10} /> Examples</span>
         {presets.map((preset) => (
           <button
             key={preset.id}
             type="button"
             disabled={disabled}
             onClick={() => onSubmit(preset.query)}
-            className="focus-ring whitespace-nowrap rounded-full border border-emerald-950/10 bg-white/65 px-3 py-1.5 text-[10px] text-[#31594f]/75 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="focus-ring whitespace-nowrap rounded-full border border-emerald-950/10 bg-white/65 px-3 py-1.5 text-xs text-[#31594f]/75 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
             title={preset.query}
           >
             {preset.label}
@@ -36,7 +35,6 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
         />
         <button type="submit" disabled={!value.trim() || disabled} aria-label="Send shopping intent" className="focus-ring grid size-10 shrink-0 place-items-center rounded-full bg-[#17372f] text-white shadow-[0_8px_20px_rgba(23,55,47,.2)] transition hover:-translate-y-0.5 hover:bg-violet-700 disabled:translate-y-0 disabled:bg-[#dce5dc] disabled:text-[#31594f]/45 disabled:shadow-none"><ArrowUp size={17} /></button>
       </form>
-      <p className="mt-2 hidden text-center font-mono text-[8px] text-[#31594f]/55 sm:block"><Command size={9} className="mr-1 inline" /> Nexora can make mistakes. Check the product details and final total before paying.</p>
     </div>
   )
 }

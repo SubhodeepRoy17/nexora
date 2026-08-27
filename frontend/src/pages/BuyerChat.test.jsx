@@ -47,7 +47,7 @@ describe('live buyer search', () => {
     await user.type(input, 'wireless keyboard under 8000')
     await user.click(screen.getByLabelText('Send shopping intent'))
     expect(await screen.findByText('Backend Keyboard')).toBeInTheDocument()
-    expect(screen.getByText(/DETAILS CHECKED/)).toBeInTheDocument()
+    expect(screen.getByText(/Details checked/)).toBeInTheDocument()
     expect(apiMocks.searchProducts).toHaveBeenCalledWith('wireless keyboard under 8000', expect.any(AbortSignal), { conversationId: null, conversationToken: null })
   })
 
@@ -62,7 +62,7 @@ describe('live buyer search', () => {
     await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue('Find a keyboard under ₹2,499'))
   })
 
-  it('deletes the signed-in buyer chat from Recent intents', async () => {
+  it('deletes a signed-in buyer chat from recent searches', async () => {
     authState.user = { id: 7, display_name: 'Buyer', email: 'buyer@example.test' }
     const conversation = {
       conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952',

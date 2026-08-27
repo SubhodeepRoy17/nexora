@@ -136,8 +136,7 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
       <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="modal-scroll max-h-full w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] p-5 shadow-2xl sm:max-w-2xl sm:p-7">
         <header className="flex items-start justify-between gap-4">
           <div>
-            <p className="mono-label text-violet-600">Order receipt</p>
-            <h2 id="order-detail-title" className="mt-2 text-xl font-semibold">
+            <h2 id="order-detail-title" className="text-xl font-semibold">
               Order {order.order_id.slice(0, 8).toUpperCase()}
             </h2>
             <div className="mt-2">
@@ -165,9 +164,9 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
             <div key={item.product} className="flex justify-between gap-4 p-4">
               <div>
                 <p className="text-xs font-semibold">{item.product_title}</p>
-                <p className="mt-1 font-mono text-[8px] text-slate-500">
-                  {item.merchant_name} · QTY {item.quantity}
-                  {item.growth_offer ? ' · BUYER-APPROVED ADD-ON' : ''}
+                <p className="mt-1 text-xs text-slate-500">
+                  {item.merchant_name} · Quantity {item.quantity}
+                  {item.growth_offer ? ' · Optional add-on' : ''}
                 </p>
               </div>
               <p className="text-xs font-bold">{money(item.line_total, order.currency)}</p>
@@ -177,12 +176,12 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
         <div className="mt-4 flex items-end justify-between">
           <div>
             <p className="text-xs text-slate-500">Exact approved total</p>
-            <p className="mt-1 font-mono text-[8px] text-slate-400">Created {new Date(order.created_at).toLocaleString('en-IN')}</p>
+            <p className="mt-1 text-xs text-slate-400">{new Date(order.created_at).toLocaleString('en-IN')}</p>
           </div>
           <p className="text-xl font-bold">{money(order.total_amount, order.currency)}</p>
         </div>
         {order.refunds?.map((refund) => (
-          <div key={refund.refund_id} className="mt-4 border border-violet-200 bg-violet-50 p-3 text-[10px] text-violet-800">
+          <div key={refund.refund_id} className="mt-4 border border-violet-200 bg-violet-50 p-3 text-xs text-violet-800">
             Refund {refund.status.replaceAll('_', ' ').toLowerCase()} · {money(refund.amount, refund.currency)}
           </div>
         ))}
@@ -265,25 +264,24 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
   return (
     <>
       <section className="mt-6 border-t border-emerald-950/10 pt-5" aria-labelledby="buyer-orders-title">
-        <div className="flex items-center justify-between px-2">
-          <p id="buyer-orders-title" className="mono-label text-[#31594f]/55">
-            Your orders
+        <div className="px-2">
+          <p id="buyer-orders-title" className="text-sm font-semibold text-[#17372f]">
+            Orders
           </p>
-          <DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={30000} />
         </div>
         {state.error && (
-          <button type="button" onClick={() => refresh()} className="mt-2 w-full rounded-xl border border-rose-200 bg-rose-50 p-2 text-left text-[9px] text-rose-700">
+          <button type="button" onClick={() => refresh()} className="mt-2 w-full rounded-xl border border-rose-200 bg-rose-50 p-2 text-left text-xs text-rose-700">
             {state.error} Retry
           </button>
         )}
-        {!state.loading && !orders.length && <p className="mt-2 px-2 text-[10px] leading-5 text-slate-500">No orders yet. Approved purchases will appear here.</p>}
+        {!state.loading && !orders.length && <p className="mt-2 px-2 text-xs leading-5 text-slate-500">No orders yet.</p>}
         <div className="mt-2 space-y-1">
           {orders.slice(0, 4).map((order) => (
             <button key={order.order_id} type="button" onClick={() => setSelected(order)} className="focus-ring flex w-full items-center gap-2 rounded-xl border border-emerald-950/10 bg-white/58 px-2.5 py-2 text-left transition hover:bg-white">
               <Package size={12} className="shrink-0 text-violet-600" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[9px] font-semibold">{order.items?.[0]?.product_title ?? 'Order'}</span>
-                <span className="mt-0.5 block font-mono text-[7px] text-slate-500">
+                <span className="block truncate text-xs font-semibold">{order.items?.[0]?.product_title ?? 'Order'}</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">
                   {order.status.replaceAll('_', ' ')} · {money(order.total_amount, order.currency)}
                 </span>
               </span>

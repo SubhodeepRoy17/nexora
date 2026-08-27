@@ -15,17 +15,14 @@ const liveThinkingSteps = [
   {
     id: 'parse',
     label: 'Understanding your request',
-    detail: 'Checking your budget, use case, and must-have features',
   },
   {
     id: 'search',
     label: 'Checking current products',
-    detail: 'Looking for available options from active sellers',
   },
   {
     id: 'compare',
     label: 'Comparing the best matches',
-    detail: 'Weighing fit, price, and trade-offs',
   },
 ]
 
@@ -52,7 +49,7 @@ const restoreMessages = (data) =>
       text: message.content,
       products,
       suggestedQuery: assistant ? message.metadata?.suggested_query : undefined,
-      evidence: assistant ? `${products.length} SAVED RESULT${products.length === 1 ? '' : 'S'} · DETAILS MAY HAVE CHANGED` : undefined,
+      evidence: assistant ? `${products.length} saved result${products.length === 1 ? '' : 's'} · Details may have changed` : undefined,
       time: new Date(message.created_at).toLocaleString('en-IN', {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -62,7 +59,7 @@ const restoreMessages = (data) =>
 
 export default function BuyerChat() {
   const { buyerMessages: messages, setBuyerMessages: setMessages } = useNexora()
-  const { user, loading: authLoading, error: authError } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [input, setInput] = useState('')
   const [activeRun, setActiveRun] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -227,7 +224,7 @@ export default function BuyerChat() {
           id: messageId + 1,
           role: 'agent',
           text: data.summary_reasoning,
-          evidence: `${products.length} CURRENT PRODUCT MATCH${products.length === 1 ? '' : 'ES'} · DETAILS CHECKED`,
+          evidence: `${products.length} current match${products.length === 1 ? '' : 'es'} · Details checked`,
           products,
           suggestedQuery: data.suggested_query,
           time: 'Now',
@@ -278,38 +275,31 @@ export default function BuyerChat() {
     setInput(productTitle ? `Find an available alternative to ${productTitle}` : '')
   }
 
+  const visibleMessages = messages.filter((message) => !message.fixture)
+
   return (
     <div className="buyer-shell flex h-[calc(100dvh-4rem)] min-h-[576px] overflow-hidden text-slate-950">
       {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-16 z-30 bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <aside className={`buyer-sidebar fixed bottom-0 left-0 top-16 z-40 flex w-[288px] flex-col border-r border-emerald-950/10 p-3 transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex h-14 items-center justify-between px-2">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-white/75 shadow-sm">
-              <LogoMark className="size-6" alt="" />
-            </span>
-            <div>
-              <p className="nexora-wordmark text-xl font-semibold leading-none text-[#17372f]">NEXORA</p>
-              <p className="mt-1 font-mono text-[7px] uppercase tracking-[.13em] text-[#31594f]/60">Shopping assistant</p>
-            </div>
-          </div>
+        <div className="flex justify-end lg:hidden">
           <button type="button" aria-label="Close navigation" className="grid size-8 place-items-center rounded-full text-[#31594f] hover:bg-white/70 lg:hidden" onClick={() => setSidebarOpen(false)}>
             ×
           </button>
         </div>
-        <button type="button" aria-label="New intent" onClick={startNewIntent} className="focus-ring mt-4 flex w-full items-center gap-3 rounded-xl border border-emerald-950/10 bg-white/72 px-4 py-3 text-xs font-semibold text-[#17372f] shadow-[0_8px_24px_rgba(49,89,79,.07)] transition hover:-translate-y-0.5 hover:bg-white">
+        <button type="button" aria-label="New intent" onClick={startNewIntent} className="focus-ring mt-2 flex w-full items-center gap-3 rounded-xl border border-emerald-950/10 bg-white/72 px-4 py-3 text-sm font-semibold text-[#17372f] shadow-[0_8px_24px_rgba(49,89,79,.07)] transition hover:-translate-y-0.5 hover:bg-white lg:mt-0">
           <span className="grid size-7 place-items-center rounded-lg bg-[#17372f] text-white">
             <Plus size={14} />
           </span>{' '}
-          New shopping intent
+          New search
         </button>
 
-        <div className="mt-7">
-          <p className="mono-label px-2 text-slate-400">Recent intents</p>
+        <div className="mt-6">
+          <p className="px-2 text-sm font-semibold text-[#17372f]">Recent searches</p>
           <div className="mt-2 space-y-1">
-            {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-[10px] leading-5 text-[#31594f]/70">Guest chats stay only on this page and are never listed publicly. Sign in to keep a private history.</div>}
-            {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-[10px] text-slate-400">Loading your chats…</p>}
-            {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-[10px] text-slate-400">Your completed searches will appear here.</p>}
+            {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-xs leading-5 text-[#31594f]/70">Sign in to save your searches.</div>}
+            {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
+            {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">No saved searches yet.</p>}
             {user &&
               chatSessions.map((session) => (
                 <div key={session.conversation_id} className="group relative">
@@ -322,71 +312,35 @@ export default function BuyerChat() {
                   </button>
                 </div>
               ))}
-            {historyError && <p className="px-3 py-2 text-[10px] leading-4 text-rose-600">{historyError}</p>}
+            {historyError && <p className="px-3 py-2 text-xs leading-5 text-rose-600">{historyError}</p>}
           </div>
         </div>
 
         <BuyerOrders user={user} refreshNonce={orderRefreshNonce} onRetry={retryOrderSearch} />
-
-        <div className="mt-auto space-y-1 border-t border-emerald-950/10 pt-3">
-          <div className="flex items-center gap-3 rounded-xl bg-white/52 px-3 py-3">
-            <div className="grid size-8 place-items-center rounded-full bg-[#17372f] text-[10px] font-bold text-white">{user?.display_name?.slice(0, 2).toUpperCase() ?? 'GU'}</div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-[#17372f]">{user?.display_name ?? 'Guest buyer'}</p>
-              <p className="font-mono text-[8px] text-[#31594f]/60">{user ? 'Signed in' : 'Sign in to save and buy'}</p>
-            </div>
-          </div>
-        </div>
       </aside>
 
-      <main className="buyer-main flex min-w-0 flex-1 flex-col">
-        <header className="buyer-header flex h-[68px] shrink-0 items-center justify-between border-b border-emerald-950/10 px-4 backdrop-blur-xl md:px-6">
-          <div className="flex items-center gap-3">
-            <button type="button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)} className="focus-ring grid size-9 place-items-center rounded-full text-[#31594f] hover:bg-white/70 lg:hidden">
-              <Menu size={19} />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold text-[#17372f]">Nexora Buyer</h1>
-                <span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[8px] ${authError ? 'border-rose-200 bg-rose-50 text-rose-700' : authLoading ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-                  <span className={`size-1 rounded-full ${authError ? 'bg-rose-500' : authLoading ? 'bg-amber-500' : 'bg-emerald-500'}`} /> {authError ? 'SERVICE UNAVAILABLE' : authLoading ? 'CONNECTING' : 'READY'}
-                </span>
-              </div>
-              <p className="mt-1 hidden text-[10px] text-slate-500 sm:block">Current product search · you approve every purchase</p>
-            </div>
-          </div>
-        </header>
+      <main className="buyer-main relative flex min-w-0 flex-1 flex-col">
+        <button type="button" aria-label="Open navigation" onClick={() => setSidebarOpen(true)} className="focus-ring absolute left-4 top-4 z-20 grid size-10 place-items-center rounded-full border border-emerald-950/10 bg-white/80 text-[#31594f] shadow-sm backdrop-blur hover:bg-white lg:hidden">
+          <Menu size={19} />
+        </button>
 
         <div ref={logRef} className="buyer-log flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8 md:py-12">
-            <div className="buyer-welcome mb-10 text-center">
-              <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl border border-white/80 bg-white/72 shadow-[0_14px_35px_rgba(49,89,79,.12)] backdrop-blur-md">
-                <LogoMark className="size-10" alt="" />
+            {!visibleMessages.length && (
+              <div className="buyer-welcome flex min-h-[34vh] items-end justify-center pb-8 text-center">
+                <h1 className="text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">What are you looking for?</h1>
               </div>
-              <p className="font-mono text-[9px] font-semibold uppercase tracking-[.17em] text-violet-700">Shopping help built around your needs</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">What are you looking for?</h2>
-              <p className="mx-auto mt-3 max-w-lg text-xs leading-6 text-[#31594f]/75 md:text-sm">Describe what you need, your budget, and must-have features. Nexora will check current products and explain why they fit.</p>
-            </div>
+            )}
 
             <div className="space-y-7">
-              {messages.map((message, messageIndex) => {
-                const latestAgent = message.role === 'agent' && !messages.slice(messageIndex + 1).some((item) => item.role === 'agent')
+              {visibleMessages.map((message, messageIndex) => {
+                const latestAgent = message.role === 'agent' && !visibleMessages.slice(messageIndex + 1).some((item) => item.role === 'agent')
                 return (
                   <div key={message.id} className={`buyer-message flex gap-3 ${message.role === 'user' ? 'ml-auto max-w-2xl flex-row-reverse' : 'max-w-full'}`}>
                     {message.role === 'agent' && <AgentMark active={latestAgent} />}
                     <div className={`min-w-0 ${message.role === 'agent' ? 'w-full' : ''}`}>
                       <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>{message.text}</div>
-                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[8px] text-slate-600 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                        <span>
-                          {message.role === 'agent' ? 'NEXORA' : 'YOU'} · {message.time}
-                        </span>
-                        {message.evidence && (
-                          <>
-                            <span>•</span>
-                            <span className={message.status === 'placed' ? 'text-emerald-400' : message.status === 'error' ? 'text-rose-400' : 'text-indigo-400'}>{message.evidence}</span>
-                          </>
-                        )}
-                      </div>
+                      {message.products?.length > 0 && message.evidence && <p className="mt-2 text-xs font-medium text-violet-700">{message.evidence}</p>}
                       {message.products && (
                         <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
                           {message.products.map((product, index) => (
@@ -395,7 +349,7 @@ export default function BuyerChat() {
                         </div>
                       )}
                       {message.products?.length === 0 && !message.fixture && message.status !== 'error' && (
-                        <button type="button" onClick={() => setInput(message.suggestedQuery || 'Show me similar active, in-stock products with fewer constraints')} className="focus-ring mt-3 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-[10px] font-semibold text-violet-700 transition hover:bg-violet-100">
+                        <button type="button" onClick={() => setInput(message.suggestedQuery || 'Show me similar active, in-stock products with fewer constraints')} className="focus-ring mt-3 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
                           Try the suggested search
                         </button>
                       )}
