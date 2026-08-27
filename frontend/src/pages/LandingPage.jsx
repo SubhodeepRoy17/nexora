@@ -19,7 +19,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
-import { SectionHeading, SignalButton, StatusPill } from '../components/ui/Primitives'
+import { SignalButton, StatusPill } from '../components/ui/Primitives'
 
 const trustPoints = [
   { icon: Database, label: 'Catalog-grounded', detail: 'Live price, stock, specs' },
@@ -139,13 +139,19 @@ export default function LandingPage() {
 
         <div className="mx-auto flex min-h-svh max-w-[1440px] flex-col items-center justify-center pb-32 pt-24 text-center sm:pb-36 sm:pt-24">
           <div className="storybook-copy relative z-10 flex max-w-4xl flex-col items-center">
-            <h1 className="storybook-title mt-7 max-w-[13ch] text-balance text-[clamp(3.35rem,7.4vw,7.3rem)] font-semibold leading-[0.88] tracking-[-0.055em] text-[#17372f] drop-shadow-[0_2px_0_rgba(255,255,255,.35)]">
-              Tell us what matters. We’ll find what fits.
+            <div className="storybook-intent flex max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full border border-white/80 bg-white/58 px-4 py-2.5 shadow-[0_12px_32px_rgba(49,89,79,.12)] backdrop-blur-md" aria-label="Example intent: Quiet wireless keyboard under ₹9,000">
+              <Search size={13} className="shrink-0 text-violet-700" aria-hidden="true" />
+              <span className="storybook-typed block overflow-hidden whitespace-nowrap text-left font-mono text-[9px] font-semibold text-[#31594f]" aria-hidden="true">Quiet wireless keyboard under ₹9,000</span>
+              <span className="storybook-intent-ready grid size-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true"><Check size={10} /></span>
+            </div>
+            <h1 className="storybook-title mt-6 max-w-[13ch] text-balance text-[clamp(3.35rem,7.4vw,7.3rem)] font-semibold leading-[0.88] tracking-[-0.055em] text-[#17372f] drop-shadow-[0_2px_0_rgba(255,255,255,.35)]">
+              <span className="storybook-title-mask block"><span className="storybook-title-line storybook-title-line-one block">Tell us what matters.</span></span>
+              <span className="storybook-title-mask block"><span className="storybook-title-line storybook-title-line-two block">We’ll find what fits.</span></span>
             </h1>
-            <p className="mt-7 max-w-2xl text-balance text-base font-medium leading-7 text-[#24483f] sm:text-lg">
+            <p className="storybook-description mt-7 max-w-2xl text-balance text-base font-medium leading-7 text-[#24483f] sm:text-lg">
               Nexora searches live merchant catalogs, explains the trade-offs, and waits for your exact approval before money moves.
             </p>
-            <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+            <div className="storybook-actions mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
               <Link to="/buyer" className="focus-ring group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#17372f] px-7 py-3.5 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(23,55,47,.25)] transition duration-300 hover:-translate-y-0.5 hover:bg-violet-700 sm:w-auto">
                 Start with your intent <ArrowRight size={16} className="transition group-hover:translate-x-1" />
               </Link>
@@ -153,9 +159,9 @@ export default function LandingPage() {
                 Explore merchant OS
               </Link>
             </div>
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[10px] font-semibold text-[#31594f]">
-              {['Grounded in live catalogs', 'Human-approved checkout', 'Webhook-verified payment'].map((item) => (
-                <span key={item} className="flex items-center gap-1.5"><span className="grid size-4 place-items-center rounded-full bg-white/65"><Check size={10} /></span>{item}</span>
+            <div className="storybook-proof mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[10px] font-semibold text-[#31594f]">
+              {['Grounded in live catalogs', 'Human-approved checkout', 'Webhook-verified payment'].map((item, index) => (
+                <span key={item} className="storybook-proof-item flex items-center gap-1.5" style={{ '--proof-delay': `${1750 + index * 120}ms` }}><span className="grid size-4 place-items-center rounded-full bg-white/65"><Check size={10} /></span>{item}</span>
               ))}
             </div>
           </div>
@@ -175,7 +181,11 @@ export default function LandingPage() {
 
       <section ref={productSectionRef} id="product" className={`product-section px-4 py-20 sm:px-6 sm:py-28 lg:px-8 ${productVisible ? 'product-section-visible' : ''}`}>
         <div className="mx-auto max-w-[1440px]">
-          <div className="product-bento-heading"><SectionHeading align="center" eyebrow="One system · two growth loops" title="Everything a better purchase needs." description="From an open-ended intent to webhook-confirmed revenue, every part of Nexora stays grounded, explainable, and under human control." /></div>
+          <header className="product-bento-heading mx-auto flex max-w-3xl flex-col items-center text-center">
+            <p className="inline-flex border border-violet-300/70 bg-violet-100 px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-violet-700">One system · two growth loops</p>
+            <h2 className="mt-5 text-balance text-3xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">Everything a better purchase needs.</h2>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">From an open-ended intent to webhook-confirmed revenue, every part of Nexora stays grounded, explainable, and under human control.</p>
+          </header>
           <div className="product-bento-grid mt-12 grid gap-4 lg:grid-cols-12 lg:auto-rows-[240px]">
             <ProductFeatureCard tone="sky" motion="scale" index={0} className="min-h-[470px] lg:col-span-7 lg:row-span-2">
               <div className="product-bento-orb product-bento-orb-one" aria-hidden="true" />
@@ -217,7 +227,10 @@ export default function LandingPage() {
 
       <section ref={journeySectionRef} id="how-it-works" className={`journey-steps-section journey-reveal-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8 ${journeyVisible ? 'journey-section-visible' : ''}`}>
         <div className="relative z-10 mx-auto max-w-[1440px]">
-          <div className="journey-section-heading"><SectionHeading title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." /></div>
+          <header className="journey-section-heading flex max-w-3xl flex-col items-start">
+            <h2 className="text-balance text-3xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">Four steps. One human decision.</h2>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout.</p>
+          </header>
           <div className="journey-route relative mt-10 hidden grid-cols-4 items-center md:grid" aria-hidden="true">
             <span className="absolute left-[12.5%] right-[12.5%] top-[15px] h-0.5 bg-emerald-950/15" />
             <span className="journey-route-fill absolute left-[12.5%] top-[15px] h-0.5 bg-gradient-to-r from-sky-400 via-violet-500 to-emerald-500" />
@@ -234,7 +247,11 @@ export default function LandingPage() {
         <div className="safety-aurora safety-aurora-two" aria-hidden="true" />
         <div className="relative z-10 mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[.82fr_1.18fr] lg:items-center">
           <div className="safety-copy-panel">
-            <SectionHeading eyebrow="The trust architecture" title="When the evidence changes, the payment path closes." description="Nexora treats every money action as a bounded state transition. A stale price, depleted stock, replayed approval, wrong buyer, or failed signature stops execution before it can become a false paid state." />
+            <header className="flex max-w-3xl flex-col items-start">
+              <p className="inline-flex border border-violet-300/70 bg-violet-100 px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-violet-700">The trust architecture</p>
+              <h2 className="mt-5 text-balance text-3xl font-semibold leading-[1.05] tracking-[-0.045em] text-slate-950 sm:text-5xl">When the evidence changes, the payment path closes.</h2>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">Nexora treats every money action as a bounded state transition. A stale price, depleted stock, replayed approval, wrong buyer, or failed signature stops execution before it can become a false paid state.</p>
+            </header>
             <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               {[{ icon: ShieldCheck, label: 'Deterministic bounds', copy: 'Policy checks live outside the model.' }, { icon: Fingerprint, label: 'Single-use approval', copy: 'One buyer, quote, amount, and expiry.' }, { icon: Webhook, label: 'Provider authority', copy: 'Signed webhooks settle payment truth.' }].map(({ icon: Icon, label, copy }, index) => <article key={label} className="safety-principle rounded-2xl border border-white/80 bg-white/60 p-4 shadow-[0_14px_34px_rgba(42,81,68,.08)] backdrop-blur-md" style={{ '--safety-delay': `${index * 110}ms` }}><span className="grid size-9 place-items-center rounded-full bg-[#17372f] text-white"><Icon size={15} /></span><h3 className="mt-4 text-sm font-semibold text-[#17372f]">{label}</h3><p className="mt-2 text-[10px] leading-5 text-[#31594f]">{copy}</p></article>)}
             </div>
