@@ -1,10 +1,11 @@
-import { Check, CircleDashed, Search, Sparkles } from 'lucide-react'
+import { Check, CircleDashed, Search } from 'lucide-react'
+import LogoMark from '../LogoMark'
 
 export default function AgentThinkingStep({ steps, activeIndex }) {
   return (
     <div className="flex max-w-2xl gap-3" aria-live="polite" aria-label="Agent progress">
-      <span className="grid size-8 shrink-0 place-items-center border border-violet-700 bg-violet-600 text-white shadow-[3px_3px_0_#111827]"><Sparkles size={13} /></span>
-      <div className="thinking-border w-full bg-white p-4 shadow-[4px_4px_0_rgba(139,92,246,.14)]">
+      <span className="grid size-9 shrink-0 place-items-center rounded-full border border-violet-200 bg-white shadow-[0_8px_22px_rgba(109,40,217,.1)]"><LogoMark className="size-6" alt="" /></span>
+      <div className="thinking-border w-full rounded-2xl bg-white/78 p-4 shadow-[0_12px_34px_rgba(109,40,217,.1)] backdrop-blur-md">
         <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2"><Search size={13} className="animate-pulse text-violet-600" /><span className="font-mono text-[9px] uppercase tracking-[0.16em] text-violet-700">Agent working</span></div>
           <span className="font-mono text-[8px] text-slate-400">STEP {Math.min(activeIndex + 1, steps.length)}/{steps.length}</span>

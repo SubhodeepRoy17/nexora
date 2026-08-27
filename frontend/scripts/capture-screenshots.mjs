@@ -23,7 +23,7 @@ try {
 
   if (!landingOnly) {
     await page.goto(`${baseUrl}/buyer`, { waitUntil: 'networkidle' })
-    await page.getByRole('heading', { name: 'Ask for the exact fit.' }).waitFor()
+    await page.getByRole('heading', { name: 'What are you looking for?' }).waitFor()
     await page.screenshot({ path: resolve(output, 'buyer-agent-workspace.png'), fullPage: true })
 
     const username = process.env.NEXORA_CAPTURE_MERCHANT_USERNAME

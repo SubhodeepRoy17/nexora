@@ -30,6 +30,106 @@
   background-size: 48px 48px;
 }
 
+.auth-page {
+  background:
+    radial-gradient(circle at 8% 16%, rgba(186, 230, 253, .46), transparent 30%),
+    radial-gradient(circle at 91% 82%, rgba(216, 180, 254, .3), transparent 28%),
+    linear-gradient(145deg, #edf7f3 0%, #f7f5e8 54%, #f2ecfb 100%);
+}
+
+.auth-aurora {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(55px);
+  opacity: .45;
+  pointer-events: none;
+  animation: auth-aurora-drift 10s ease-in-out infinite alternate;
+}
+
+.auth-aurora-one { width: 22rem; height: 10rem; left: -5rem; bottom: 8%; background: rgba(110, 231, 183, .45); }
+.auth-aurora-two { width: 18rem; height: 12rem; right: -4rem; top: 6%; background: rgba(196, 181, 253, .52); animation-delay: -4s; }
+
+.auth-shell { animation: auth-shell-enter .78s cubic-bezier(.2,.8,.2,1) both; }
+
+.auth-story {
+  background-image: url('/images/nexora-storybook-hero.png');
+  background-position: 30% center;
+  background-size: cover;
+}
+
+.auth-story-scrim {
+  background:
+    linear-gradient(180deg, rgba(239, 250, 244, .58), rgba(239, 248, 228, .84)),
+    radial-gradient(circle at 28% 42%, rgba(255,255,255,.82), transparent 55%);
+  backdrop-filter: saturate(.78);
+}
+
+.auth-story-title { font-family: 'Fraunces', Georgia, serif; }
+.auth-form-panel { background: linear-gradient(145deg, rgba(255,255,255,.74), rgba(246,248,241,.68)); }
+
+.auth-proof {
+  opacity: 0;
+  transform: translateX(-18px);
+  animation: auth-proof-enter .55s cubic-bezier(.2,.8,.2,1) var(--auth-delay) forwards;
+}
+
+.buyer-shell {
+  background:
+    radial-gradient(circle at 12% 12%, rgba(186, 230, 253, .24), transparent 27%),
+    radial-gradient(circle at 88% 88%, rgba(216, 180, 254, .18), transparent 26%),
+    #f8faf6;
+}
+
+.buyer-sidebar {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(186,230,253,.28), transparent 28%),
+    linear-gradient(180deg, rgba(238,244,237,.98), rgba(244,246,237,.96));
+  box-shadow: 12px 0 40px rgba(42,81,68,.04);
+}
+
+.buyer-main { background: rgba(250, 251, 247, .72); }
+.buyer-header { background: rgba(250, 251, 247, .8); }
+
+.buyer-log {
+  background:
+    radial-gradient(circle at 52% 4%, rgba(216, 245, 234, .35), transparent 24rem),
+    transparent;
+}
+
+.buyer-welcome { animation: buyer-welcome-enter .7s cubic-bezier(.2,.8,.2,1) both; }
+.buyer-message { animation: buyer-message-enter .5s cubic-bezier(.2,.8,.2,1) both; }
+
+.buyer-composer {
+  background: linear-gradient(180deg, rgba(248,250,246,0), rgba(248,250,246,.9) 28%, rgba(248,250,246,.98));
+}
+
+.buyer-input { transform-origin: bottom center; }
+.buyer-input:focus-within { transform: translateY(-2px); }
+
+@keyframes auth-shell-enter {
+  from { opacity: 0; transform: translateY(20px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes auth-proof-enter {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes auth-aurora-drift {
+  from { transform: translate3d(-10px,-5px,0) scale(.96); }
+  to { transform: translate3d(20px,12px,0) scale(1.08); }
+}
+
+@keyframes buyer-welcome-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes buyer-message-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .storybook-hero-art {
   background-image: url('/images/nexora-storybook-hero.png');
   background-position: center center;
@@ -931,6 +1031,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .auth-aurora,
+  .auth-shell,
+  .auth-proof,
+  .buyer-welcome,
+  .buyer-message { animation: none; }
+  .auth-shell,
+  .auth-proof,
+  .buyer-welcome,
+  .buyer-message { opacity: 1; transform: none; }
+  .buyer-input,
+  .buyer-input:focus-within { transition: none; transform: none; }
+
   .storybook-hero-art,
   .storybook-cloud,
   .storybook-scroll-cue,
