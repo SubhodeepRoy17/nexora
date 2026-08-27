@@ -139,11 +139,6 @@ export default function LandingPage() {
 
         <div className="mx-auto flex min-h-svh max-w-[1440px] flex-col items-center justify-center pb-32 pt-24 text-center sm:pb-36 sm:pt-24">
           <div className="storybook-copy relative z-10 flex max-w-4xl flex-col items-center">
-            <div className="storybook-intent flex max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full border border-white/80 bg-white/58 px-4 py-2.5 shadow-[0_12px_32px_rgba(49,89,79,.12)] backdrop-blur-md" aria-label="Example intent: Quiet wireless keyboard under ₹9,000">
-              <Search size={13} className="shrink-0 text-violet-700" aria-hidden="true" />
-              <span className="storybook-typed block overflow-hidden whitespace-nowrap text-left font-mono text-[9px] font-semibold text-[#31594f]" aria-hidden="true">Quiet wireless keyboard under ₹9,000</span>
-              <span className="storybook-intent-ready grid size-4 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true"><Check size={10} /></span>
-            </div>
             <h1 className="storybook-title mt-6 max-w-[13ch] text-balance text-[clamp(3.35rem,7.4vw,7.3rem)] font-semibold leading-[0.88] tracking-[-0.055em] text-[#17372f] drop-shadow-[0_2px_0_rgba(255,255,255,.35)]">
               <span className="storybook-title-mask block"><span className="storybook-title-line storybook-title-line-one block">Tell us what matters.</span></span>
               <span className="storybook-title-mask block"><span className="storybook-title-line storybook-title-line-two block">We’ll find what fits.</span></span>
