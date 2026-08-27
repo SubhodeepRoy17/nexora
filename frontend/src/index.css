@@ -14,7 +14,8 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-400; }
-  :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
+  :is(button, a):focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
+  :is(input, select, textarea):focus-visible { outline: 2px solid #94a3b8; outline-offset: 1px; }
 }
 
 @layer components {

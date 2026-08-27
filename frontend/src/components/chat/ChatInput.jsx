@@ -23,7 +23,7 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
         ))}
       </div>
 
-      <form onSubmit={submit} className="buyer-input flex items-center gap-2 rounded-[1.75rem] border border-emerald-950/10 bg-white/88 p-2.5 shadow-[0_18px_48px_rgba(42,81,68,.14)] backdrop-blur-xl transition focus-within:border-violet-300 focus-within:shadow-[0_20px_55px_rgba(109,40,217,.14)]">
+      <form onSubmit={submit} className="buyer-input flex items-center gap-2 rounded-[1.75rem] border border-emerald-950/10 bg-white/88 p-2.5 shadow-[0_18px_48px_rgba(42,81,68,.14)] backdrop-blur-xl transition focus-within:border-slate-400 focus-within:shadow-[0_20px_55px_rgba(42,81,68,.16)]">
         <span className="ml-1 grid size-8 shrink-0 place-items-center rounded-full bg-[#eef4ed] text-[#31594f]" aria-hidden="true"><Search size={14} /></span>
         <input
           value={value}

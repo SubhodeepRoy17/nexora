@@ -16,7 +16,7 @@ const emptyForm = {
   hotSwappable: false,
 }
 
-const inputClass = 'mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-indigo-500'
+const inputClass = 'mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs text-slate-100 placeholder:text-slate-600 focus:border-slate-500'
 
 export default function AddProductModal({ open, product, onClose, onSave }) {
   const [form, setForm] = useState(emptyForm)

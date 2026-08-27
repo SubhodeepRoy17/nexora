@@ -91,10 +91,10 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search SKU, product, or tag" className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-[10px] text-white placeholder:text-slate-600 focus:border-indigo-500 sm:w-56" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search SKU, product, or tag" className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-[10px] text-white placeholder:text-slate-600 focus:border-slate-500 sm:w-56" />
             </div>
             <div className="relative">
-              <select value={status} onChange={(event) => setStatus(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-3 pr-8 text-[10px] text-slate-300 focus:border-indigo-500">
+              <select value={status} onChange={(event) => setStatus(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-3 pr-8 text-[10px] text-slate-300 focus:border-slate-500">
                 <option value="all">All products</option>
                 <option value="active">Visible to shoppers</option>
                 <option value="inactive">Hidden</option>

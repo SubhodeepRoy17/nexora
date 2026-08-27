@@ -59,7 +59,7 @@ export default function Login() {
 
   const updateRegistration = (field) => (event) => setRegistration((current) => ({ ...current, [field]: event.target.value }))
 
-  const fieldShell = 'mt-2 flex items-center rounded-2xl border border-emerald-950/10 bg-white/72 px-4 shadow-[0_8px_24px_rgba(49,89,79,.06)] transition focus-within:border-violet-400 focus-within:bg-white focus-within:shadow-[0_12px_30px_rgba(109,40,217,.1)]'
+  const fieldShell = 'mt-2 flex items-center rounded-2xl border border-emerald-950/10 bg-white/72 px-4 shadow-[0_8px_24px_rgba(49,89,79,.06)] transition focus-within:border-slate-400 focus-within:bg-white focus-within:shadow-[0_10px_28px_rgba(49,89,79,.1)]'
   const fieldInput = 'focus-ring min-h-12 w-full bg-transparent px-3 text-sm text-[#17372f] placeholder:text-[#31594f]/40'
 
   return (
