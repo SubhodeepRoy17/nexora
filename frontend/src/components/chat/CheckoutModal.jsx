@@ -15,13 +15,13 @@ const money = (value) =>
   }).format(value)
 const terminalStates = new Set(['PAID', 'PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'MANUAL_REVIEW'])
 const statusMessages = {
-  PAYMENT_PENDING: 'Razorpay is still confirming your payment. Your reserved stock remains protected.',
-  PAYMENT_FAILED: 'The payment failed safely and reserved stock was released exactly once.',
-  CANCELLED: 'The checkout was cancelled and reserved stock was released.',
-  EXPIRED: 'The payment window expired and the reservation was released.',
-  REFUND_PENDING: 'We could not complete this paid order, so your full refund is being confirmed.',
-  REFUNDED: 'Razorpay confirmed the full-order refund.',
-  MANUAL_REVIEW: 'Our support team is reviewing this payment before the order can continue.',
+  PAYMENT_PENDING: 'Your payment is still being confirmed.',
+  PAYMENT_FAILED: 'Payment failed. Your reserved items were released.',
+  CANCELLED: 'Checkout cancelled. Your reserved items were released.',
+  EXPIRED: 'The payment window expired.',
+  REFUND_PENDING: 'Your full refund is being confirmed.',
+  REFUNDED: 'Your refund is complete.',
+  MANUAL_REVIEW: 'This payment needs a quick review.',
 }
 
 export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
@@ -122,7 +122,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
     return {
       requested,
       limit,
-      explanation: `You requested ${requested}, but the maximum is ${limit} per item. No payment was started and no stock was changed. Choose ${limit} or fewer to continue.`,
+      explanation: `You chose ${requested}. The limit is ${limit} per item. Nothing was charged. Choose ${limit} or fewer to continue.`,
     }
   }, [quote, reasonCode])
 
@@ -266,9 +266,9 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
 
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
-  const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : ['approving', 'reserving', 'opening'].includes(stage) ? 2 : 3
-  const stageTitle = stage === 'cart' ? 'Review your basket' : stage === 'quote' ? 'Approve the exact quote' : stage === 'paid' ? 'Payment confirmed' : stage === 'refunding' ? 'Refund confirmation pending' : stage === 'opening' ? 'Preparing Razorpay Checkout' : ['verifying', 'cancelling'].includes(stage) ? 'Confirming payment' : stage === 'terminal' ? statusLabel : stage === 'blocked' ? 'Checkout paused safely' : processing ? 'Securing your checkout' : 'Checkout stopped safely'
-  const stageCopy = stage === 'paid' ? 'Razorpay confirmed your payment. Your order is complete and the reserved stock was updated once.' : stage === 'refunding' ? statusMessages.REFUND_PENDING : stage === 'opening' ? 'Opening secure payment without changing stock until you continue.' : ['verifying', 'cancelling'].includes(stage) ? `Nexora is waiting for Razorpay to confirm the final result.${checkoutProofVerified ? ' Your payment details were accepted; final confirmation is still pending.' : ''}` : (statusMessages[order?.status] ?? 'Review each line, see the exact total, and approve only when the basket matches your needs.')
+  const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : stage === 'paid' ? 3 : 2
+  const stageTitle = stage === 'cart' ? 'Review your order' : stage === 'quote' ? 'Confirm the total' : stage === 'paid' ? 'Order confirmed' : stage === 'refunding' ? 'Refund pending' : stage === 'opening' ? 'Opening payment' : ['verifying', 'cancelling'].includes(stage) ? 'Confirming payment' : stage === 'terminal' ? statusLabel : stage === 'blocked' ? 'Checkout paused' : processing ? 'Preparing checkout' : 'Checkout paused'
+  const stageCopy = stage === 'paid' ? 'Payment received. Your order is complete.' : stage === 'refunding' ? 'Your refund is being confirmed.' : stage === 'opening' ? 'Razorpay will open in a moment.' : ['verifying', 'cancelling'].includes(stage) ? `${checkoutProofVerified ? 'Payment details accepted. ' : ''}Waiting for final confirmation.` : stopped ? 'Nothing else will happen until you choose what to do next.' : stage === 'quote' ? 'Check the items and approve the final amount.' : 'Check your item and quantity before continuing.'
   const displayLines = lines.length
     ? lines
     : [
@@ -286,7 +286,12 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           growth_offer: true,
         })),
       ]
-  const checkoutSteps = ['Basket', 'Exact quote', 'Payment', 'Verified']
+  const checkoutSteps = [
+    { label: 'Basket', hint: 'Check items' },
+    { label: 'Review', hint: 'Approve total' },
+    { label: 'Pay', hint: 'Use Razorpay' },
+    { label: 'Done', hint: 'Confirmation' },
+  ]
 
   return (
     <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-[#17372f]/65 backdrop-blur-md sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
@@ -300,7 +305,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           <div className="flex max-w-3xl items-start gap-4 pr-10">
             <span className={`grid size-11 shrink-0 place-items-center rounded-2xl border ${stage === 'paid' ? 'border-emerald-600 bg-emerald-500 text-white' : stopped ? 'border-rose-600 bg-rose-500 text-white' : 'border-violet-400 bg-violet-600 text-white shadow-sm'}`}>{stage === 'paid' ? <PackageCheck size={21} /> : stopped ? <AlertTriangle size={20} /> : processing || ['verifying', 'cancelling'].includes(stage) ? <LoaderCircle size={21} className="animate-spin" /> : <LockKeyhole size={20} />}</span>
             <div>
-              <p className={`font-mono text-[8px] font-semibold uppercase tracking-[.16em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-violet-700'}`}>Nexora protected checkout</p>
+              <p className={`text-[10px] font-semibold uppercase tracking-[.12em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-violet-700'}`}>Secure checkout</p>
               <h2 id="checkout-title" className="mt-2 text-xl font-semibold sm:text-2xl">
                 {stageTitle}
               </h2>
@@ -309,26 +314,41 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
           </div>
         </header>
 
-        <nav className="grid grid-cols-4 border-b border-slate-300 bg-white" aria-label="Checkout progress">
-          {checkoutSteps.map((label, index) => {
-            const complete = index < stepIndex || (stage === 'paid' && index === stepIndex)
-            return (
-              <div key={label} className={`relative flex items-center gap-2 border-r border-slate-200 px-3 py-3 last:border-r-0 sm:px-5 ${complete ? 'text-emerald-700' : index === stepIndex ? 'bg-violet-50 text-violet-700' : 'text-slate-400'}`}>
-                <span className={`grid size-5 shrink-0 place-items-center rounded-full border font-mono text-[8px] ${complete ? 'border-emerald-600 bg-emerald-600 text-white' : index === stepIndex ? 'border-violet-600 bg-violet-600 text-white' : 'border-slate-300 bg-white text-slate-500'}`}>{complete ? <Check size={11} strokeWidth={3} /> : index + 1}</span>
-                <span className="hidden text-[10px] font-semibold sm:inline">{label}</span>
-              </div>
-            )
-          })}
+        <nav className="border-b border-emerald-950/10 bg-[#edf3ea] px-3 py-3 sm:px-7 sm:py-4" aria-label="Checkout progress">
+          <ol className="mx-auto grid max-w-4xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            {checkoutSteps.map(({ label, hint }, index) => {
+              const complete = index < stepIndex || (stage === 'paid' && index === stepIndex)
+              const current = index === stepIndex && !complete
+              return (
+                <li
+                  key={label}
+                  aria-current={current ? 'step' : undefined}
+                  aria-label={`${label}, ${complete ? 'completed' : current ? 'current step' : 'upcoming'}`}
+                  className={`min-w-0 rounded-xl border px-2 py-2.5 transition-all duration-300 sm:px-3 sm:py-3 ${complete ? 'border-emerald-600 bg-emerald-600 text-white shadow-[0_8px_20px_rgba(5,150,105,.2)]' : current ? 'border-[#17372f] bg-[#17372f] text-white shadow-[0_8px_20px_rgba(23,55,47,.18)]' : 'border-emerald-950/10 bg-white/75 text-[#31594f]/55'}`}
+                >
+                  <div className="flex items-center gap-1.5 sm:gap-2.5">
+                    <span className={`grid size-6 shrink-0 place-items-center rounded-full border text-[9px] font-bold sm:size-8 sm:text-[11px] ${complete ? 'border-white/45 bg-white text-emerald-700' : current ? 'border-white/25 bg-white/10 text-white' : 'border-emerald-950/15 bg-white text-[#31594f]/55'}`}>
+                      {complete ? <Check size={14} strokeWidth={3} /> : index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[10px] font-semibold sm:text-xs">{label}</span>
+                      <span className={`mt-0.5 hidden truncate text-[9px] md:block ${complete || current ? 'text-white/70' : 'text-[#31594f]/45'}`}>{hint}</span>
+                    </span>
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
         </nav>
 
         <div className="grid lg:grid-cols-[1.18fr_.82fr]">
           <div className="border-slate-300 p-5 sm:p-7 lg:border-r">
             {processing && (
-              <div className="mb-5 flex items-center gap-3 border border-violet-200 bg-violet-50 p-4" aria-live="polite">
+              <div className="mb-5 flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4" aria-live="polite">
                 <LoaderCircle size={16} className="animate-spin text-violet-600" />
                 <div>
-                  <p className="text-xs font-semibold text-violet-900">Securing your checkout</p>
-                  <p className="mt-1 font-mono text-[8px] text-violet-600">CHECKING PRODUCTS · CONFIRMING STOCK · SAVING YOUR PRICES</p>
+                  <p className="text-xs font-semibold text-violet-900">Preparing your checkout</p>
+                  <p className="mt-1 text-[10px] text-violet-700">This will only take a moment.</p>
                 </div>
               </div>
             )}
@@ -338,7 +358,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 {quantityBlock && (
                   <div className="mt-3 border-t border-rose-200 pt-3" aria-label="Safe block outcome">
                     <p className="leading-5">{quantityBlock.explanation}</p>
-                    <p className="mt-2 font-mono text-[8px] font-semibold">NO PAYMENT STARTED · NO STOCK CHANGED · DETAILS SAVED</p>
+                    <p className="mt-2 text-[10px] font-semibold">No payment · No stock change</p>
                   </div>
                 )}
               </div>
@@ -348,13 +368,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               <>
                 <section aria-labelledby="basket-product">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="mono-label text-violet-600">01 · Selected product</p>
-                      <h3 id="basket-product" className="mt-2 text-lg font-semibold">
-                        Review quantity
-                      </h3>
-                    </div>
-                    <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono text-[8px] text-emerald-700">LIVE STOCK</span>
+                    <h3 id="basket-product" className="text-lg font-semibold">Your item</h3>
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">In stock</span>
                   </div>
                   <article className="mt-4 flex flex-col gap-4 rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-[0_10px_28px_rgba(42,81,68,.07)] sm:flex-row sm:items-center">
                     <span className="grid size-16 shrink-0 place-items-center rounded-2xl border border-slate-800 bg-slate-950 font-mono text-sm font-bold tracking-widest text-violet-300">{product.imageLabel}</span>
@@ -437,9 +452,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
             {stage === 'quote' && (
               <>
                 <section>
-                  <p className="mono-label text-violet-600">Final price check</p>
-                  <h3 className="mt-2 text-xl font-semibold">Confirm your basket</h3>
-                  <p className="mt-2 text-xs leading-6 text-slate-500">We checked the latest prices, quantities, seller, stock, and purchase limits.</p>
+                  <h3 className="text-xl font-semibold">Review and approve</h3>
+                  <p className="mt-2 text-xs leading-6 text-slate-500">Check the items and final amount before paying.</p>
                 </section>
                 {line?.explanation && (
                   <div className="mt-5 border-l-4 border-violet-500 bg-white p-4">
@@ -466,7 +480,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 <label className={`mt-5 flex cursor-pointer items-start gap-3 border p-4 transition ${approvedExactQuote ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}>
                   <input type="checkbox" checked={approvedExactQuote} onChange={(event) => setApprovedExactQuote(event.target.checked)} className="mt-0.5 size-4 accent-emerald-600" />
                   <span className="text-xs leading-6 text-slate-700">
-                    <strong className="block text-slate-950">I approve this exact quote.</strong>I confirm the products, quantities, unit prices, total and disclosed limits before expiry.
+                    <strong className="block text-slate-950">I approve {money(total)}.</strong>The items, quantities and total are correct.
                   </span>
                 </label>
               </>
@@ -482,7 +496,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                   <span className={`size-2 rounded-full ${stage === 'paid' ? 'bg-emerald-500' : stopped ? 'bg-rose-500' : 'animate-pulse bg-amber-500'}`} />
                   <p className="text-lg font-semibold">{statusLabel}</p>
                 </div>
-                <p className="mt-3 text-xs leading-6 text-slate-600">{statusMessages[order.status] ?? `Order ${order.order_id?.slice(0, 8).toUpperCase()}`}</p>
+                <p className="mt-3 text-xs leading-6 text-slate-600">{statusMessages[order.status] ?? 'We are checking this order.'}</p>
                 {order.refunds?.[0] && (
                   <p className="mt-2 font-mono text-[8px] text-slate-500">
                     REFUND {order.refunds[0].status} · {money(order.refunds[0].amount)}
@@ -512,8 +526,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               {quote && (
                 <div className="mt-4 flex items-center justify-between border border-amber-300 bg-amber-50 p-3">
                   <div>
-                    <p className="font-mono text-[7px] text-amber-700">QUOTE {quote.quote_id.slice(0, 8).toUpperCase()}</p>
-                    <p className="mt-1 text-[9px] text-amber-800">Single-use approval window</p>
+                    <p className="text-[9px] font-semibold text-amber-800">Price held</p>
+                    <p className="mt-1 text-[9px] text-amber-700">Complete before time runs out</p>
                   </div>
                   <span className={`font-mono text-sm font-bold ${remainingSeconds < 60 ? 'text-rose-600' : 'text-amber-700'}`}>
                     <Clock3 size={13} className="mr-1.5 inline" />
@@ -537,7 +551,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               {stage === 'quote' && (
                 <>
                   <button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
-                    <CreditCard size={16} /> Approve, reserve & pay
+                    <CreditCard size={16} /> Approve & pay
                   </button>
                   <button type="button" onClick={() => requestQuote(Number(quote.policy_snapshot?.limits?.max_item_quantity ?? 5) + 1)} className="focus-ring mt-3 w-full py-2 text-[9px] text-slate-400 hover:text-rose-600">
                     See how Nexora safely stops an over-limit order
@@ -575,12 +589,10 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                   Close checkout
                 </button>
               )}
-              <div className="mt-6 space-y-2 border-t border-slate-200 pt-5">
-                {['No duplicate orders', 'Stock protected during payment', 'Payment confirmed before completion'].map((item) => (
-                  <p key={item} className="flex items-center gap-2 font-mono text-[8px] text-slate-500">
-                    <ShieldCheck size={11} className="text-emerald-600" /> {item}
-                  </p>
-                ))}
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <p className="flex items-center gap-2 text-[11px] text-slate-500">
+                  <ShieldCheck size={14} className="text-emerald-600" /> Payment completes only after confirmation.
+                </p>
               </div>
             </div>
           </aside>

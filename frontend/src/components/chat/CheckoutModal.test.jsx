@@ -30,11 +30,11 @@ const pendingOrder = {
 const renderCheckout = (props = {}) => render(<MemoryRouter><CheckoutModal product={product} onClose={vi.fn()} onOrderPlaced={vi.fn()} {...props} /></MemoryRouter>)
 const reachQuote = async (user) => {
   await user.click(screen.getByRole('button', { name: /See final total/i }))
-  expect(await screen.findByRole('heading', { name: 'Confirm your basket' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Review and approve' })).toBeInTheDocument()
 }
 const approve = async (user) => {
-  await user.click(screen.getByRole('checkbox', { name: /I approve this exact quote/i }))
-  await user.click(screen.getByRole('button', { name: /Approve, reserve & pay/i }))
+  await user.click(screen.getByRole('checkbox', { name: /I approve/i }))
+  await user.click(screen.getByRole('button', { name: /Approve & pay/i }))
 }
 
 describe('approval-gated checkout', () => {
@@ -51,11 +51,17 @@ describe('approval-gated checkout', () => {
   })
 
   it('requires explicit exact-quote approval before creating a payment order', async () => {
-    const user = userEvent.setup(); renderCheckout(); await reachQuote(user)
-    expect(screen.getByRole('button', { name: /Approve, reserve & pay/i })).toBeDisabled()
+    const user = userEvent.setup(); renderCheckout()
+    expect(screen.getByLabelText('Basket, current step')).toHaveAttribute('aria-current', 'step')
+    await reachQuote(user)
+    expect(screen.getByLabelText('Basket, completed')).toHaveClass('bg-emerald-600')
+    expect(screen.getByLabelText('Review, current step')).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('button', { name: /Approve & pay/i })).toBeDisabled()
     await approve(user)
     await waitFor(() => expect(apiMocks.approveQuote).toHaveBeenCalledOnce())
     expect(apiMocks.createOrder).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Review, completed')).toHaveClass('bg-emerald-600')
+    expect(screen.getByLabelText('Pay, current step')).toHaveAttribute('aria-current', 'step')
   })
 
   it('surfaces a deterministic policy block without opening Razorpay', async () => {
@@ -63,7 +69,7 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout()
     await user.click(screen.getByRole('button', { name: /See final total/i }))
     expect(await screen.findByText('Quantity exceeds the configured limit.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Checkout paused safely' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Checkout paused' })).toBeInTheDocument()
     expect(window.Razorpay).not.toHaveBeenCalled()
   })
 
@@ -85,15 +91,15 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout(); await reachQuote(user)
     await user.click(screen.getByRole('button', { name: /See how Nexora safely stops an over-limit order/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Checkout paused safely' })).toBeInTheDocument()
-    expect(screen.getByText(/You requested 6, but the maximum is 5 per item/)).toBeInTheDocument()
-    expect(screen.getByText(/NO PAYMENT STARTED · NO STOCK CHANGED/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Checkout paused' })).toBeInTheDocument()
+    expect(screen.getByText(/You chose 6. The limit is 5 per item/)).toBeInTheDocument()
+    expect(screen.getByText(/No payment · No stock change/)).toBeInTheDocument()
     expect(apiMocks.approveQuote).not.toHaveBeenCalled()
     expect(apiMocks.createOrder).not.toHaveBeenCalled()
     expect(window.Razorpay).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Return to basket and retry' }))
-    expect(screen.getByRole('heading', { name: 'Review quantity' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your item' })).toBeInTheDocument()
     await reachQuote(user)
     expect(apiMocks.createCart.mock.calls.at(-1)[0][0].quantity).toBe(1)
     await approve(user)
@@ -105,7 +111,7 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout(); await reachQuote(user); await approve(user)
     expect(await screen.findByText('Payment provider is temporarily unavailable.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Return to basket and retry' }))
-    expect(screen.getByRole('heading', { name: 'Review quantity' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Your item' })).toBeInTheDocument()
     expect(screen.getAllByText('Backend Keyboard')).toHaveLength(2)
   })
 
@@ -124,7 +130,10 @@ describe('approval-gated checkout', () => {
     apiMocks.getOrder.mockResolvedValue({ data: paidOrder })
     const placed = vi.fn()
     const user = userEvent.setup(); renderCheckout({ onOrderPlaced: placed }); await reachQuote(user); await approve(user)
-    expect(await screen.findByRole('heading', { name: 'Payment confirmed' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Order confirmed' })).toBeInTheDocument()
+    for (const label of ['Basket', 'Review', 'Pay', 'Done']) {
+      expect(screen.getByLabelText(`${label}, completed`)).toHaveClass('bg-emerald-600')
+    }
     expect(placed).toHaveBeenCalledWith({ product, order: paidOrder })
   })
 })
