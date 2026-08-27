@@ -17,9 +17,10 @@ ALLOWED_SPEC_KEYS = frozenset(ProductSpecifications.model_fields)
 MAX_SEARCH_RESULTS = 10
 SEARCH_STOP_WORDS = {
     "a", "an", "and", "at", "below", "best", "bring", "buy", "compare", "details",
-    "for", "find", "from", "give", "in", "list", "looking", "me", "most", "need",
-    "of", "options", "or", "please", "prefer", "prioritize", "result", "show", "than",
-    "that", "the", "to", "under", "value", "want", "what", "with", "worth",
+    "for", "find", "from", "give", "in", "item", "items", "list", "looking", "me",
+    "most", "need", "of", "options", "or", "please", "prefer", "prioritize", "product",
+    "products", "result", "show", "some", "than", "that", "the", "to", "under", "value",
+    "want", "what", "with", "worth",
 }
 CATEGORY_ALIASES = {
     "keyboard": "Keyboards",
@@ -34,6 +35,10 @@ CATEGORY_ALIASES = {
     "backpacks": "Laptop Backpacks",
     "tablet": "Tablets",
     "tablets": "Tablets",
+    "watch": "Watches",
+    "watches": "Watches",
+    "smartwatch": "Watches",
+    "smartwatches": "Watches",
 }
 TERM_EXPANSIONS = {
     "mac": ["macos"],
@@ -78,16 +83,20 @@ class ProductSearchSchema(BaseModel):
         return value
 
 
-def _keyword_query(search_query: str) -> Q:
+def _keyword_tokens(search_query: str) -> list[str]:
     extracted = re.findall(r"[\w+-]+", search_query.lower())
     base_tokens = [
         token for token in dict.fromkeys(extracted)
-        if len(token) > 2 and token not in SEARCH_STOP_WORDS
+        if len(token) > 2 and not token.isdigit() and token not in SEARCH_STOP_WORDS
     ][:10]
     tokens = []
     for token in base_tokens:
         tokens.extend(TERM_EXPANSIONS.get(token, [token]))
-    tokens = list(dict.fromkeys(tokens))[:12]
+    return list(dict.fromkeys(tokens))[:12]
+
+
+def _keyword_query(search_query: str) -> Q:
+    tokens = _keyword_tokens(search_query)
     if not tokens:
         return Q()
 
@@ -147,16 +156,21 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
         else:
             queryset = queryset.filter(**{f"specifications__{key}": value})
 
+    search_tokens = _keyword_tokens(search.search_query)
     sql_queryset = _keyword_filter(queryset, search.search_query)
     keyword_query = _keyword_query(search.search_query)
     query_embedding = catalog_text_embedding(search.search_query, search.category, search.required_specs)
 
     if not vector_index_available():
-        ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+        # Never broaden a meaningful product phrase to every item that merely
+        # satisfies the budget. Constraint-only queries may still browse all
+        # matching inventory.
+        ranked_queryset = sql_queryset if search_tokens else queryset
         products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
     else:
         try:
-            vector_queryset = queryset.filter(semantic_index__embedding__isnull=False).annotate(
+            relevant_queryset = sql_queryset if search_tokens else queryset
+            vector_queryset = relevant_queryset.filter(semantic_index__embedding__isnull=False).annotate(
                 semantic_distance=CosineDistance("semantic_index__embedding", query_embedding),
                 keyword_bonus=Case(
                     When(keyword_query, then=Value(0.25)),
@@ -171,10 +185,10 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
             )
             products = list(vector_queryset.order_by("-hybrid_score", "-rating", "price")[: search.limit])
             if not products:
-                ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+                ranked_queryset = sql_queryset if search_tokens else queryset
                 products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
         except DatabaseError:
-            ranked_queryset = sql_queryset if sql_queryset.exists() else queryset
+            ranked_queryset = sql_queryset if search_tokens else queryset
             products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
     return [serialize_product(product) for product in products]
 

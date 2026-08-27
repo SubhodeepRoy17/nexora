@@ -44,6 +44,37 @@ function AgentMark({ active = false }) {
   )
 }
 
+function TypingText({ text, animate = false }) {
+  const content = String(text ?? '')
+  const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const [visibleLength, setVisibleLength] = useState(animate && !reduceMotion ? 0 : content.length)
+
+  useEffect(() => {
+    if (!animate || reduceMotion) {
+      setVisibleLength(content.length)
+      return undefined
+    }
+
+    setVisibleLength(0)
+    const charactersPerStep = Math.max(1, Math.ceil(content.length / 50))
+    const timer = window.setInterval(() => {
+      setVisibleLength((current) => {
+        const next = Math.min(content.length, current + charactersPerStep)
+        if (next === content.length) window.clearInterval(timer)
+        return next
+      })
+    }, 16)
+    return () => window.clearInterval(timer)
+  }, [animate, content, reduceMotion])
+
+  const typing = visibleLength < content.length
+  return (
+    <span aria-label={content} className={typing ? 'buyer-response-typing' : undefined}>
+      {content.slice(0, visibleLength)}
+    </span>
+  )
+}
+
 const restoreMessages = (data) =>
   data.messages.map((message) => {
     const assistant = message.role === 'ASSISTANT'
@@ -234,7 +265,7 @@ export default function BuyerChat() {
           id: messageId + 1,
           role: 'agent',
           text: data.summary_reasoning,
-          evidence: `${products.length} current match${products.length === 1 ? '' : 'es'} · Details checked`,
+          animateText: true,
           products,
           suggestedQuery: data.suggested_query,
           turnType: data.turn_type,
@@ -386,8 +417,9 @@ export default function BuyerChat() {
                   <div key={message.id} className={`buyer-message flex gap-3 ${message.role === 'user' ? 'ml-auto max-w-2xl flex-row-reverse' : 'max-w-full'}`}>
                     {message.role === 'agent' && <AgentMark active={latestAgent} />}
                     <div className={`min-w-0 ${message.role === 'agent' ? 'w-full' : ''}`}>
-                      <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>{message.text}</div>
-                      {message.products?.length > 0 && message.evidence && <p className="mt-2 text-xs font-medium text-violet-700">{message.evidence}</p>}
+                      <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>
+                        {message.role === 'agent' ? <TypingText text={message.text} animate={message.animateText} /> : message.text}
+                      </div>
                       {message.products && (
                         <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
                           {message.products.map((product, index) => (

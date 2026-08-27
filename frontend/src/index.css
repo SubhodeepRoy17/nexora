@@ -124,6 +124,16 @@
   animation: buyer-welcome-prompt 9s cubic-bezier(.4,0,.2,1) infinite;
 }
 .buyer-typing-dot { animation: buyer-typing-dot 1.2s ease-in-out infinite; }
+.buyer-response-typing::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -.15em;
+  background: currentColor;
+  animation: buyer-response-caret .65s steps(1, end) infinite;
+}
 
 .buyer-composer {
   background: linear-gradient(180deg, rgba(248,250,246,0), rgba(248,250,246,.9) 28%, rgba(248,250,246,.98));
@@ -165,6 +175,11 @@
 @keyframes buyer-typing-dot {
   0%, 60%, 100% { opacity: .4; transform: translateY(0); }
   30% { opacity: 1; transform: translateY(-4px); }
+}
+
+@keyframes buyer-response-caret {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
 }
 
 .storybook-hero-art {

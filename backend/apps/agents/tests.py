@@ -26,7 +26,12 @@ from .services import (
     _thinking_config,
     run_buyer_agent,
 )
-from .tools import ProductSearchSchema, deterministic_search_arguments, fallback_product_search
+from .tools import (
+    ProductSearchSchema,
+    deterministic_search_arguments,
+    fallback_product_search,
+    search_merchant_products,
+)
 
 
 class ProductSearchSchemaTests(SimpleTestCase):
@@ -79,6 +84,43 @@ class ProductSearchSchemaTests(SimpleTestCase):
         self.assertIn("in keyboards", response.summary_reasoning.lower())
         self.assertIn("₹8,000 budget", response.summary_reasoning)
         self.assertNotIn("fallback", response.summary_reasoning.lower())
+
+
+class CatalogRelevanceTests(TestCase):
+    def setUp(self):
+        owner = get_user_model().objects.create_user(username="relevance-owner")
+        merchant = Merchant.objects.create(
+            owner=owner,
+            name="Relevance Catalog",
+            email="relevance@test.invalid",
+        )
+        Product.objects.create(
+            merchant=merchant,
+            title="Aluminium Laptop Stand",
+            description="An adjustable stand for a laptop.",
+            category="Laptop Accessories",
+            price="1499.00",
+            stock_quantity=8,
+            rating=4.7,
+            tags=["laptop", "stand"],
+        )
+
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    def test_unavailable_product_does_not_broaden_to_unrelated_budget_items(self, _vector):
+        arguments = deterministic_search_arguments("Please show me some watches under 2000")
+
+        results = search_merchant_products(arguments)
+
+        self.assertEqual(arguments.category, "Watches")
+        self.assertEqual(results, [])
+
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    def test_constraint_only_budget_query_can_still_browse_matching_inventory(self, _vector):
+        arguments = deterministic_search_arguments("Show me products under 2000")
+
+        results = search_merchant_products(arguments)
+
+        self.assertEqual([item["title"] for item in results], ["Aluminium Laptop Stand"])
 
 
 class RecommendationGroundingTests(SimpleTestCase):

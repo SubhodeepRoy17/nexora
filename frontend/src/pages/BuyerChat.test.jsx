@@ -34,7 +34,7 @@ describe('live buyer search', () => {
     apiMocks.getOrders.mockResolvedValue({ data: { results: [] } })
   })
 
-  it('renders grounded backend recommendations and provider provenance', async () => {
+  it('renders grounded recommendations without a technical match-status line', async () => {
     apiMocks.searchProducts.mockResolvedValue({ data: {
       conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952',
       summary_reasoning: 'One live catalog product fits the stated budget.',
@@ -48,17 +48,21 @@ describe('live buyer search', () => {
     await user.type(input, 'wireless keyboard under 8000')
     await user.click(screen.getByLabelText('Send shopping intent'))
     expect(await screen.findByText('Backend Keyboard')).toBeInTheDocument()
-    expect(screen.getByText(/Details checked/)).toBeInTheDocument()
+    expect(screen.queryByText(/current matches|Details checked/i)).not.toBeInTheDocument()
     expect(apiMocks.searchProducts).toHaveBeenCalledWith('wireless keyboard under 8000', expect.any(AbortSignal), { conversationId: null, conversationToken: null })
   })
 
   it('makes a backend no-result response honest and actionable', async () => {
-    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952', summary_reasoning: 'No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.', suggested_query: 'Find a keyboard under ₹2,499', provider_source: 'FALLBACK', recommendations: [], add_on_suggestions: [] } })
+    const reply = 'No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.'
+    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952', summary_reasoning: reply, suggested_query: 'Find a keyboard under ₹2,499', provider_source: 'FALLBACK', recommendations: [], add_on_suggestions: [] } })
     const user = userEvent.setup()
     renderBuyer()
     await user.type(screen.getByLabelText('Shopping intent'), 'impossible product')
     await user.click(screen.getByLabelText('Send shopping intent'))
-    expect(await screen.findByText('No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.')).toBeInTheDocument()
+    const animatedReply = await screen.findByLabelText(reply)
+    expect(animatedReply).toHaveClass('buyer-response-typing')
+    await waitFor(() => expect(animatedReply).not.toHaveClass('buyer-response-typing'), { timeout: 3000 })
+    expect(animatedReply).toHaveTextContent(reply)
     await user.click(screen.getByRole('button', { name: 'Try the suggested search' }))
     await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue('Find a keyboard under ₹2,499'))
   })
@@ -69,7 +73,7 @@ describe('live buyer search', () => {
     renderBuyer()
     await user.type(screen.getByLabelText('Shopping intent'), 'Hi')
     await user.click(screen.getByLabelText('Send shopping intent'))
-    expect(await screen.findByText('Hey! What are you hoping to find today?')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Hey! What are you hoping to find today?')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try the suggested search' })).not.toBeInTheDocument()
   })
 
