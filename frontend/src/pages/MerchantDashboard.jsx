@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, BarChart3, Boxes, LayoutDashboard, Sparkles } from 'lucide-react'
+import { AlertTriangle, BarChart3, Boxes, LayoutDashboard } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
@@ -249,12 +249,10 @@ export default function MerchantDashboard() {
     }
   }
 
-  const catalogHealth = workspace?.catalog_health
-  const catalogIssueTotal = Object.values(catalogHealth?.issue_counts ?? {}).reduce((sum, value) => sum + value, 0)
   const openExceptions = workspace?.operations?.open_reconciliation_exceptions ?? 0
 
   return (
-    <div className="merchant-light merchant-grid flex h-[calc(100dvh-4rem)] min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
+    <div className="merchant-light merchant-grid flex h-dvh min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
       {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside id="merchant-workspace-sidebar" aria-label="Merchant navigation" className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'w-[288px] translate-x-0 p-3' : 'w-[288px] -translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}>
         {sidebarOpen ? (
@@ -284,30 +282,10 @@ export default function MerchantDashboard() {
                 ))}
               </nav>
 
-              <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50/65 p-4">
-                <Sparkles size={16} className="text-violet-600" />
-                <p className="mt-3 text-xs font-semibold text-slate-800">Product listing quality</p>
-                {catalogHealth ? (
-                  <>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${catalogHealth.score_percent ?? 0}%` }} />
-                      </div>
-                      <span className="font-mono text-[9px] text-emerald-700">{catalogHealth.score_percent == null ? 'N/A' : `${catalogHealth.score_percent}%`}</span>
-                    </div>
-                    <p className="mt-2 text-[9px] leading-relaxed text-slate-600">{catalogHealth.total_products ? `${catalogIssueTotal} missing check${catalogIssueTotal === 1 ? '' : 's'} across ${catalogHealth.total_products} products.` : 'No products yet; health is not scored.'}</p>
-                    <p className="mt-2 font-mono text-[7px] leading-4 text-slate-500">Complete product details help shoppers find the right fit.</p>
-                  </>
-                ) : (
-                  <button type="button" onClick={() => refreshOperations()} className="mt-3 text-[9px] text-amber-700">
-                    {operationsState.error ? 'Health unavailable · retry' : 'Calculating from catalog…'}
-                  </button>
-                )}
-              </div>
             </div>
 
-            <div className="mt-3 border-t border-emerald-950/10 pt-3">
-              <WorkspaceAccountMenu user={user} detail="Seller account" />
+            <div className="mt-auto border-t border-emerald-950/10 pt-3">
+              <WorkspaceAccountMenu user={user} />
             </div>
           </>
         ) : (
@@ -324,13 +302,13 @@ export default function MerchantDashboard() {
               ))}
             </nav>
             <div className="mt-auto pb-1">
-              <WorkspaceAccountMenu user={user} compact detail="Seller account" />
+              <WorkspaceAccountMenu user={user} compact />
             </div>
           </div>
         )}
       </aside>
 
-      <main className="merchant-main min-w-0 flex-1 overflow-y-auto">
+      <main className="merchant-main min-w-0 flex-1 overflow-y-auto pt-16">
         <div className="mx-auto max-w-[1440px] px-4 pb-10 pt-5 md:px-7 md:pt-7">
           <section className="merchant-page-intro relative mb-6 overflow-hidden rounded-[2rem] border border-white/80 px-5 py-6 shadow-[0_18px_55px_rgba(42,81,68,.09)] md:px-8 md:py-8">
             <div className="merchant-page-orb absolute -right-12 -top-16 size-48 rounded-full bg-violet-300/30 blur-3xl" />
