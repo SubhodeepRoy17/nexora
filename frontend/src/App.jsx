@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Navbar from './components/common/Navbar'
-import NexoraCursor from './components/common/NexoraCursor'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BuyerChat from './pages/BuyerChat'
 import LandingPage from './pages/LandingPage'
@@ -10,7 +9,6 @@ import MerchantDashboard from './pages/MerchantDashboard'
 export default function App() {
   return (
     <div className="min-h-dvh bg-[#f6f5f1]">
-      <NexoraCursor />
       <Navbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
