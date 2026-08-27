@@ -13,8 +13,10 @@ const browser = await chromium.launch({ executablePath, headless: true })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 })
 try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' })
-  await page.locator('#product').scrollIntoViewIfNeeded()
-  await page.waitForTimeout(1500)
+  for (const selector of ['#product', '#how-it-works', '#safety', 'footer']) {
+    await page.locator(selector).scrollIntoViewIfNeeded()
+    await page.waitForTimeout(1500)
+  }
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
   await page.waitForTimeout(150)
   await page.screenshot({ path: resolve(output, 'nexora-landing-page.png'), fullPage: true })

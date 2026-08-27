@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  ArrowUpRight,
   Bot,
   Check,
   CheckCircle2,
@@ -12,7 +13,7 @@ import {
   Globe2,
   LineChart,
   Search,
-  Sparkles,
+  ShieldCheck,
   Webhook,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -32,6 +33,29 @@ const steps = [
   { number: '03', title: 'Approve the exact quote', signal: 'One quote. One human decision.', copy: 'Review products, quantities, unit prices, policy limits, expiry, and the precise payable total before any payment action is allowed.' },
   { number: '04', title: 'Pay with a safe handoff', signal: 'Checkout opens. Webhook settles.', copy: 'Razorpay Checkout opens only after approval. Signed provider webhooks—not the browser—remain the authority for payment status.' },
 ]
+
+function useRevealOnce(threshold = 0.12) {
+  const sectionRef = useRef(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return undefined
+    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setVisible(true)
+      return undefined
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setVisible(true)
+      observer.disconnect()
+    }, { threshold, rootMargin: '0px 0px -8% 0px' })
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [threshold])
+
+  return [sectionRef, visible]
+}
 
 function JourneyIllustration({ number }) {
   if (number === '01') return (
@@ -72,9 +96,9 @@ function JourneyIllustration({ number }) {
   )
 }
 
-function JourneyStepCard({ step }) {
+function JourneyStepCard({ step, index }) {
   return (
-    <article className={`journey-step-card journey-step-card-${step.number} group overflow-hidden border border-emerald-950/10 bg-white/75 shadow-[0_18px_45px_rgba(42,81,68,.07)] backdrop-blur-sm`} tabIndex={0} aria-label={`${step.title}. Focus or hover to reveal details.`}>
+    <article className={`journey-step-card journey-step-card-${step.number} group overflow-hidden border border-emerald-950/10 bg-white/75 shadow-[0_18px_45px_rgba(42,81,68,.07)] backdrop-blur-sm`} style={{ '--journey-delay': `${index * 140}ms` }} tabIndex={0} aria-label={`${step.title}. Focus or hover to reveal details.`}>
       <JourneyIllustration number={step.number} />
       <div className="journey-step-copy border-t border-emerald-950/10 bg-white/85 p-6 sm:p-7">
         <div className="flex items-center gap-3"><span className="font-mono text-[9px] font-semibold tracking-[0.16em] text-violet-700">STEP {step.number}</span><span className="h-px flex-1 bg-emerald-950/10" /></div>
@@ -100,28 +124,14 @@ function ProductFeatureCard({ children, className = '', tone = 'paper', motion =
 }
 
 export default function LandingPage() {
-  const productSectionRef = useRef(null)
-  const [productVisible, setProductVisible] = useState(false)
-
-  useEffect(() => {
-    const section = productSectionRef.current
-    if (!section) return undefined
-    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setProductVisible(true)
-      return undefined
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return
-      setProductVisible(true)
-      observer.disconnect()
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
-    observer.observe(section)
-    return () => observer.disconnect()
-  }, [])
+  const [productSectionRef, productVisible] = useRevealOnce()
+  const [journeySectionRef, journeyVisible] = useRevealOnce(0.08)
+  const [safetySectionRef, safetyVisible] = useRevealOnce(0.12)
+  const [footerRef, footerVisible] = useRevealOnce(0.16)
 
   return (
     <main className="overflow-hidden bg-[#f6f5f1] text-slate-950">
-      <section className="storybook-hero relative isolate min-h-svh overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
+      <section id="top" className="storybook-hero relative isolate min-h-svh overflow-hidden border-b border-emerald-950/10 px-4 sm:px-6 lg:px-8">
         <div className="storybook-hero-art absolute inset-0 -z-30" aria-hidden="true" />
         <div className="storybook-hero-scrim absolute inset-0 -z-20" aria-hidden="true" />
         <div className="storybook-cloud storybook-cloud-one" aria-hidden="true" />
@@ -205,26 +215,44 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="journey-steps-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+      <section ref={journeySectionRef} id="how-it-works" className={`journey-steps-section journey-reveal-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8 ${journeyVisible ? 'journey-section-visible' : ''}`}>
         <div className="relative z-10 mx-auto max-w-[1440px]">
-          <SectionHeading title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." />
-          <div className="relative mt-12 grid gap-4 md:grid-cols-2">
-            {steps.map((step) => <JourneyStepCard key={step.number} step={step} />)}
+          <div className="journey-section-heading"><SectionHeading title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." /></div>
+          <div className="journey-route relative mt-10 hidden grid-cols-4 items-center md:grid" aria-hidden="true">
+            <span className="absolute left-[12.5%] right-[12.5%] top-[15px] h-0.5 bg-emerald-950/15" />
+            <span className="journey-route-fill absolute left-[12.5%] top-[15px] h-0.5 bg-gradient-to-r from-sky-400 via-violet-500 to-emerald-500" />
+            {['Intent', 'Evidence', 'Approval', 'Settlement'].map((label, index) => <div key={label} className="journey-route-stop relative z-10 flex flex-col items-center" style={{ '--route-delay': `${280 + index * 150}ms` }}><span className="grid size-8 place-items-center rounded-full border border-violet-200 bg-white font-mono text-[8px] font-semibold text-violet-700 shadow-[0_5px_16px_rgba(109,40,217,.16)]">{index + 1}</span><span className="mt-2 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-[#31594f]/75">{label}</span></div>)}
+          </div>
+          <div className="relative mt-9 grid gap-4 md:grid-cols-2">
+            {steps.map((step, index) => <JourneyStepCard key={step.number} step={step} index={index} />)}
           </div>
         </div>
       </section>
 
-      <section id="safety" className="border-y border-slate-300 bg-white px-4 py-20 text-slate-950 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto grid max-w-[1440px] gap-14 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
-          <div><SectionHeading inverse eyebrow="The trust architecture" title="If the evidence changes, Nexora stops." description="Expired quote, changed price, depleted stock, replayed approval, wrong buyer, or policy breach: each failure gets a stable reason code and immutable audit—without creating a false paid state." /><div className="mt-8 flex flex-wrap gap-3"><StatusPill tone="amber">Fail closed</StatusPill><StatusPill>Stock safe</StatusPill><StatusPill tone="violet">Audit linked</StatusPill></div></div>
-          <div className="border border-slate-200 bg-slate-50 p-4 sm:p-7">
-            {[
-              ['Intent + recommendation', 'Grounded catalog evidence', 'complete'],
-              ['Exact quote', '₹7,499 · expires in 09:42', 'complete'],
-              ['Human approval', 'Signed · single use', 'complete'],
-              ['Price revalidation', 'Price changed by merchant', 'blocked'],
-              ['Razorpay order', 'Not created', 'safe'],
-            ].map(([title, detail, state], index) => <div key={title} className="relative flex gap-4 border-b border-slate-200 py-4 last:border-0"><span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border font-mono text-[8px] ${state === 'blocked' ? 'border-amber-300 bg-amber-50 text-amber-700' : state === 'safe' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-violet-300 bg-violet-50 text-violet-700'}`}>{index + 1}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold">{title}</p><span className={`font-mono text-[7px] uppercase ${state === 'blocked' ? 'text-amber-700' : state === 'safe' ? 'text-emerald-700' : 'text-violet-700'}`}>{state}</span></div><p className="mt-1 text-[10px] text-slate-500">{detail}</p></div></div>)}
+      <section ref={safetySectionRef} id="safety" className={`safety-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 text-slate-950 sm:px-6 sm:py-28 lg:px-8 ${safetyVisible ? 'safety-section-visible' : ''}`}>
+        <div className="safety-aurora safety-aurora-one" aria-hidden="true" />
+        <div className="safety-aurora safety-aurora-two" aria-hidden="true" />
+        <div className="relative z-10 mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[.82fr_1.18fr] lg:items-center">
+          <div className="safety-copy-panel">
+            <SectionHeading eyebrow="The trust architecture" title="When the evidence changes, the payment path closes." description="Nexora treats every money action as a bounded state transition. A stale price, depleted stock, replayed approval, wrong buyer, or failed signature stops execution before it can become a false paid state." />
+            <div className="mt-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              {[{ icon: ShieldCheck, label: 'Deterministic bounds', copy: 'Policy checks live outside the model.' }, { icon: Fingerprint, label: 'Single-use approval', copy: 'One buyer, quote, amount, and expiry.' }, { icon: Webhook, label: 'Provider authority', copy: 'Signed webhooks settle payment truth.' }].map(({ icon: Icon, label, copy }, index) => <article key={label} className="safety-principle rounded-2xl border border-white/80 bg-white/60 p-4 shadow-[0_14px_34px_rgba(42,81,68,.08)] backdrop-blur-md" style={{ '--safety-delay': `${index * 110}ms` }}><span className="grid size-9 place-items-center rounded-full bg-[#17372f] text-white"><Icon size={15} /></span><h3 className="mt-4 text-sm font-semibold text-[#17372f]">{label}</h3><p className="mt-2 text-[10px] leading-5 text-[#31594f]">{copy}</p></article>)}
+            </div>
+          </div>
+
+          <div className="safety-console relative overflow-hidden rounded-[2rem] border border-white/85 bg-white/68 p-4 shadow-[0_30px_80px_rgba(42,81,68,.14)] backdrop-blur-xl sm:p-7">
+            <div className="safety-scan-line" aria-hidden="true" />
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-emerald-950/10 pb-5"><div><p className="font-mono text-[8px] font-semibold uppercase tracking-[0.16em] text-violet-700">Execution guard · live trace</p><h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-[#17372f]">Price-change failure, handled safely</h3></div><StatusPill tone="amber">Fail closed</StatusPill></div>
+            <div className="safety-trace relative z-10 mt-2">
+              {[
+                ['Intent + recommendation', 'Grounded catalog evidence', 'complete'],
+                ['Exact quote', '₹7,499 · expires in 09:42', 'complete'],
+                ['Human approval', 'Signed · single use', 'complete'],
+                ['Price revalidation', 'Merchant price changed', 'blocked'],
+                ['Razorpay order', 'Not created · no inventory consumed', 'safe'],
+              ].map(([title, detail, state], index) => <div key={title} className={`safety-trace-row safety-trace-${state} relative flex gap-4 border-b border-emerald-950/10 py-4 last:border-0`} style={{ '--trace-index': index }}><span className="safety-trace-node relative z-10 mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border bg-white font-mono text-[8px]">{state === 'complete' ? <Check size={13} /> : index + 1}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-[#17372f]">{title}</p><span className="font-mono text-[7px] uppercase tracking-[0.12em]">{state}</span></div><p className="mt-1 text-[10px] text-[#31594f]/70">{detail}</p></div></div>)}
+            </div>
+            <div className="safety-outcome relative z-10 mt-4 flex items-start gap-3 rounded-2xl border border-emerald-300/70 bg-emerald-50/85 p-4"><CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-700" /><div><p className="text-xs font-semibold text-emerald-900">Safe outcome preserved</p><p className="mt-1 text-[10px] leading-5 text-emerald-800">No Razorpay order, no false paid state, and one immutable reason code in the audit trail.</p></div></div>
           </div>
         </div>
       </section>
@@ -233,8 +261,19 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-[1440px] flex-col justify-between gap-10 lg:flex-row lg:items-end"><div><p className="font-mono text-[9px] uppercase tracking-[0.18em] text-violet-700">Ready when your intent is</p><h2 className="mt-5 max-w-4xl text-balance text-4xl font-semibold leading-[.98] tracking-[-0.05em] sm:text-6xl">Find the right product.<br />Keep control of the purchase.</h2></div><div className="flex flex-col gap-3 sm:flex-row"><SignalButton to="/buyer" variant="primary">Start shopping</SignalButton><SignalButton to="/merchant" variant="secondary">Merchant sign in</SignalButton></div></div>
       </section>
 
-      <footer className="bg-[#f6f5f1] px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-[1440px]"><div className="flex flex-col justify-between gap-8 border-b border-slate-300 pb-9 sm:flex-row sm:items-center"><Brand /><nav className="flex flex-wrap gap-5 text-[11px] font-semibold text-slate-600" aria-label="Footer"><a href="#product" className="hover:text-violet-600">Product</a><a href="#how-it-works" className="hover:text-violet-600">How it works</a><a href="#safety" className="hover:text-violet-600">Safety</a><a href="/api/commerce/v1/openapi.json" className="hover:text-violet-600">Agent API</a></nav></div><div className="flex flex-col justify-between gap-3 pt-6 font-mono text-[8px] uppercase tracking-[0.12em] text-slate-500 sm:flex-row"><p>Grounded commerce intelligence.</p><p>Human approval · Razorpay test mode · Webhook authority</p></div></div>
+      <footer ref={footerRef} className={`motion-footer relative isolate overflow-hidden border-t border-emerald-950/10 text-[#17372f] ${footerVisible ? 'motion-footer-visible' : ''}`}>
+        <div className="motion-footer-cloud motion-footer-cloud-one" aria-hidden="true" />
+        <div className="motion-footer-cloud motion-footer-cloud-two" aria-hidden="true" />
+        <div className="motion-footer-marquee border-b border-emerald-950/10 py-3" aria-hidden="true"><div className="motion-footer-marquee-track font-mono text-[8px] font-semibold uppercase tracking-[0.2em] text-[#31594f]/65"><span>Grounded discovery · Human approval · Webhook authority · Agent-readable commerce · </span><span>Grounded discovery · Human approval · Webhook authority · Agent-readable commerce · </span></div></div>
+        <div className="relative z-10 mx-auto max-w-[1440px] px-4 pb-6 pt-14 sm:px-6 sm:pt-20 lg:px-8">
+          <div className="motion-footer-content grid gap-12 lg:grid-cols-[1.25fr_.75fr_.75fr]">
+            <div><Brand /><p className="mt-5 max-w-md text-sm leading-7 text-[#31594f]">A grounded commerce agent for buyers, and an agent-readable growth system for merchants—without surrendering control of the money.</p><a href="#top" className="motion-footer-top mt-7 inline-flex items-center gap-3 rounded-full border border-white/80 bg-white/55 px-5 py-3 text-xs font-semibold shadow-[0_12px_30px_rgba(42,81,68,.09)] backdrop-blur-md">Back to the beginning <ArrowUpRight size={15} /></a></div>
+            <nav aria-label="Footer explore"><p className="font-mono text-[8px] font-semibold uppercase tracking-[0.16em] text-violet-700">Explore</p><div className="mt-5 flex flex-col items-start gap-3 text-sm font-medium"><a href="#product">Product</a><a href="#how-it-works">How it works</a><a href="#safety">Safety</a></div></nav>
+            <nav aria-label="Footer system"><p className="font-mono text-[8px] font-semibold uppercase tracking-[0.16em] text-violet-700">Use Nexora</p><div className="mt-5 flex flex-col items-start gap-3 text-sm font-medium"><Link to="/buyer">Buyer agent</Link><Link to="/merchant">Merchant OS</Link><a href="/api/commerce/v1/openapi.json">Agent API</a></div></nav>
+          </div>
+          <div className="motion-footer-wordmark mt-16 overflow-hidden border-y border-emerald-950/10 py-3 sm:mt-20"><p className="nexora-wordmark whitespace-nowrap text-center text-[clamp(5rem,16vw,14rem)] font-semibold leading-[.72] tracking-[-0.055em] text-[#17372f]">NEXORA</p></div>
+          <div className="flex flex-col justify-between gap-3 pt-6 font-mono text-[8px] uppercase tracking-[0.12em] text-[#31594f]/60 sm:flex-row"><p>© 2026 Nexora · Agentic commerce</p><p>Human approval · Razorpay test mode · Webhook authority</p></div>
+        </div>
       </footer>
     </main>
   )
