@@ -27,40 +27,61 @@ const trustPoints = [
 ]
 
 const steps = [
-  { number: '01', icon: Search, title: 'Describe the outcome', authority: 'Buyer-led', accent: 'rgba(125, 211, 252, .55)', copy: 'Give Nexora your budget, constraints, use case, and trade-offs—not a product keyword list.' },
-  { number: '02', icon: Bot, title: 'Compare grounded options', authority: 'Agent-prepared', accent: 'rgba(196, 181, 253, .6)', copy: 'The agent searches live merchant catalogs and explains every recommendation from recorded facts.' },
-  { number: '03', icon: FileCheck2, title: 'Approve the exact quote', authority: 'Human-gated', accent: 'rgba(110, 231, 183, .65)', copy: 'You see products, quantities, unit prices, limits, expiry, and the precise amount before anything moves.' },
-  { number: '04', icon: CreditCard, title: 'Pay with a safe handoff', authority: 'Provider handoff', accent: 'rgba(253, 230, 138, .62)', copy: 'Razorpay Checkout opens only after approval. Signed webhooks remain the settlement authority.' },
+  { number: '01', title: 'Describe the outcome', signal: 'Constraints in. No keyword guesswork.', copy: 'Give Nexora your budget, required specs, use case, and acceptable trade-offs. The agent turns the outcome into a bounded search plan.' },
+  { number: '02', title: 'Compare grounded options', signal: 'Live evidence. Ranked trade-offs.', copy: 'Nexora searches current merchant catalogs, verifies price and stock, then explains why each option fits—or fails—your request.' },
+  { number: '03', title: 'Approve the exact quote', signal: 'One quote. One human decision.', copy: 'Review products, quantities, unit prices, policy limits, expiry, and the precise payable total before any payment action is allowed.' },
+  { number: '04', title: 'Pay with a safe handoff', signal: 'Checkout opens. Webhook settles.', copy: 'Razorpay Checkout opens only after approval. Signed provider webhooks—not the browser—remain the authority for payment status.' },
 ]
 
-function moveSpotlight(event) {
-  const card = event.currentTarget
-  const bounds = card.getBoundingClientRect()
-  card.style.setProperty('--spotlight-x', `${event.clientX - bounds.left}px`)
-  card.style.setProperty('--spotlight-y', `${event.clientY - bounds.top}px`)
+function JourneyIllustration({ number }) {
+  if (number === '01') return (
+    <div className="journey-illustration journey-illustration-sky" aria-hidden="true">
+      <div className="journey-float w-[82%] max-w-[330px] rounded-2xl border border-white/90 bg-white/80 p-4 shadow-[0_20px_45px_rgba(46,91,78,.14)] backdrop-blur-md">
+        <div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#e8f5ef] text-[#17372f]"><Search size={16} /></span><div className="h-2.5 flex-1 rounded-full bg-[#31594f]/12"><div className="h-full w-[72%] rounded-full bg-[#31594f]/28" /></div></div>
+        <p className="mt-4 text-sm font-semibold text-[#17372f]">Quiet travel keyboard under ₹9,000</p>
+        <div className="mt-4 flex flex-wrap gap-2">{['Quiet', 'Wireless', 'Travel'].map((item) => <span key={item} className="rounded-full border border-emerald-900/10 bg-[#f4f8ec] px-2.5 py-1 font-mono text-[7px] uppercase tracking-wider text-[#31594f]">{item}</span>)}</div>
+      </div>
+    </div>
+  )
+
+  if (number === '02') return (
+    <div className="journey-illustration journey-illustration-grid" aria-hidden="true">
+      <div className="flex w-[86%] max-w-[350px] items-end justify-center gap-3">
+        {[['92%', 'Best fit', 'bg-emerald-300/70'], ['84%', 'Alternative', 'bg-violet-300/70']].map(([score, label, color], index) => <div key={label} className={`journey-option-card w-1/2 rounded-2xl border border-white/90 bg-white/85 p-4 shadow-[0_18px_40px_rgba(46,91,78,.12)] ${index ? 'translate-y-3' : ''}`}><div className={`grid size-10 place-items-center rounded-xl ${color}`}><Bot size={17} className="text-[#17372f]" /></div><p className="mt-5 font-mono text-[8px] uppercase tracking-[0.14em] text-[#31594f]/65">{label}</p><p className="mt-1 text-lg font-semibold text-[#17372f]">{score}</p><div className="mt-3 space-y-1.5"><span className="block h-1.5 w-full rounded-full bg-[#31594f]/13" /><span className="block h-1.5 w-2/3 rounded-full bg-[#31594f]/10" /></div></div>)}
+      </div>
+    </div>
+  )
+
+  if (number === '03') return (
+    <div className="journey-illustration journey-illustration-mint" aria-hidden="true">
+      <div className="journey-quote-card w-[82%] max-w-[330px] rounded-2xl border border-white/90 bg-white/85 p-5 shadow-[0_20px_45px_rgba(46,91,78,.14)]">
+        <div className="flex items-center justify-between"><span className="font-mono text-[8px] uppercase tracking-[0.16em] text-[#31594f]/65">Exact quote</span><FileCheck2 size={18} className="text-emerald-700" /></div>
+        <div className="mt-5 space-y-3 text-[10px] text-[#31594f]"><div className="flex justify-between"><span>Nexora Nomad 75</span><strong>₹7,499</strong></div><div className="flex justify-between"><span>Travel case</span><strong>₹999</strong></div></div>
+        <div className="mt-4 flex items-center justify-between border-t border-emerald-950/10 pt-4"><span className="text-xs font-semibold text-[#17372f]">Total</span><span className="text-lg font-semibold text-[#17372f]">₹8,498</span></div>
+        <div className="mt-4 flex items-center justify-center gap-2 rounded-full bg-[#17372f] px-4 py-2.5 text-[9px] font-semibold text-white"><Check size={12} /> Human approval required</div>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="journey-illustration journey-illustration-gold" aria-hidden="true">
+      <div className="flex w-[88%] max-w-[360px] items-center justify-between gap-2">
+        {[{ icon: CreditCard, label: 'Razorpay' }, { icon: Webhook, label: 'Webhook' }, { icon: CheckCircle2, label: 'Verified' }].map(({ icon: Icon, label }, index) => <div key={label} className="contents"><div className={`journey-handoff-node journey-handoff-node-${index + 1} relative z-10 flex min-w-0 flex-1 flex-col items-center rounded-2xl border border-white/90 bg-white/85 px-2 py-5 shadow-[0_18px_40px_rgba(81,71,38,.11)]`}><span className="grid size-10 place-items-center rounded-full bg-[#f4f8ec] text-[#17372f]"><Icon size={17} /></span><span className="mt-3 text-[9px] font-semibold text-[#31594f]">{label}</span></div>{index < 2 && <div className="journey-flow-line relative h-px w-5 shrink-0 bg-[#31594f]/20"><span className="absolute -top-1 left-0 size-2 rounded-full bg-emerald-500" /></div>}</div>)}
+      </div>
+    </div>
+  )
 }
 
-function SpotlightStepCard({ step }) {
-  const { number, icon: Icon, title, authority, accent, copy } = step
+function JourneyStepCard({ step }) {
   return (
-    <article
-      className="spotlight-step-card group relative isolate min-h-[330px] overflow-hidden rounded-[2rem] border border-white/80 p-6 shadow-[0_22px_55px_rgba(42,81,68,.11)] sm:p-8"
-      style={{ '--spotlight-color': accent }}
-      onPointerMove={moveSpotlight}
-    >
-      <div className="relative z-10 flex h-full flex-col">
-        <div className="flex items-center justify-between gap-4">
-          <span className="rounded-full border border-white/90 bg-white/65 px-3 py-1.5 font-mono text-[9px] font-semibold tracking-[0.16em] text-[#31594f] shadow-sm backdrop-blur-md">STEP {number}</span>
-          <span className="grid size-12 place-items-center rounded-full border border-white/90 bg-white/70 text-[#17372f] shadow-[0_10px_25px_rgba(42,81,68,.1)] backdrop-blur-md transition duration-300 group-hover:-translate-y-1 group-hover:scale-105"><Icon size={19} strokeWidth={1.8} /></span>
-        </div>
-        <div className="mt-14 sm:mt-16">
-          <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-emerald-800/70">{authority}</p>
-          <h3 className="storybook-title mt-3 text-[1.75rem] font-semibold leading-[1.02] tracking-[-0.035em] text-[#17372f]">{title}</h3>
-          <p className="mt-4 text-sm leading-6 text-[#31594f]">{copy}</p>
-        </div>
-        <div className="mt-auto pt-8" aria-hidden="true">
-          <div className="h-px bg-gradient-to-r from-[#31594f]/25 via-white/80 to-transparent" />
-          <div className="mt-3 flex items-center gap-2 text-[9px] font-semibold text-[#31594f]/65"><span className="size-1.5 rounded-full bg-emerald-500/75" /> Bounded and auditable</div>
+    <article className={`journey-step-card journey-step-card-${step.number} group overflow-hidden border border-emerald-950/10 bg-white/75 shadow-[0_18px_45px_rgba(42,81,68,.07)] backdrop-blur-sm`} tabIndex={0} aria-label={`${step.title}. Focus or hover to reveal details.`}>
+      <JourneyIllustration number={step.number} />
+      <div className="journey-step-copy border-t border-emerald-950/10 bg-white/85 p-6 sm:p-7">
+        <div className="flex items-center gap-3"><span className="font-mono text-[9px] font-semibold tracking-[0.16em] text-violet-700">STEP {step.number}</span><span className="h-px flex-1 bg-emerald-950/10" /></div>
+        <h3 className="mt-4 text-xl font-semibold tracking-[-0.025em] text-[#17372f]">{step.title}</h3>
+        <div className="journey-step-reveal mt-3">
+          <p className="journey-step-signal font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-[#31594f]">{step.signal}</p>
+          <p className="journey-step-detail text-sm leading-6 text-[#31594f]">{step.copy}</p>
         </div>
       </div>
     </article>
@@ -101,9 +122,6 @@ export default function LandingPage() {
 
         <div className="mx-auto flex min-h-svh max-w-[1440px] flex-col items-center justify-center pb-32 pt-24 text-center sm:pb-36 sm:pt-24">
           <div className="storybook-copy relative z-10 flex max-w-4xl flex-col items-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-4 py-2 font-mono text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-950 shadow-[0_10px_35px_rgba(30,64,52,.12)] backdrop-blur-md">
-              <Sparkles size={12} className="text-violet-700" /> A gentler way to find the right thing
-            </div>
             <h1 className="storybook-title mt-7 max-w-[13ch] text-balance text-[clamp(3.35rem,7.4vw,7.3rem)] font-semibold leading-[0.88] tracking-[-0.055em] text-[#17372f] drop-shadow-[0_2px_0_rgba(255,255,255,.35)]">
               Tell us what matters. We’ll find what fits.
             </h1>
@@ -155,13 +173,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="spotlight-steps-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="spotlight-steps-cloud spotlight-steps-cloud-left" aria-hidden="true" />
-        <div className="spotlight-steps-cloud spotlight-steps-cloud-right" aria-hidden="true" />
+      <section id="how-it-works" className="journey-steps-section relative isolate overflow-hidden border-y border-emerald-950/10 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="relative z-10 mx-auto max-w-[1440px]">
-          <SectionHeading eyebrow="A bounded path to payment" title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." />
-          <div className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step) => <SpotlightStepCard key={step.number} step={step} />)}
+          <SectionHeading title="Four steps. One human decision." description="The agent can search, compare, and prepare. Only you can approve the exact quote that reaches checkout." />
+          <div className="relative mt-12 grid gap-4 md:grid-cols-2">
+            {steps.map((step) => <JourneyStepCard key={step.number} step={step} />)}
           </div>
         </div>
       </section>
