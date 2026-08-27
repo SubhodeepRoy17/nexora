@@ -56,14 +56,14 @@ function TypingText({ text, animate = false }) {
     }
 
     setVisibleLength(0)
-    const charactersPerStep = Math.max(1, Math.ceil(content.length / 50))
+    const charactersPerStep = Math.max(1, Math.ceil(content.length / 70))
     const timer = window.setInterval(() => {
       setVisibleLength((current) => {
         const next = Math.min(content.length, current + charactersPerStep)
         if (next === content.length) window.clearInterval(timer)
         return next
       })
-    }, 16)
+    }, 20)
     return () => window.clearInterval(timer)
   }, [animate, content, reduceMotion])
 

@@ -156,6 +156,43 @@ class RecommendationGroundingTests(SimpleTestCase):
         self.assertEqual(grounded.recommendations[0].price, 7999.0)
         self.assertEqual(grounded.recommendations[0].stock_quantity, 0)
 
+    def test_buyer_facing_copy_hides_internal_ids_and_addresses_person_directly(self):
+        response = BuyerAgentResponse(
+            thought_process=["Compared catalog candidates."],
+            recommendations=[
+                ProductRecommendation(
+                    product_id=108,
+                    title="Model title",
+                    merchant="Model merchant",
+                    price=1,
+                    match_score=95,
+                    reason="The user requested this item under product ID 108.",
+                )
+            ],
+            summary_reasoning=(
+                "The user requested the Nexora Full-Size Wrist Rest, which is "
+                "available in the catalog under product ID 108."
+            ),
+        )
+        candidates = [
+            {
+                "id": 108,
+                "title": "Nexora Full-Size Wrist Rest",
+                "price": "1499.00",
+                "merchant": {"name": "Nexora Store"},
+                "specifications": {},
+            }
+        ]
+
+        grounded = _ground_recommendations(response, candidates)
+
+        self.assertEqual(
+            grounded.summary_reasoning,
+            "You asked for the Nexora Full-Size Wrist Rest, which is available.",
+        )
+        self.assertNotIn("product ID", grounded.recommendations[0].reason)
+        self.assertNotIn("The user", grounded.recommendations[0].reason)
+
 
 class GeminiProviderTests(SimpleTestCase):
     @patch.dict(os.environ, {"GEMINI_MODEL": "gemini-test-model"})

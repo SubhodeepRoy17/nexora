@@ -338,13 +338,63 @@ def _ground_recommendations(
                     "stock_quantity": candidate.get("stock_quantity", 0),
                     "rating": candidate.get("rating", 0),
                     "key_specs": candidate["specifications"],
+                    "reason": _public_facing_text(recommendation.reason),
+                    "tradeoffs": [
+                        _public_facing_text(item) for item in recommendation.tradeoffs
+                    ],
                 }
             )
         )
 
     if candidates and not grounded:
         raise AgentServiceError("Gemini recommendations did not reference catalog products")
-    return response.model_copy(update={"recommendations": grounded})
+    return response.model_copy(
+        update={
+            "recommendations": grounded,
+            "summary_reasoning": _public_facing_text(response.summary_reasoning),
+        }
+    )
+
+
+def _public_facing_text(value: str) -> str:
+    """Remove model wording that exposes internal language to a public shopper."""
+
+    text = re.sub(
+        r"\bthe\s+(?:user|buyer|shopper)\s+(?:requested|asked\s+for)\b",
+        "you asked for",
+        value,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\bthe\s+(?:user|buyer|shopper)['’]s\b",
+        "your",
+        text,
+        flags=re.IGNORECASE,
+    )
+    grammar = {
+        "is": "are",
+        "has": "have",
+        "wants": "want",
+        "needs": "need",
+        "prefers": "prefer",
+    }
+    text = re.sub(
+        r"\bthe\s+(?:user|buyer|shopper)\s+(is|has|wants|needs|prefers)\b",
+        lambda match: f"you {grammar[match.group(1).lower()]}",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\s+(?:in\s+the\s+catalog\s+)?(?:under\s+)?"
+        r"(?:product[_\s-]*)?id\s*[:#-]?\s*[a-z0-9-]+",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\bthe\s+(?:user|buyer|shopper)\b", "you", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+([,.;!?])", r"\1", text)
+    text = text.strip()
+    return text[:1].upper() + text[1:] if text else text
 
 
 def _empty_response(source_notice: str, summary: str) -> BuyerAgentResponse:
@@ -557,7 +607,7 @@ def _no_result_payload(prompt: str, arguments: ProductSearchSchema) -> dict[str,
 
     result = _empty_response(
         "Diagnosed the requested constraints against active, in-stock inventory.",
-        explanation.summary_reasoning,
+        _public_facing_text(explanation.summary_reasoning),
     ).model_dump(mode="json")
     result["turn_type"] = "SHOPPING_SEARCH"
     result["suggested_query"] = explanation.suggested_query
@@ -799,7 +849,7 @@ def _conversation_payload(turn: ConversationTurn, source: str) -> dict[str, Any]
     result = BuyerAgentResponse(
         thought_process=["Handled the message as a conversational turn."],
         recommendations=[],
-        summary_reasoning=turn.response,
+        summary_reasoning=_public_facing_text(turn.response),
     ).model_dump(mode="json")
     result["turn_type"] = turn.turn_type
     result["_audit_context"] = {

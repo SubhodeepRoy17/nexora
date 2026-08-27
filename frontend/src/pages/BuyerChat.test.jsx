@@ -77,6 +77,20 @@ describe('live buyer search', () => {
     expect(screen.queryByRole('button', { name: 'Try the suggested search' })).not.toBeInTheDocument()
   })
 
+  it('types an example into the input and waits for an explicit send', async () => {
+    const user = userEvent.setup()
+    renderBuyer()
+    const query = 'Quiet wireless keyboard under ₹8,000 for Mac'
+
+    await user.click(screen.getByRole('button', { name: 'Example · quiet keyboard' }))
+
+    expect(apiMocks.searchProducts).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Shopping intent')).not.toHaveValue(query)
+    await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue(query), { timeout: 3000 })
+    expect(screen.getByLabelText('Send shopping intent')).toBeEnabled()
+    expect(apiMocks.searchProducts).not.toHaveBeenCalled()
+  })
+
   it('deletes a signed-in buyer chat from recent searches', async () => {
     authState.user = { id: 7, display_name: 'Buyer', email: 'buyer@example.test' }
     const conversation = {
