@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NexoraProvider } from '../context/NexoraContext'
@@ -37,7 +38,9 @@ describe('owner-scoped merchant workspace', () => {
   })
 
   it('selects the authenticated merchant from backend workspace data without a client merchant scope', async () => {
+    const user = userEvent.setup()
     renderMerchant()
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     expect(await screen.findByLabelText('Selected merchant: Authenticated Shop')).toBeInTheDocument()
     await waitFor(() => expect(apiMocks.getProducts).toHaveBeenCalled())
     expect(apiMocks.getProducts.mock.calls[0]).toHaveLength(1)

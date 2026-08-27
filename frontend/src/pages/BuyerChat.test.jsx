@@ -12,9 +12,9 @@ const apiMocks = vi.hoisted(() => ({
   deleteChatSession: vi.fn(),
   getOrders: vi.fn(),
 }))
-const authState = vi.hoisted(() => ({ user: null }))
+const authState = vi.hoisted(() => ({ user: null, signOut: vi.fn() }))
 
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: authState.user, loading: false }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: authState.user, loading: false, signOut: authState.signOut }) }))
 vi.mock('../services/api', async (importOriginal) => ({
   ...(await importOriginal()),
   searchProducts: apiMocks.searchProducts,
@@ -29,6 +29,7 @@ const renderBuyer = () => render(<MemoryRouter><NexoraProvider><BuyerChat /></Ne
 describe('live buyer search', () => {
   beforeEach(() => {
     authState.user = null
+    authState.signOut.mockReset()
     Object.values(apiMocks).forEach((mock) => mock.mockReset())
     apiMocks.getOrders.mockResolvedValue({ data: { results: [] } })
   })
@@ -89,9 +90,13 @@ describe('live buyer search', () => {
     const user = userEvent.setup()
     renderBuyer()
 
-    await screen.findByText('No saved searches yet.')
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
-    expect(screen.getByLabelText('Signed in as Soumyadip Roy')).toHaveTextContent('SR')
+    await screen.findByText('No saved searches yet.')
+    const account = screen.getByRole('button', { name: 'Open account menu for Soumyadip Roy' })
+    expect(account).toHaveTextContent('SR')
+    await user.click(account)
+    await user.click(screen.getByRole('menuitem', { name: 'Sign out' }))
+    expect(authState.signOut).toHaveBeenCalledOnce()
     await user.click(screen.getByRole('button', { name: 'Close sidebar' }))
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toHaveAttribute('aria-expanded', 'false')
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))

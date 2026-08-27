@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, BarChart3, Boxes, LayoutDashboard, Menu, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, BarChart3, Boxes, LayoutDashboard, Sparkles } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import LogoMark from '../components/LogoMark'
+import { WorkspaceAccountMenu, WorkspaceSidebarToggle } from '../components/common/WorkspaceSidebarControls'
 import AddProductModal from '../components/merchant/AddProductModal'
 import AgentTimelineFeed from '../components/merchant/AgentTimelineFeed'
 import ProductInventoryTable from '../components/merchant/ProductInventoryTable'
@@ -11,6 +13,7 @@ import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { createProduct, createProductRelationship, deleteProductRelationship, extractResults, getApiError, getMerchantAnalytics, getMerchantWorkspace, getMoneyAudits, getOrders, getProductRelationships, getProducts, patchProduct, patchProductRelationship, toInventoryProduct, toMoneyTimelineEvent, toProductPayload } from '../services/api'
 import useBoundedPolling from '../hooks/useBoundedPolling'
+import useWorkspaceSidebar from '../hooks/useWorkspaceSidebar'
 import DashboardOverview from './merchant/DashboardOverview'
 import AgentAnalytics from './merchant/AgentAnalytics'
 
@@ -40,7 +43,7 @@ export default function MerchantDashboard() {
   const routerNavigate = useNavigate()
   const { inventory, setInventory, auditEvents, setAuditEvents } = useNexora()
   const { user } = useAuth()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar('nexora:merchant-sidebar')
   const [productModal, setProductModal] = useState({
     open: false,
     product: null,
@@ -170,7 +173,7 @@ export default function MerchantDashboard() {
       insights: '/merchant/analytics',
     }
     routerNavigate(routes[tab])
-    setSidebarOpen(false)
+    closeSidebarOnMobile()
   }
 
   const updateCatalogProduct = async (id, payload) => {
@@ -250,67 +253,89 @@ export default function MerchantDashboard() {
   const openExceptions = workspace?.operations?.open_reconciliation_exceptions ?? 0
 
   return (
-    <div className="merchant-light merchant-grid flex min-h-[calc(100dvh-4rem)] bg-[#f6f5f1] text-slate-950">
-      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[272px] right-0 top-16 z-30 bg-slate-950/70 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-[252px] flex-col border-r border-slate-800 bg-slate-950 p-4 transition-transform duration-300 lg:sticky lg:top-16 lg:h-[calc(100dvh-4rem)] lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex h-12 items-center justify-between px-1">
-          <div>
-            <p className="text-xs font-semibold text-slate-200">Seller workspace</p>
-            <p className="mt-1 font-mono text-[8px] text-slate-600">MANAGE YOUR STORE</p>
-          </div>
-          <button type="button" aria-label="Close navigation" className="text-slate-500 lg:hidden" onClick={() => setSidebarOpen(false)}>
-            <X size={18} />
-          </button>
-        </div>
-        <div className="mt-6 flex w-full items-center gap-2.5 border border-slate-800 bg-slate-900 p-3" aria-label={`Selected merchant: ${workspace?.merchant?.name ?? user?.merchant?.name}`}>
-          <span className="grid size-8 place-items-center bg-violet-600 text-xs font-bold shadow-[2px_2px_0_#c4b5fd]">{user?.merchant?.name?.slice(0, 2).toUpperCase() ?? 'NM'}</span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-semibold">{workspace?.merchant?.name ?? user?.merchant?.name}</span>
-            <span className="mt-0.5 block font-mono text-[8px] text-emerald-400">PRIVATE SELLER WORKSPACE</span>
-          </span>
-        </div>
+    <div className="merchant-light merchant-grid flex h-dvh min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
+      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <aside id="merchant-workspace-sidebar" aria-label="Merchant navigation" className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'w-[288px] translate-x-0 p-3' : 'w-[288px] -translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}>
+        {sidebarOpen ? (
+          <>
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <LogoMark className="size-7 shrink-0" alt="" />
+                <span className="truncate text-sm font-semibold tracking-[-.02em] text-[#17372f]">Seller workspace</span>
+              </div>
+              <WorkspaceSidebarToggle open onToggle={() => setSidebarOpen(false)} controls="merchant-workspace-sidebar" />
+            </div>
 
-        <nav className="mt-7 space-y-1" aria-label="Merchant dashboard">
-          <p className="mono-label mb-2 px-3 text-slate-600">Workspace</p>
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" onClick={() => navigate(id)} aria-current={activeTab === id ? 'page' : undefined} className={`focus-ring flex w-full items-center gap-3 border px-3 py-3 text-xs font-medium transition ${activeTab === id ? 'border-violet-400 bg-violet-600 text-white shadow-[3px_3px_0_rgba(196,181,253,.35)]' : 'border-transparent text-slate-500 hover:border-slate-800 hover:bg-slate-900 hover:text-slate-200'}`}>
-              <Icon size={15} />
-              <span className="flex-1 text-left">{label}</span>
-              {id === 'inventory' && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[8px] ${activeTab === id ? 'bg-white/15' : 'bg-slate-800'}`}>{inventory.length}</span>}
-            </button>
-          ))}
-        </nav>
+            <div className="modal-scroll mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-emerald-950/10 bg-white/70 p-3 shadow-[0_8px_24px_rgba(49,89,79,.06)]" aria-label={`Selected merchant: ${workspace?.merchant?.name ?? user?.merchant?.name}`}>
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-xs font-bold text-white shadow-[2px_2px_0_#c4b5fd]">{user?.merchant?.name?.slice(0, 2).toUpperCase() ?? 'NM'}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold text-slate-800">{workspace?.merchant?.name ?? user?.merchant?.name}</span>
+                  <span className="mt-0.5 block font-mono text-[8px] text-emerald-700">PRIVATE SELLER WORKSPACE</span>
+                </span>
+              </div>
 
-        <div className="mt-auto">
-          <div className="mb-3 border border-violet-500/20 bg-violet-500/[0.07] p-4">
-            <Sparkles size={16} className="text-violet-400" />
-            <p className="mt-3 text-xs font-semibold">Product listing quality</p>
-            {catalogHealth ? (
-              <>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
-                    <div className="h-full rounded-full bg-emerald-400" style={{ width: `${catalogHealth.score_percent ?? 0}%` }} />
-                  </div>
-                  <span className="font-mono text-[9px] text-emerald-400">{catalogHealth.score_percent == null ? 'N/A' : `${catalogHealth.score_percent}%`}</span>
-                </div>
-                <p className="mt-2 text-[9px] leading-relaxed text-slate-500">{catalogHealth.total_products ? `${catalogIssueTotal} missing check${catalogIssueTotal === 1 ? '' : 's'} across ${catalogHealth.total_products} products.` : 'No products yet; health is not scored.'}</p>
-                <p className="mt-2 font-mono text-[7px] leading-4 text-slate-600">Complete product details help shoppers find the right fit.</p>
-              </>
-            ) : (
-              <button type="button" onClick={() => refreshOperations()} className="mt-3 text-[9px] text-amber-300">
-                {operationsState.error ? 'Health unavailable · retry' : 'Calculating from catalog…'}
-              </button>
-            )}
+              <nav className="mt-6 space-y-1" aria-label="Merchant dashboard">
+                <p className="mono-label mb-2 px-3 text-slate-500">Workspace</p>
+                {tabs.map(({ id, label, icon: Icon }) => (
+                  <button key={id} type="button" onClick={() => navigate(id)} aria-current={activeTab === id ? 'page' : undefined} className={`focus-ring flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-xs font-medium transition ${activeTab === id ? 'border-violet-300 bg-violet-600 text-white shadow-[0_7px_20px_rgba(124,58,237,.18)]' : 'border-transparent text-[#31594f]/75 hover:bg-white/70 hover:text-[#17372f]'}`}>
+                    <Icon size={15} />
+                    <span className="flex-1 text-left">{label}</span>
+                    {id === 'inventory' && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[8px] ${activeTab === id ? 'bg-white/15' : 'bg-slate-200 text-slate-600'}`}>{inventory.length}</span>}
+                  </button>
+                ))}
+              </nav>
+
+              <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50/65 p-4">
+                <Sparkles size={16} className="text-violet-600" />
+                <p className="mt-3 text-xs font-semibold text-slate-800">Product listing quality</p>
+                {catalogHealth ? (
+                  <>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${catalogHealth.score_percent ?? 0}%` }} />
+                      </div>
+                      <span className="font-mono text-[9px] text-emerald-700">{catalogHealth.score_percent == null ? 'N/A' : `${catalogHealth.score_percent}%`}</span>
+                    </div>
+                    <p className="mt-2 text-[9px] leading-relaxed text-slate-600">{catalogHealth.total_products ? `${catalogIssueTotal} missing check${catalogIssueTotal === 1 ? '' : 's'} across ${catalogHealth.total_products} products.` : 'No products yet; health is not scored.'}</p>
+                    <p className="mt-2 font-mono text-[7px] leading-4 text-slate-500">Complete product details help shoppers find the right fit.</p>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => refreshOperations()} className="mt-3 text-[9px] text-amber-700">
+                    {operationsState.error ? 'Health unavailable · retry' : 'Calculating from catalog…'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 border-t border-emerald-950/10 pt-3">
+              <WorkspaceAccountMenu user={user} detail="Seller account" />
+            </div>
+          </>
+        ) : (
+          <div className="hidden h-full w-full flex-col items-center lg:flex">
+            <LogoMark className="mt-1 size-8 shrink-0" alt="" />
+            <div className="mt-3">
+              <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" label="Expand sidebar" />
+            </div>
+            <nav className="mt-3 flex flex-col items-center gap-1" aria-label="Merchant dashboard">
+              {tabs.map(({ id, label, icon: Icon }) => (
+                <button key={id} type="button" onClick={() => navigate(id)} aria-label={label} title={label} aria-current={activeTab === id ? 'page' : undefined} className={`focus-ring grid size-10 place-items-center rounded-xl transition ${activeTab === id ? 'bg-violet-600 text-white shadow-[0_7px_20px_rgba(124,58,237,.18)]' : 'text-[#31594f] hover:bg-white/75 hover:text-[#17372f]'}`}>
+                  <Icon size={18} />
+                </button>
+              ))}
+            </nav>
+            <div className="mt-auto pb-1">
+              <WorkspaceAccountMenu user={user} compact detail="Seller account" />
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 overflow-y-auto pt-16">
         <header className="sticky top-16 z-20 flex h-[72px] items-center justify-between border-b border-slate-800 bg-[#11131a]/90 px-4 backdrop-blur-xl md:px-7">
           <div className="flex items-center gap-3">
-            <button type="button" aria-label="Open navigation" className="focus-ring rounded-lg p-2 text-slate-500 lg:hidden" onClick={() => setSidebarOpen(true)}>
-              <Menu size={19} />
-            </button>
+            {!sidebarOpen && <div className="lg:hidden"><WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" /></div>}
             <div>
               <h1 className="text-sm font-semibold tracking-tight text-white md:text-base">{tabCopy[activeTab].title}</h1>
               <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">{tabCopy[activeTab].detail}</p>
