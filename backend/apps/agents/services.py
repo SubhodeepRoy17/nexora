@@ -1,7 +1,8 @@
 import json
 import logging
 import os
-from typing import Any
+import re
+from typing import Any, Literal
 
 import httpx
 from django.conf import settings
@@ -12,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .prompts import (
     BUYER_AGENT_SYSTEM_PROMPT,
+    CONVERSATION_SYSTEM_PROMPT,
     NO_RESULT_SYSTEM_PROMPT,
     RECOMMENDATION_SYSTEM_PROMPT,
 )
@@ -22,6 +24,7 @@ from .tools import (
     extract_max_price,
     fallback_product_search,
     search_merchant_products,
+    serialize_product,
 )
 
 
@@ -87,6 +90,14 @@ class NoResultExplanation(BaseModel):
 
     summary_reasoning: str = Field(min_length=20, max_length=900)
     suggested_query: str = Field(min_length=3, max_length=300)
+
+
+class ConversationTurn(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    turn_type: Literal["SHOPPING_SEARCH", "GREETING", "OFF_TOPIC", "FOLLOW_UP"]
+    response: str = Field(min_length=1, max_length=900)
+    search_query: str | None = Field(default=None, min_length=3, max_length=500)
 
 
 def _compatibility_matches(relationship) -> bool:
@@ -548,6 +559,7 @@ def _no_result_payload(prompt: str, arguments: ProductSearchSchema) -> dict[str,
         "Diagnosed the requested constraints against active, in-stock inventory.",
         explanation.summary_reasoning,
     ).model_dump(mode="json")
+    result["turn_type"] = "SHOPPING_SEARCH"
     result["suggested_query"] = explanation.suggested_query
     result["no_result"] = diagnostics
     result["_audit_context"] = {
@@ -679,8 +691,152 @@ def _fallback_response(
     return response
 
 
-def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
-    """Retrieve deterministically, then use one bounded Gemini comparison pass."""
+def _bounded_conversation_history(
+    conversation_context: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    history = []
+    for message in (conversation_context or [])[-8:]:
+        metadata = message.get("metadata") or {}
+        recommendations = [
+            {
+                "product_id": item.get("product_id"),
+                "title": item.get("title"),
+                "price": item.get("price"),
+                "reason": item.get("reason"),
+            }
+            for item in (metadata.get("recommendations") or [])[:5]
+        ]
+        history.append(
+            {
+                "role": message.get("role"),
+                "content": str(message.get("content") or "")[:1_200],
+                "recommendations": recommendations,
+            }
+        )
+    return history
+
+
+def _previous_recommendations(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    for message in reversed(history):
+        recommendations = message.get("recommendations") or []
+        if recommendations:
+            return recommendations
+    return []
+
+
+def _is_prior_result_follow_up(prompt: str, previous: list[dict[str, Any]]) -> bool:
+    if not previous or deterministic_search_arguments(prompt).category:
+        return False
+    return bool(
+        re.search(
+            r"\b(which|one|ones|these|those|them|option|options|result|results|"
+            r"best|better|cheapest|first|second|third|compare|pick|choose)\b",
+            prompt,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _is_direct_catalog_request(prompt: str) -> bool:
+    arguments = deterministic_search_arguments(prompt)
+    return bool(
+        arguments.category
+        or arguments.max_price is not None
+        or arguments.required_specs
+    )
+
+
+def _looks_like_greeting(prompt: str) -> bool:
+    return bool(
+        re.fullmatch(
+            r"\s*(hi|hello|hey|hiya|namaste|good\s+(morning|afternoon|evening))[!.?\s]*",
+            prompt,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _live_previous_candidates(previous: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from apps.merchants.models import Product
+
+    product_ids = [item.get("product_id") for item in previous if item.get("product_id")]
+    products = Product.objects.select_related("merchant").filter(
+        id__in=product_ids,
+        is_active=True,
+        stock_quantity__gt=0,
+    ).in_bulk()
+    return [serialize_product(products[product_id]) for product_id in product_ids if product_id in products]
+
+
+def _gemini_conversation_turn(
+    client: genai.Client,
+    prompt: str,
+    history: list[dict[str, Any]],
+) -> ConversationTurn:
+    response = client.models.generate_content(
+        model=_model_name(),
+        contents=(
+            "Bounded conversation history:\n"
+            f"{json.dumps(history, separators=(',', ':'))}\n\n"
+            f"Latest shopper message: {prompt}"
+        ),
+        config=genai_types.GenerateContentConfig(
+            system_instruction=CONVERSATION_SYSTEM_PROMPT,
+            thinking_config=_thinking_config(),
+            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(disable=True),
+            response_mime_type="application/json",
+            response_json_schema=ConversationTurn.model_json_schema(),
+            max_output_tokens=700,
+        ),
+    )
+    turn = ConversationTurn.model_validate_json(response.text or "")
+    if turn.turn_type == "SHOPPING_SEARCH" and not turn.search_query:
+        raise AgentServiceError("Gemini omitted the contextualized catalog query")
+    return turn
+
+
+def _conversation_payload(turn: ConversationTurn, source: str) -> dict[str, Any]:
+    result = BuyerAgentResponse(
+        thought_process=["Handled the message as a conversational turn."],
+        recommendations=[],
+        summary_reasoning=turn.response,
+    ).model_dump(mode="json")
+    result["turn_type"] = turn.turn_type
+    result["_audit_context"] = {
+        "provider_source": source,
+        "parsed_constraints": {"turn_type": turn.turn_type},
+        "catalog_candidate_ids": [],
+    }
+    return result
+
+
+def _close_gemini_client(client) -> None:
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            logger.debug("Gemini client cleanup failed.", exc_info=True)
+
+
+def _follow_up_prompt(
+    prompt: str,
+    history: list[dict[str, Any]],
+) -> str:
+    return (
+        "Use the shopper's earlier requirements and the previous result set to answer this "
+        "follow-up. Rank only the supplied previous products and put the single best answer "
+        "first.\n"
+        f"Conversation history: {json.dumps(history, separators=(',', ':'))}\n"
+        f"Latest follow-up: {prompt}"
+    )
+
+
+def run_buyer_agent(
+    user_prompt: str,
+    conversation_context: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Handle a bounded conversation turn and ground every product claim in live catalog data."""
 
     prompt = user_prompt.strip()
     if not prompt:
@@ -689,27 +845,142 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         raise ValueError("user_prompt cannot exceed 2,000 characters")
 
     client = None
-    arguments = deterministic_search_arguments(prompt)
+    history = _bounded_conversation_history(conversation_context)
+    previous = _previous_recommendations(history)
+
+    if _is_prior_result_follow_up(prompt, previous):
+        candidates = _live_previous_candidates(previous)
+        if not candidates:
+            fallback_turn = ConversationTurn(
+                turn_type="FOLLOW_UP",
+                response=(
+                    "Those earlier options are no longer available in the live catalog. "
+                    "Tell me whether you want me to run a fresh search with the same requirements."
+                ),
+            )
+            return _conversation_payload(fallback_turn, "FALLBACK")
+        try:
+            client = _gemini_client()
+            response = _parse_recommendations(
+                client,
+                _follow_up_prompt(prompt, history),
+                candidates,
+            )
+            selected = response.recommendations[:1]
+            response = response.model_copy(
+                update={
+                    "recommendations": selected,
+                    "primary_recommendation_id": selected[0].product_id if selected else None,
+                    "add_on_suggestions": [],
+                }
+            )
+            result = response.model_dump(mode="json")
+            result["turn_type"] = "FOLLOW_UP"
+            result["_audit_context"] = {
+                "provider_source": "GEMINI",
+                "parsed_constraints": {"turn_type": "FOLLOW_UP", "scope": "PREVIOUS_RESULTS"},
+                "catalog_candidate_ids": [candidate["id"] for candidate in candidates],
+            }
+            return result
+        except (
+            genai_errors.APIError,
+            httpx.HTTPError,
+            AgentServiceError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            logger.warning("Gemini follow-up fallback after %s", type(exc).__name__)
+            response = _fallback_response(
+                prompt,
+                "provider request failed",
+                constraints=ProductSearchSchema(search_query=prompt, limit=1),
+                candidates=candidates[:1],
+            )
+            response = response.model_copy(
+                update={
+                    "recommendations": response.recommendations[:1],
+                    "primary_recommendation_id": (
+                        response.recommendations[0].product_id
+                        if response.recommendations
+                        else None
+                    ),
+                }
+            )
+            result = response.model_dump(mode="json")
+            result["turn_type"] = "FOLLOW_UP"
+            result["_audit_context"] = {
+                "provider_source": "FALLBACK",
+                "parsed_constraints": {"turn_type": "FOLLOW_UP", "scope": "PREVIOUS_RESULTS"},
+                "catalog_candidate_ids": [candidate["id"] for candidate in candidates],
+            }
+            return result
+        finally:
+            _close_gemini_client(client)
+
+    effective_prompt = prompt
+    if not _is_direct_catalog_request(prompt):
+        try:
+            client = _gemini_client()
+            turn = _gemini_conversation_turn(client, prompt, history)
+            if turn.turn_type != "SHOPPING_SEARCH":
+                result = _conversation_payload(turn, "GEMINI")
+                _close_gemini_client(client)
+                client = None
+                return result
+            effective_prompt = turn.search_query or prompt
+        except (
+            genai_errors.APIError,
+            httpx.HTTPError,
+            AgentServiceError,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            logger.warning("Gemini conversation fallback after %s", type(exc).__name__)
+            _close_gemini_client(client)
+            client = None
+            if _looks_like_greeting(prompt):
+                return _conversation_payload(
+                    ConversationTurn(
+                        turn_type="GREETING",
+                        response="Hi! Tell me what you are shopping for and what matters most to you.",
+                    ),
+                    "FALLBACK",
+                )
+            return _conversation_payload(
+                ConversationTurn(
+                    turn_type="OFF_TOPIC",
+                    response=(
+                        "I can help with product discovery and comparisons. Tell me what you "
+                        "would like to shop for, along with any budget or preferences."
+                    ),
+                ),
+                "FALLBACK",
+            )
+
+    arguments = deterministic_search_arguments(effective_prompt)
     candidates = search_merchant_products(arguments)
     if not candidates:
-        return _no_result_payload(prompt, arguments)
+        _close_gemini_client(client)
+        client = None
+        return _no_result_payload(effective_prompt, arguments)
 
     try:
-        client = _gemini_client()
+        client = client or _gemini_client()
         response = _attach_growth_suggestions(
-            _parse_recommendations(client, prompt, candidates),
+            _parse_recommendations(client, effective_prompt, candidates),
             arguments.model_dump(mode="json"),
         )
         recommended_ids = {item.product_id for item in response.recommendations}
         recommended_candidates = [item for item in candidates if item["id"] in recommended_ids]
         _record_search(
-            prompt,
+            effective_prompt,
             recommended_candidates,
             "GEMINI",
             max_price=arguments.max_price,
             category=arguments.category,
         )
         result = response.model_dump(mode="json")
+        result["turn_type"] = "SHOPPING_SEARCH"
         result["_audit_context"] = {
             "provider_source": "GEMINI",
             "parsed_constraints": arguments.model_dump(mode="json"),
@@ -731,24 +1002,20 @@ def run_buyer_agent(user_prompt: str) -> dict[str, Any]:
         )
         response = _attach_growth_suggestions(
             _fallback_response(
-                prompt,
+                effective_prompt,
                 reason,
                 constraints=arguments,
                 candidates=candidates,
             ),
-            {"max_price": extract_max_price(prompt)},
+            {"max_price": extract_max_price(effective_prompt)},
         )
         result = response.model_dump(mode="json")
+        result["turn_type"] = "SHOPPING_SEARCH"
         result["_audit_context"] = {
             "provider_source": "FALLBACK",
-            "parsed_constraints": deterministic_search_arguments(prompt).model_dump(mode="json"),
+            "parsed_constraints": deterministic_search_arguments(effective_prompt).model_dump(mode="json"),
             "catalog_candidate_ids": [item.product_id for item in response.recommendations],
         }
         return result
     finally:
-        close = getattr(client, "close", None)
-        if callable(close):
-            try:
-                close()
-            except Exception:
-                logger.debug("Gemini client cleanup failed.", exc_info=True)
+        _close_gemini_client(client)

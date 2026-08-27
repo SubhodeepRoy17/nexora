@@ -63,6 +63,16 @@ describe('live buyer search', () => {
     await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue('Find a keyboard under ₹2,499'))
   })
 
+  it('renders a conversational greeting without a catalog retry action', async () => {
+    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952', summary_reasoning: 'Hey! What are you hoping to find today?', turn_type: 'GREETING', recommendations: [], add_on_suggestions: [] } })
+    const user = userEvent.setup()
+    renderBuyer()
+    await user.type(screen.getByLabelText('Shopping intent'), 'Hi')
+    await user.click(screen.getByLabelText('Send shopping intent'))
+    expect(await screen.findByText('Hey! What are you hoping to find today?')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try the suggested search' })).not.toBeInTheDocument()
+  })
+
   it('deletes a signed-in buyer chat from recent searches', async () => {
     authState.user = { id: 7, display_name: 'Buyer', email: 'buyer@example.test' }
     const conversation = {

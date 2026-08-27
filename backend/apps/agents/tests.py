@@ -352,6 +352,153 @@ class DynamicNoResultTests(TestCase):
         self.assertTrue(captured["config"].automatic_function_calling.disable)
 
 
+class ContextAwareConversationTests(TestCase):
+    def setUp(self):
+        owner = get_user_model().objects.create_user(username="context-owner")
+        merchant = Merchant.objects.create(
+            owner=owner, name="Context Catalog", email="context@test.invalid"
+        )
+        self.first = Product.objects.create(
+            merchant=merchant,
+            title="Code Board One",
+            description="Hot-swappable keyboard for coding.",
+            category="Keyboards",
+            price="7999.00",
+            stock_quantity=5,
+            rating=4.6,
+            specifications={"hot_swappable": True, "switches": "Brown tactile"},
+            tags=["keyboard", "coding"],
+        )
+        self.second = Product.objects.create(
+            merchant=merchant,
+            title="Code Board Two",
+            description="Compact hot-swappable keyboard for coding.",
+            category="Keyboards",
+            price="8999.00",
+            stock_quantity=3,
+            rating=4.9,
+            specifications={"hot_swappable": True, "switches": "Silent tactile"},
+            tags=["keyboard", "coding", "quiet"],
+        )
+
+    @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._gemini_client")
+    def test_greeting_uses_gemini_conversation_reply_without_catalog_search(
+        self, client_factory, product_search
+    ):
+        model_payload = {
+            "turn_type": "GREETING",
+            "response": "Hey! Happy to help—what are you hoping to find today?",
+            "search_query": None,
+        }
+        client_factory.return_value = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=lambda **kwargs: SimpleNamespace(text=json.dumps(model_payload))
+            ),
+            close=lambda: None,
+        )
+
+        result = run_buyer_agent("Hi")
+
+        self.assertEqual(result["turn_type"], "GREETING")
+        self.assertEqual(result["summary_reasoning"], model_payload["response"])
+        self.assertEqual(result["recommendations"], [])
+        self.assertEqual(result["_audit_context"]["provider_source"], "GEMINI")
+        product_search.assert_not_called()
+
+    @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._gemini_client")
+    def test_off_topic_reply_is_generated_by_gemini_and_redirects_naturally(
+        self, client_factory, product_search
+    ):
+        model_payload = {
+            "turn_type": "OFF_TOPIC",
+            "response": "That takes us away from shopping, but I can help you choose the right product whenever you're ready.",
+            "search_query": None,
+        }
+        client_factory.return_value = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=lambda **kwargs: SimpleNamespace(text=json.dumps(model_payload))
+            ),
+            close=lambda: None,
+        )
+
+        result = run_buyer_agent("Write a long poem about the moon")
+
+        self.assertEqual(result["turn_type"], "OFF_TOPIC")
+        self.assertEqual(result["summary_reasoning"], model_payload["response"])
+        product_search.assert_not_called()
+
+    @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._gemini_client")
+    def test_best_follow_up_is_limited_to_previous_live_results(
+        self, client_factory, product_search
+    ):
+        captured = {}
+        model_payload = {
+            "thought_process": ["Compared only the prior options against the coding request."],
+            "primary_recommendation_id": self.second.id,
+            "recommendations": [
+                {
+                    "product_id": self.second.id,
+                    "title": "Model supplied title",
+                    "merchant": "Model supplied merchant",
+                    "price": 1,
+                    "match_score": 96,
+                    "reason": "Best balance of quiet switches and coding comfort.",
+                },
+                {
+                    "product_id": self.first.id,
+                    "title": "Another model title",
+                    "merchant": "Another merchant",
+                    "price": 1,
+                    "match_score": 88,
+                    "reason": "Good alternative.",
+                },
+            ],
+            "add_on_suggestions": [],
+            "summary_reasoning": "Code Board Two is the best fit from the options already shown.",
+        }
+
+        def generate_content(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(text=json.dumps(model_payload))
+
+        client_factory.return_value = SimpleNamespace(
+            models=SimpleNamespace(generate_content=generate_content), close=lambda: None
+        )
+        context = [
+            {
+                "role": "USER",
+                "content": "Show me hot-swappable keyboards for coding under ₹10,000",
+                "metadata": {},
+            },
+            {
+                "role": "ASSISTANT",
+                "content": "I found two matching keyboards.",
+                "metadata": {
+                    "recommendations": [
+                        {"product_id": self.first.id, "title": self.first.title},
+                        {"product_id": self.second.id, "title": self.second.title},
+                    ]
+                },
+            },
+        ]
+
+        result = run_buyer_agent("Which one is best for me?", conversation_context=context)
+
+        self.assertEqual(result["turn_type"], "FOLLOW_UP")
+        self.assertEqual(len(result["recommendations"]), 1)
+        self.assertEqual(result["recommendations"][0]["product_id"], self.second.id)
+        self.assertEqual(result["recommendations"][0]["title"], self.second.title)
+        self.assertEqual(
+            result["_audit_context"]["catalog_candidate_ids"],
+            [self.first.id, self.second.id],
+        )
+        self.assertIn("Latest follow-up: Which one is best for me?", captured["contents"])
+        product_search.assert_not_called()
+
+
 
 class ConversationPrivacyTests(TestCase):
     def setUp(self):
@@ -441,6 +588,9 @@ class ConversationPrivacyTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(second.data["conversation_id"], conversation_id)
         self.assertEqual(ChatConversation.objects.get(pk=conversation_id).messages.count(), 4)
+        passed_context = run_mock.call_args.kwargs["conversation_context"]
+        self.assertEqual([item["role"] for item in passed_context], ["USER", "ASSISTANT"])
+        self.assertEqual(passed_context[0]["content"], "quiet keyboard")
         self.assertEqual(self.client.get(reverse("agents:conversation-list")).status_code, 401)
 
         rejected = self.client.post(

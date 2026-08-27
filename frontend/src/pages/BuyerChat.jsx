@@ -59,6 +59,7 @@ const restoreMessages = (data) =>
       text: message.content,
       products,
       suggestedQuery: assistant ? message.metadata?.suggested_query : undefined,
+      turnType: assistant ? message.metadata?.turn_type : undefined,
       time: new Date(message.created_at).toLocaleString('en-IN', {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -236,6 +237,7 @@ export default function BuyerChat() {
           evidence: `${products.length} current match${products.length === 1 ? '' : 'es'} · Details checked`,
           products,
           suggestedQuery: data.suggested_query,
+          turnType: data.turn_type,
           time: 'Now',
         },
       ])
@@ -393,8 +395,8 @@ export default function BuyerChat() {
                           ))}
                         </div>
                       )}
-                      {message.products?.length === 0 && !message.fixture && message.status !== 'error' && (
-                        <button type="button" onClick={() => setInput(message.suggestedQuery || 'Show me similar active, in-stock products with fewer constraints')} className="focus-ring mt-3 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
+                      {message.products?.length === 0 && message.suggestedQuery && !message.fixture && message.status !== 'error' && (
+                        <button type="button" onClick={() => setInput(message.suggestedQuery)} className="focus-ring mt-3 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
                           Try the suggested search
                         </button>
                       )}

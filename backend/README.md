@@ -78,9 +78,10 @@ Merchant relationship/offer CRUD is available at `http://localhost:8000/api/merc
 The buyer-agent endpoint accepts `{"query": "..."}` at
 `http://localhost:8000/api/agents/search/`. It uses Google's Gemini API for
 grounded comparison and wording when `GEMINI_API_KEY` is configured. Hard
-constraints and candidate retrieval remain deterministic, avoiding a slow
-model round trip before catalog access; provider failures reuse those same
-candidates for immediate fallback. `GEMINI_MODEL` selects the model and defaults to
+constraints and candidate retrieval remain deterministic. Explicit catalog
+requests go directly to retrieval, while ambiguous, greeting, and off-topic
+turns use a bounded Gemini conversation router. Provider failures retain a
+deterministic, shopping-focused fallback. `GEMINI_MODEL` selects the model and defaults to
 the stable, latency-optimized `gemini-3.5-flash-lite` endpoint. Interactive provider calls are bounded
 by `GEMINI_REQUEST_TIMEOUT_MS` (default 25000) and `GEMINI_RETRY_ATTEMPTS`
 (default 1), so a transient Gemini failure reaches deterministic retrieval
@@ -91,6 +92,11 @@ open only their own history at `GET /api/agents/conversations/` and
 `GET /api/agents/conversations/{id}/`. Anonymous searches receive a short-lived,
 signed continuation token but cannot use either history endpoint; guest browser
 transcripts are memory-only.
+The latest eight messages are supplied as bounded context. Follow-ups such as
+"Which one is best for me?" reload only the previous recommendation IDs from
+live inventory, then allow Gemini to rank that closed set. No unrelated catalog
+product can enter a referential follow-up, and only the selected best match is
+returned with a fresh approval token.
 Empty searches are diagnosed against live inventory before responding. Budget failures name the current cheapest category match and exact shortfall; supported explicit structured constraints such as color name the requested and available catalog values. Gemini phrases these server-derived facts when available, with a specific deterministic explanation and suggested follow-up query as fallback.
 It may also return up to `GROWTH_MAX_ADDON_OFFERS` deterministic, Pydantic-validated add-ons. The buyer records an explicit accept or reject through `POST /api/agents/growth-offers/{offer_id}/respond/`; accepted offers still require a fresh exact quote and approval.
 

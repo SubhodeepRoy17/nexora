@@ -74,7 +74,20 @@ def _history_metadata(result):
         "agent_session_id": result.get("agent_session_id"),
         "suggested_query": result.get("suggested_query"),
         "no_result": result.get("no_result"),
+        "turn_type": result.get("turn_type"),
     }
+
+
+def _conversation_context(conversation):
+    recent = list(conversation.messages.order_by("-created_at")[:8])
+    return [
+        {
+            "role": message.role,
+            "content": message.content,
+            "metadata": message.metadata,
+        }
+        for message in reversed(recent)
+    ]
 
 
 @transaction.atomic
@@ -210,7 +223,7 @@ class BuyerAgentSearchView(APIView):
         query = serializer.validated_data["query"]
         try:
             conversation = _resolve_conversation(request, serializer.validated_data)
-            result = run_buyer_agent(query)
+            result = run_buyer_agent(query, conversation_context=_conversation_context(conversation))
             result = _persist_public_decision_trace(request, query, result, conversation)
         except signing.BadSignature as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
