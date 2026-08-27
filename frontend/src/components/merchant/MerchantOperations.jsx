@@ -8,72 +8,72 @@ export default function MerchantOperations({ orders, workspace, state, onRetry }
   const orderStates = operations.orders_by_status ?? {}
   const webhookStates = operations.webhooks_by_state ?? {}
   const paidOrders = orders.filter((order) => order.status === 'PAID')
-  if (state.loading && !workspace) return <section className="border border-violet-500/20 bg-violet-500/5 p-5 font-mono text-[9px] text-violet-300">LOADING PAYMENTS AND ORDERS…</section>
+  if (state.loading && !workspace) return <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">Loading payments and orders…</section>
   if (state.error && !workspace)
     return (
-      <section className="border border-rose-500/30 bg-rose-500/10 p-5">
-        <p className="text-xs text-rose-300">{state.error}</p>
-        <button type="button" onClick={onRetry} className="mt-3 border border-rose-400/40 px-3 py-2 text-[9px] font-semibold text-rose-200">
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+        <p className="text-sm text-rose-700">{state.error}</p>
+        <button type="button" onClick={onRetry} className="mt-3 rounded-full border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-700">
           Try again
         </button>
       </section>
     )
   return (
-    <section className="border border-slate-800 bg-slate-900 p-5" aria-labelledby="merchant-operations-title">
+    <section className="merchant-card merchant-reveal rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur" aria-labelledby="merchant-operations-title">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldAlert size={15} className="text-violet-400" />
-            <h2 id="merchant-operations-title" className="text-sm font-semibold text-white">
+            <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><ShieldAlert size={15} /></span>
+            <h2 id="merchant-operations-title" className="text-base font-semibold text-[#17372f]">
               Payments and orders
             </h2>
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">See completed payments and any orders that need attention.</p>
+          <p className="mt-2 text-sm text-[#31594f]/65">Completed payments and orders that need attention.</p>
         </div>
         <DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={30000} dark />
       </header>
       {state.error && (
-        <p className="mt-3 border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] text-amber-300" role="alert">
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700" role="alert">
           Showing the last successful snapshot. {state.error}
         </p>
       )}
       <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="border border-slate-800 bg-slate-950/60 p-3">
-          <CreditCard size={13} className="text-emerald-400" />
-          <p className="mt-2 font-mono text-[8px] text-slate-500">PAID ORDERS</p>
-          <p className="mt-1 text-xl font-semibold text-white">{orderStates.PAID ?? 0}</p>
+        <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+          <CreditCard size={15} className="text-emerald-700" />
+          <p className="mt-3 text-xs text-slate-500">Paid orders</p>
+          <p className="mt-1 text-2xl font-semibold text-[#17372f]">{orderStates.PAID ?? 0}</p>
         </article>
-        <article className="border border-slate-800 bg-slate-950/60 p-3">
-          <Clock3 size={13} className="text-amber-400" />
-          <p className="mt-2 font-mono text-[8px] text-slate-500">PAYMENT PENDING</p>
-          <p className="mt-1 text-xl font-semibold text-white">{orderStates.PAYMENT_PENDING ?? 0}</p>
+        <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+          <Clock3 size={15} className="text-amber-600" />
+          <p className="mt-3 text-xs text-slate-500">Payment pending</p>
+          <p className="mt-1 text-2xl font-semibold text-[#17372f]">{orderStates.PAYMENT_PENDING ?? 0}</p>
         </article>
-        <article className="border border-slate-800 bg-slate-950/60 p-3">
-          <Inbox size={13} className="text-violet-400" />
-          <p className="mt-2 font-mono text-[8px] text-slate-500">PAYMENTS CONFIRMED</p>
-          <p className="mt-1 text-xl font-semibold text-white">{webhookStates.PROCESSED ?? 0}</p>
+        <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+          <Inbox size={15} className="text-violet-700" />
+          <p className="mt-3 text-xs text-slate-500">Payments confirmed</p>
+          <p className="mt-1 text-2xl font-semibold text-[#17372f]">{webhookStates.PROCESSED ?? 0}</p>
         </article>
-        <article className={`border p-3 ${(operations.open_reconciliation_exceptions ?? 0) > 0 ? 'border-rose-500/30 bg-rose-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
-          <AlertTriangle size={13} className={(operations.open_reconciliation_exceptions ?? 0) > 0 ? 'text-rose-400' : 'text-emerald-400'} />
-          <p className="mt-2 font-mono text-[8px] text-slate-500">PAYMENTS NEED REVIEW</p>
-          <p className="mt-1 text-xl font-semibold text-white">{operations.open_reconciliation_exceptions ?? 0}</p>
+        <article className={`rounded-xl border p-4 ${(operations.open_reconciliation_exceptions ?? 0) > 0 ? 'border-rose-200 bg-rose-50' : 'border-emerald-950/10 bg-[#f7faf5]'}`}>
+          <AlertTriangle size={15} className={(operations.open_reconciliation_exceptions ?? 0) > 0 ? 'text-rose-600' : 'text-emerald-700'} />
+          <p className="mt-3 text-xs text-slate-500">Payments needing review</p>
+          <p className="mt-1 text-2xl font-semibold text-[#17372f]">{operations.open_reconciliation_exceptions ?? 0}</p>
         </article>
       </div>
       <div className="mt-5">
-        <p className="font-mono text-[8px] text-slate-500">RECENT COMPLETED ORDERS</p>
+        <p className="text-sm font-semibold text-[#17372f]">Recent completed orders</p>
         {paidOrders.length === 0 ? (
-          <p className="mt-3 border border-slate-800 p-4 text-[10px] text-slate-500">No completed payments yet.</p>
+          <p className="mt-3 rounded-xl border border-dashed border-emerald-950/15 bg-[#f7faf5] p-4 text-sm text-slate-500">No completed payments yet.</p>
         ) : (
-          <div className="mt-2 divide-y divide-slate-800 border-y border-slate-800">
+          <div className="mt-2 divide-y divide-emerald-950/10 border-y border-emerald-950/10">
             {paidOrders.slice(0, 5).map((order) => (
               <article key={order.order_id} className="flex flex-col justify-between gap-2 py-3 sm:flex-row sm:items-center">
                 <div>
-                  <p className="text-[10px] font-semibold text-white">{order.items.map((item) => item.product_title).join(', ')}</p>
-                  <p className="mt-1 font-mono text-[8px] text-slate-600">
-                    ORDER {order.order_id.slice(0, 8).toUpperCase()} · {new Date(order.paid_at ?? order.updated_at).toLocaleString('en-IN')}
+                  <p className="text-sm font-semibold text-[#17372f]">{order.items.map((item) => item.product_title).join(', ')}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Order {order.order_id.slice(0, 8).toUpperCase()} · {new Date(order.paid_at ?? order.updated_at).toLocaleString('en-IN')}
                   </p>
                 </div>
-                <p className="flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
+                <p className="flex items-center gap-1 text-sm font-semibold text-emerald-700">
                   <CheckCircle2 size={12} /> {money(order.total_amount, order.currency)}
                 </p>
               </article>

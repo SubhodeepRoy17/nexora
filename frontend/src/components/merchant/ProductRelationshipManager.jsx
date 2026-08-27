@@ -30,13 +30,13 @@ export default function ProductRelationshipManager({ products, relationships, on
   }
 
   return (
-    <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <section className="merchant-card merchant-reveal mt-5 rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
       <header>
         <div className="flex items-center gap-2">
-          <Link2 size={16} className="text-indigo-400" />
-          <h2 className="text-sm font-semibold text-white">Product pairings and offers</h2>
+          <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><Link2 size={16} /></span>
+          <h2 className="text-base font-semibold text-[#17372f]">Product pairings and offers</h2>
         </div>
-        <p className="mt-1 text-[10px] text-slate-500">Choose which optional products work well together. Prices always use current listings.</p>
+        <p className="mt-2 text-sm text-[#31594f]/65">Choose optional products that genuinely work well together.</p>
       </header>
       <form onSubmit={submit} className="mt-4 grid gap-2 lg:grid-cols-3">
         <select
@@ -48,7 +48,7 @@ export default function ProductRelationshipManager({ products, relationships, on
               source_product: event.target.value,
             }))
           }
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-slate-300"
+          className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#31594f]"
         >
           <option value="">Primary product</option>
           {activeProducts.map((product) => (
@@ -66,7 +66,7 @@ export default function ProductRelationshipManager({ products, relationships, on
               related_product: event.target.value,
             }))
           }
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-slate-300"
+          className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#31594f]"
         >
           <option value="">Related in-stock product</option>
           {activeProducts.map((product) => (
@@ -84,14 +84,14 @@ export default function ProductRelationshipManager({ products, relationships, on
               relationship_type: event.target.value,
             }))
           }
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-slate-300"
+          className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#31594f]"
         >
           <option value="ACCESSORY">Accessory</option>
           <option value="COMPLEMENT">Complement</option>
           <option value="SUBSTITUTE">Substitute</option>
           <option value="BUNDLE">Bundle component</option>
         </select>
-        <input required value={form.benefit} onChange={(event) => setForm((current) => ({ ...current, benefit: event.target.value }))} placeholder="Why it helps the shopper" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-white" />
+        <input required value={form.benefit} onChange={(event) => setForm((current) => ({ ...current, benefit: event.target.value }))} placeholder="Why it helps the shopper" className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#17372f]" />
         <input
           value={form.trade_off}
           onChange={(event) =>
@@ -101,7 +101,7 @@ export default function ProductRelationshipManager({ products, relationships, on
             }))
           }
           placeholder="Honest trade-off (optional)"
-          className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-white"
+          className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#17372f]"
         />
         <div className="flex gap-2">
           <input
@@ -113,29 +113,29 @@ export default function ProductRelationshipManager({ products, relationships, on
               }))
             }
             placeholder="Offer label"
-            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-[10px] text-white"
+            className="min-w-0 flex-1 rounded-xl border border-emerald-950/10 bg-[#f7faf5] px-3 py-2.5 text-xs text-[#17372f]"
           />
-          <button type="submit" disabled={!ready} className="rounded-xl bg-indigo-500 px-3 text-white disabled:opacity-40" aria-label="Add product pairing">
+          <button type="submit" disabled={!ready} className="rounded-xl bg-[#17372f] px-3 text-white transition hover:bg-violet-700 disabled:opacity-40" aria-label="Add product pairing">
             <Plus size={14} />
           </button>
         </div>
       </form>
       <div className="mt-4 grid gap-2 lg:grid-cols-2">
         {relationships.map((item) => (
-          <article key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+          <article key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold text-white">
+              <p className="truncate text-sm font-semibold text-[#17372f]">
                 {item.source_title} → {item.related_title}
               </p>
-              <p className="mt-1 font-mono text-[8px] text-indigo-300">
-                {item.relationship_type} · +₹
+              <p className="mt-1 text-xs text-violet-700">
+                {item.relationship_type.toLowerCase()} · +₹
                 {Number(item.incremental_cost).toLocaleString('en-IN')}
               </p>
-              <p className="mt-1 truncate text-[9px] text-slate-500">{item.benefit}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{item.benefit}</p>
             </div>
             <div className="flex shrink-0 gap-2">
-              <button type="button" onClick={() => onToggle(item)} className={`rounded-lg border px-2 py-1.5 font-mono text-[8px] ${item.is_active ? 'border-emerald-500/30 text-emerald-300' : 'border-slate-700 text-slate-500'}`}>
-                {item.is_active ? 'ACTIVE' : 'PAUSED'}
+              <button type="button" onClick={() => onToggle(item)} className={`rounded-lg border px-2 py-1.5 text-xs ${item.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500'}`}>
+                {item.is_active ? 'Active' : 'Paused'}
               </button>
               <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.source_title} relationship`} className="rounded-lg border border-rose-500/20 p-1.5 text-rose-400">
                 <Trash2 size={12} />
@@ -143,7 +143,7 @@ export default function ProductRelationshipManager({ products, relationships, on
             </div>
           </article>
         ))}
-        {relationships.length === 0 && <p className="rounded-xl border border-slate-800 p-4 text-[10px] text-slate-500">No product pairings yet. No optional offers will be shown.</p>}
+        {relationships.length === 0 && <p className="rounded-xl border border-dashed border-emerald-950/15 bg-[#f7faf5] p-4 text-sm text-slate-500">No product pairings yet. No optional offers will be shown.</p>}
       </div>
     </section>
   )

@@ -254,7 +254,7 @@ export default function MerchantDashboard() {
   const openExceptions = workspace?.operations?.open_reconciliation_exceptions ?? 0
 
   return (
-    <div className="merchant-light merchant-grid flex h-dvh min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
+    <div className="merchant-light merchant-grid flex h-[calc(100dvh-4rem)] min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
       {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside id="merchant-workspace-sidebar" aria-label="Merchant navigation" className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'w-[288px] translate-x-0 p-3' : 'w-[288px] -translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}>
         {sidebarOpen ? (
@@ -330,46 +330,35 @@ export default function MerchantDashboard() {
         )}
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto pt-16">
-        <header className="sticky top-16 z-20 flex h-[72px] items-center justify-between border-b border-slate-800 bg-[#11131a]/90 px-4 backdrop-blur-xl md:px-7">
-          <div className="flex items-center gap-3">
-            {!sidebarOpen && <div className="lg:hidden"><WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" /></div>}
-            <div>
-              <h1 className="text-sm font-semibold tracking-tight text-white md:text-base">{tabCopy[activeTab].title}</h1>
-              <p className="mt-0.5 hidden text-[10px] text-slate-500 sm:block">{tabCopy[activeTab].detail}</p>
+      <main className="merchant-main min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1440px] px-4 pb-10 pt-5 md:px-7 md:pt-7">
+          <section className="merchant-page-intro relative mb-6 overflow-hidden rounded-[2rem] border border-white/80 px-5 py-6 shadow-[0_18px_55px_rgba(42,81,68,.09)] md:px-8 md:py-8">
+            <div className="merchant-page-orb absolute -right-12 -top-16 size-48 rounded-full bg-violet-300/30 blur-3xl" />
+            <div className="merchant-page-orb absolute -bottom-20 left-1/3 size-44 rounded-full bg-emerald-200/45 blur-3xl [animation-delay:-4s]" />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex items-start gap-3">
+                {!sidebarOpen && <div className="mt-0.5 lg:hidden"><WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" /></div>}
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">{tabCopy[activeTab].title}</h1>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[#31594f]/75">{tabCopy[activeTab].detail}</p>
+                </div>
+              </div>
+              <div className={`flex w-fit items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold shadow-sm ${openExceptions ? 'border-rose-200 bg-rose-50/90 text-rose-700' : 'border-emerald-200 bg-white/75 text-emerald-700'}`}>
+                <AlertTriangle size={14} /> {openExceptions ? `${openExceptions} payment${openExceptions === 1 ? '' : 's'} need review` : 'Payments are clear'}
+              </div>
             </div>
-          </div>
-          <div className={`flex items-center gap-2 border px-3 py-2 font-mono text-[8px] ${openExceptions ? 'border-rose-500/30 bg-rose-500/10 text-rose-300' : 'border-slate-800 bg-slate-900 text-emerald-400'}`}>
-            <AlertTriangle size={12} /> {openExceptions} PAYMENTS NEED REVIEW
-          </div>
-        </header>
+          </section>
 
-        <div className="border-b border-slate-800 bg-slate-950 px-4 lg:hidden">
-          <div className="flex overflow-x-auto">
-            {tabs.map(({ id, label }) => (
-              <button key={id} type="button" onClick={() => navigate(id)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-[10px] font-semibold transition ${activeTab === id ? 'border-indigo-400 text-indigo-300' : 'border-transparent text-slate-600'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-[1440px] p-4 md:p-7">
           {(catalogState.error || timelineState.error) && (
-            <div className="mb-5 border border-[#DC143C]/30 bg-[#DC143C]/10 px-4 py-3 text-[11px] text-rose-300" role="alert">
+            <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
               {catalogState.error || timelineState.error}
             </div>
           )}
-          {catalogState.loading && <p className="mb-4 font-mono text-[9px] text-indigo-300">UPDATING PRODUCTS…</p>}
+          {catalogState.loading && <p className="mb-4 text-sm text-violet-700">Updating products…</p>}
           {activeTab === 'overview' && <DashboardOverview analytics={analytics} inventory={inventory} events={auditEvents} onNavigate={navigate} merchantName={workspace?.merchant?.name ?? user?.merchant?.name} analyticsState={growthState} timelineState={timelineState} orders={orders} workspace={workspace} operationsState={operationsState} onRetryOperations={() => refreshOperations()} />}
           {activeTab === 'inventory' && (
             <div>
-              <div className="mb-6 flex flex-col justify-between gap-3 border-l-2 border-violet-500 pl-4 sm:flex-row sm:items-end">
-                <div>
-                  <p className="mono-label text-violet-400">Manage products</p>
-                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Products shoppers can find.</h2>
-                  <p className="mt-1 text-xs text-slate-500">Keep prices, availability, features, and sales information up to date.</p>
-                </div>
+              <div className="mb-3 flex justify-end">
                 <DataFreshness updatedAt={catalogState.updatedAt} loading={catalogState.loading} staleAfterMs={60000} dark />
               </div>
               <ProductInventoryTable products={inventory} onToggleActive={toggleProduct} onUpdatePrice={updatePrice} onAdd={() => setProductModal({ open: true, product: null })} onEdit={(product) => setProductModal({ open: true, product })} />
@@ -378,11 +367,6 @@ export default function MerchantDashboard() {
           )}
           {activeTab === 'insights' && (
             <div>
-              <div className="mb-6 border-l-2 border-violet-500 pl-4">
-                <p className="mono-label text-violet-400">Sales insights</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Understand every win and loss.</h2>
-                <p className="mt-1 text-xs text-slate-500">See which products shoppers viewed, which purchases completed, and where your store missed demand.</p>
-              </div>
               <AgentAnalytics analytics={analytics} state={growthState} onRetry={() => refreshGrowth()} />
               <div className="mt-5">
                 <div className="mb-2 flex justify-end">

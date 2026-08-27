@@ -46,15 +46,15 @@ const metricConfig = [
 export default function AgentAnalytics({ analytics, state, onRetry }) {
   if (state.loading && !analytics)
     return (
-      <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5 font-mono text-[9px] text-indigo-300">
-        <RefreshCw size={13} className="mr-2 inline animate-spin" /> CALCULATING SALES INSIGHTS…
+      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">
+        <RefreshCw size={14} className="mr-2 inline animate-spin" /> Calculating sales insights…
       </div>
     )
   if (state.error && !analytics)
     return (
-      <div className="rounded-2xl border border-[#DC143C]/30 bg-[#DC143C]/10 p-5 text-[11px] text-rose-300">
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
         <p>{state.error}</p>
-        <button type="button" onClick={onRetry} className="mt-3 border border-rose-400/40 px-3 py-2 text-[9px]">
+        <button type="button" onClick={onRetry} className="mt-3 rounded-full border border-rose-300 px-3 py-2 text-xs font-semibold">
           Try again
         </button>
       </div>
@@ -71,7 +71,7 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
         <DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={30000} dark />
       </div>
       {state.error && (
-        <p className="mb-3 border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] text-amber-300" role="alert">
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700" role="alert">
           Showing the last successful sales information. {state.error}
         </p>
       )}
@@ -80,129 +80,128 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
           const trendValue = trend ? Number(analytics?.trends?.[trend] ?? 0) : null
           const positive = trendValue == null || trendValue >= 0
           return (
-            <article key={key} className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-slate-950/20 transition hover:-translate-y-0.5 hover:border-indigo-500/30">
+            <article key={key} className="merchant-card merchant-reveal rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur transition duration-300 hover:-translate-y-1 hover:border-violet-300">
               <div className="flex items-start justify-between">
-                <span className={`grid size-9 place-items-center rounded-xl ${color === 'emerald' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                <span className={`grid size-10 place-items-center rounded-xl ${color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700'}`}>
                   <Icon size={17} />
                 </span>
                 {trendValue != null && (
-                  <span className={`flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-[8px] ${positive ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-rose-500/20 bg-rose-500/10 text-rose-400'}`}>
+                  <span className={`flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${positive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
                     {positive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                     {Math.abs(trendValue)}%
                   </span>
                 )}
               </div>
-              <p className="mt-5 text-[10px] text-slate-500">{label}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight text-white">{format(analytics?.[key])}</p>
-              <p className="mt-2 font-mono text-[8px] text-slate-600">LAST {analytics?.window_days} DAYS</p>
+              <p className="mt-5 text-sm font-medium text-[#31594f]/70">{label}</p>
+              <p className="mt-1 text-3xl font-semibold tracking-[-.04em] text-[#17372f]">{format(analytics?.[key])}</p>
+              <p className="mt-2 text-xs text-slate-500">Past {analytics?.window_days} days</p>
             </article>
           )
         })}
       </div>
 
-      <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-slate-950/20">
+      <section className="merchant-card merchant-reveal mt-5 rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
         <header>
           <div className="flex items-center gap-2">
-            <Link2 size={16} className="text-emerald-400" />
-            <h2 className="text-sm font-semibold text-white">Optional offer performance</h2>
+            <span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><Link2 size={16} /></span>
+            <h2 className="text-base font-semibold text-[#17372f]">Optional offer performance</h2>
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">Only real shopper choices are included below.</p>
+          <p className="mt-2 text-sm text-[#31594f]/65">See how shoppers responded to related-product offers.</p>
         </header>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <article className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-            <p className="font-mono text-[8px] text-slate-500">OPTIONAL ITEM REVENUE</p>
-            <p className="mt-2 text-xl font-semibold text-emerald-300">{money(growth.incremental_paid_revenue)}</p>
-            <p className="mt-1 text-[8px] text-slate-600">Revenue from optional products that were purchased</p>
+          <article className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+            <p className="text-xs text-slate-500">Optional item revenue</p>
+            <p className="mt-2 text-2xl font-semibold text-emerald-700">{money(growth.incremental_paid_revenue)}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Revenue from purchased optional products</p>
           </article>
-          <article className="rounded-xl border border-slate-800 p-4">
-            <p className="font-mono text-[8px] text-slate-500">PURCHASED OFFER RATE</p>
-            <p className="mt-2 text-xl font-semibold text-white">{Number(growth.paid_attachment_rate_percent ?? 0).toFixed(2)}%</p>
-            <p className="mt-1 text-[8px] text-slate-600">
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Purchased offer rate</p>
+            <p className="mt-2 text-2xl font-semibold text-[#17372f]">{Number(growth.paid_attachment_rate_percent ?? 0).toFixed(2)}%</p>
+            <p className="mt-1 text-xs text-slate-500">
               {number(growth.paid_attached_offers)} purchased / {number(growth.offer_impressions)} offered
             </p>
           </article>
-          <article className="rounded-xl border border-slate-800 p-4">
-            <p className="font-mono text-[8px] text-slate-500">OFFERS ACCEPTED</p>
-            <p className="mt-2 text-xl font-semibold text-white">{number(growth.accepted_offers)}</p>
-            <p className="mt-1 text-[8px] text-slate-600">{Number(growth.accept_rate_percent ?? 0).toFixed(2)}% of responded offers</p>
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Offers accepted</p>
+            <p className="mt-2 text-2xl font-semibold text-[#17372f]">{number(growth.accepted_offers)}</p>
+            <p className="mt-1 text-xs text-slate-500">{Number(growth.accept_rate_percent ?? 0).toFixed(2)}% of responses</p>
           </article>
-          <article className="rounded-xl border border-slate-800 p-4">
-            <p className="font-mono text-[8px] text-slate-500">OFFERS DECLINED</p>
-            <p className="mt-2 text-xl font-semibold text-white">{number(growth.rejected_offers)}</p>
-            <p className="mt-1 text-[8px] text-slate-600">Rejection is recorded without checkout impact</p>
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Offers declined</p>
+            <p className="mt-2 text-2xl font-semibold text-[#17372f]">{number(growth.rejected_offers)}</p>
+            <p className="mt-1 text-xs text-slate-500">Declined without changing checkout</p>
           </article>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          <div className="rounded-xl border border-slate-800 p-4">
-            <p className="flex items-center gap-2 text-[10px] font-semibold text-white">
-              <ArrowUpRight size={13} className="text-emerald-400" /> Top converting complements
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
+              <ArrowUpRight size={14} className="text-emerald-700" /> Top product pairings
             </p>
             {topComplements.map((item) => (
-              <p key={`${item.product_id}-${item.product_title}`} className="mt-3 text-[9px] text-slate-400">
+              <p key={`${item.product_id}-${item.product_title}`} className="mt-3 text-xs text-slate-600">
                 {item.product_title} · {item.paid_attachments} paid · {money(item.revenue)}
               </p>
             ))}
-            {!topComplements.length && <p className="mt-3 text-[9px] text-slate-600">No paid add-on yet.</p>}
+            {!topComplements.length && <p className="mt-3 text-xs text-slate-500">No purchased pairing yet.</p>}
           </div>
-          <div className="rounded-xl border border-slate-800 p-4">
-            <p className="flex items-center gap-2 text-[10px] font-semibold text-white">
-              <PackageX size={13} className="text-rose-400" /> Rejected offers
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
+              <PackageX size={14} className="text-rose-600" /> Declined offers
             </p>
             {rejectedOffers.map((item) => (
-              <p key={`${item.product_id}-${item.product__title}`} className="mt-3 text-[9px] text-slate-400">
+              <p key={`${item.product_id}-${item.product__title}`} className="mt-3 text-xs text-slate-600">
                 {item.product__title} · {item.rejections} rejected
               </p>
             ))}
-            {!rejectedOffers.length && <p className="mt-3 text-[9px] text-slate-600">No rejected offers yet.</p>}
+            {!rejectedOffers.length && <p className="mt-3 text-xs text-slate-500">No declined offers yet.</p>}
           </div>
-          <div className="rounded-xl border border-slate-800 p-4">
-            <p className="flex items-center gap-2 text-[10px] font-semibold text-white">
-              <Puzzle size={13} className="text-amber-400" /> Missing product pairings
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
+              <Puzzle size={14} className="text-amber-600" /> Pairings needing attention
             </p>
             {compatibilityGaps.map((item) => (
-              <p key={item.source_product_id} className="mt-3 text-[9px] text-slate-400">
+              <p key={item.source_product_id} className="mt-3 text-xs text-slate-600">
                 {item.source_product__title} · {item.gap_count} pairing
                 {item.gap_count === 1 ? ' needs' : 's need'} attention
               </p>
             ))}
-            {!compatibilityGaps.length && <p className="mt-3 text-[9px] text-slate-600">No inactive or out-of-stock linked products.</p>}
+            {!compatibilityGaps.length && <p className="mt-3 text-xs text-slate-500">All linked products are available.</p>}
           </div>
         </div>
-        <p className="mt-4 text-[9px] leading-relaxed text-slate-500">Only real shopper activity is included in these figures.</p>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl shadow-slate-950/20">
+      <section className="merchant-card merchant-reveal mt-5 rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <TrendingDown size={16} className="text-rose-400" />
-              <h2 className="text-sm font-semibold text-white">Missed sales</h2>
+              <span className="grid size-8 place-items-center rounded-lg bg-rose-100 text-rose-700"><TrendingDown size={16} /></span>
+              <h2 className="text-base font-semibold text-[#17372f]">Missed sales</h2>
             </div>
-            <p className="mt-1 text-[10px] text-slate-500">Price and stock issues that kept shoppers from finding a match.</p>
+            <p className="mt-2 text-sm text-[#31594f]/65">Price and stock issues that prevented a suitable match.</p>
           </div>
-          <span className="w-fit rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1.5 font-mono text-[8px] text-rose-400">{number(analytics?.lost_opportunities?.total)} OPPORTUNITIES</span>
+          <span className="w-fit rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700">{number(analytics?.lost_opportunities?.total)} missed</span>
         </header>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
           {losses.map((insight) => (
-            <article key={`${insight.reason}-${insight.product_id}-${insight.product_title}`} className={`rounded-xl border p-4 ${insight.reason === 'PRICE' ? 'border-rose-500/20 bg-rose-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+            <article key={`${insight.reason}-${insight.product_id}-${insight.product_title}`} className={`rounded-xl border p-4 ${insight.reason === 'PRICE' ? 'border-rose-200 bg-rose-50/70' : 'border-amber-200 bg-amber-50/70'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-mono text-[8px] uppercase tracking-wider text-slate-500">{insight.reason === 'PRICE' ? 'Pricing gap' : 'Stock gap'}</p>
-                  <p className="mt-1.5 text-xs font-semibold text-white">{insight.product_title}</p>
+                  <p className="text-xs text-slate-500">{insight.reason === 'PRICE' ? 'Pricing gap' : 'Stock gap'}</p>
+                  <p className="mt-1.5 text-sm font-semibold text-[#17372f]">{insight.product_title}</p>
                 </div>
-                <span className="rounded-full bg-slate-950/70 px-2 py-1 font-mono text-[8px] text-rose-300">{insight.count} LOST</span>
+                <span className="rounded-full bg-white/80 px-2 py-1 text-xs text-rose-700">{insight.count} missed</span>
               </div>
-              <p className="mt-3 text-[10px] leading-relaxed text-slate-400">{insight.message}</p>
+              <p className="mt-3 text-xs leading-5 text-slate-600">{insight.message}</p>
             </article>
           ))}
-          {losses.length === 0 && <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-[11px] text-emerald-300">No price or stock losses have been recorded yet.</div>}
+          {losses.length === 0 && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">No price or stock losses have been recorded yet.</div>}
         </div>
 
-        <div className="mt-4 flex gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3">
-          <Lightbulb size={14} className="mt-0.5 shrink-0 text-indigo-400" />
-          <p className="text-[9px] leading-relaxed text-slate-400">
-            <span className="font-semibold text-indigo-300">Suggested action:</span> Prioritize the highest-frequency pricing gap, then restore stock for products that shoppers repeatedly could not find.
+        <div className="mt-4 flex gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+          <Lightbulb size={15} className="mt-0.5 shrink-0 text-violet-700" />
+          <p className="text-xs leading-5 text-slate-600">
+            <span className="font-semibold text-violet-700">Suggested action:</span> Fix the most common pricing gap first, then restore repeatedly requested products.
           </p>
         </div>
       </section>
