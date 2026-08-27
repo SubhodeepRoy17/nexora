@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, BarChart3, Boxes, LayoutDashboard, Sparkles } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
 import { WorkspaceAccountMenu, WorkspaceSidebarToggle } from '../components/common/WorkspaceSidebarControls'
 import AddProductModal from '../components/merchant/AddProductModal'
@@ -43,7 +44,7 @@ export default function MerchantDashboard() {
   const routerNavigate = useNavigate()
   const { inventory, setInventory, auditEvents, setAuditEvents } = useNexora()
   const { user } = useAuth()
-  const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar('nexora:merchant-sidebar')
+  const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar()
   const [productModal, setProductModal] = useState({
     open: false,
     product: null,
@@ -259,10 +260,7 @@ export default function MerchantDashboard() {
         {sidebarOpen ? (
           <>
             <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <LogoMark className="size-7 shrink-0" alt="" />
-                <span className="truncate text-sm font-semibold tracking-[-.02em] text-[#17372f]">Seller workspace</span>
-              </div>
+              <Link to="/" aria-label="Nexora home" className="focus-ring min-w-0 shrink-0 rounded-md"><Brand /></Link>
               <WorkspaceSidebarToggle open onToggle={() => setSidebarOpen(false)} controls="merchant-workspace-sidebar" />
             </div>
 
@@ -314,7 +312,7 @@ export default function MerchantDashboard() {
           </>
         ) : (
           <div className="hidden h-full w-full flex-col items-center lg:flex">
-            <LogoMark className="mt-1 size-8 shrink-0" alt="" />
+            <Link to="/" aria-label="Nexora home" className="focus-ring mt-1 rounded-xl"><LogoMark className="size-8 shrink-0" alt="" /></Link>
             <div className="mt-3">
               <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" label="Expand sidebar" />
             </div>

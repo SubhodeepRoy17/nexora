@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 const desktopQuery = '(min-width: 1024px)'
+export const WORKSPACE_SIDEBAR_STORAGE_KEY = 'nexora:workspace-sidebar'
 
 function initialOpen(storageKey) {
   if (typeof window === 'undefined' || !window.matchMedia?.(desktopQuery).matches) return false
@@ -11,7 +12,7 @@ function initialOpen(storageKey) {
   }
 }
 
-export default function useWorkspaceSidebar(storageKey) {
+export default function useWorkspaceSidebar(storageKey = WORKSPACE_SIDEBAR_STORAGE_KEY) {
   const [open, setOpen] = useState(() => initialOpen(storageKey))
 
   useEffect(() => {

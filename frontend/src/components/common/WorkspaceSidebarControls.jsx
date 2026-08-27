@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { LogIn, LogOut, MoveHorizontal, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { LogIn, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -24,10 +24,9 @@ export function WorkspaceSidebarToggle({ open, onToggle, controls, label }) {
       aria-controls={controls}
       aria-expanded={open}
       onClick={onToggle}
-      className="focus-ring group grid size-10 shrink-0 place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]"
+      className="focus-ring grid size-10 shrink-0 cursor-ew-resize place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]"
     >
-      {open ? <PanelLeftClose size={20} strokeWidth={1.8} className="group-hover:hidden" /> : <PanelLeftOpen size={20} strokeWidth={1.8} className="group-hover:hidden" />}
-      <MoveHorizontal size={20} strokeWidth={1.8} className="hidden group-hover:block" />
+      {open ? <PanelLeftClose size={20} strokeWidth={1.8} /> : <PanelLeftOpen size={20} strokeWidth={1.8} />}
     </button>
   )
 }

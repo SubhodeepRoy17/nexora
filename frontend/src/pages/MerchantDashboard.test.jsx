@@ -41,6 +41,8 @@ describe('owner-scoped merchant workspace', () => {
     const user = userEvent.setup()
     renderMerchant()
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveTextContent('NEXORA')
+    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveAttribute('href', '/')
     expect(await screen.findByLabelText('Selected merchant: Authenticated Shop')).toBeInTheDocument()
     await waitFor(() => expect(apiMocks.getProducts).toHaveBeenCalled())
     expect(apiMocks.getProducts.mock.calls[0]).toHaveLength(1)

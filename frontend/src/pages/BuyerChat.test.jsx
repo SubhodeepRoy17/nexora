@@ -91,6 +91,8 @@ describe('live buyer search', () => {
     renderBuyer()
 
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveTextContent('NEXORA')
+    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveAttribute('href', '/')
     await screen.findByText('No saved searches yet.')
     const account = screen.getByRole('button', { name: 'Open account menu for Soumyadip Roy' })
     expect(account).toHaveTextContent('SR')

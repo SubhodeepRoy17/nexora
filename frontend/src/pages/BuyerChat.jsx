@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Clock3, Plus, SquarePen, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
 import { WorkspaceAccountMenu, WorkspaceSidebarToggle } from '../components/common/WorkspaceSidebarControls'
 import AgentThinkingStep from '../components/chat/AgentThinkingStep'
@@ -70,7 +72,7 @@ export default function BuyerChat() {
   const [input, setInput] = useState('')
   const [activeRun, setActiveRun] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar('nexora:buyer-sidebar')
+  const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar()
   const [conversationId, setConversationId] = useState(null)
   const [conversationToken, setConversationToken] = useState(null)
   const [chatSessions, setChatSessions] = useState([])
@@ -296,10 +298,7 @@ export default function BuyerChat() {
         {sidebarOpen ? (
           <>
             <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <LogoMark className="size-7 shrink-0" alt="" />
-                <span className="truncate text-sm font-semibold tracking-[-.02em] text-[#17372f]">Nexora</span>
-              </div>
+              <Link to="/" aria-label="Nexora home" className="focus-ring min-w-0 shrink-0 rounded-md"><Brand /></Link>
               <WorkspaceSidebarToggle open onToggle={() => setSidebarOpen(false)} controls="buyer-history-sidebar" />
             </div>
 
@@ -342,7 +341,7 @@ export default function BuyerChat() {
           </>
         ) : (
           <div className="hidden h-full w-full flex-col items-center lg:flex">
-            <LogoMark className="mt-1 size-8 shrink-0" alt="" />
+            <Link to="/" aria-label="Nexora home" className="focus-ring mt-1 rounded-xl"><LogoMark className="size-8 shrink-0" alt="" /></Link>
             <div className="mt-3">
               <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="buyer-history-sidebar" label="Expand sidebar" />
             </div>
