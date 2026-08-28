@@ -51,10 +51,10 @@ describe('live buyer search', () => {
     const input = screen.getByLabelText('Shopping intent')
     await user.type(input, 'wireless keyboard under 8000')
     await user.click(screen.getByLabelText('Send shopping intent'))
-    expect(await screen.findByText('Backend Keyboard')).toBeInTheDocument()
+    expect(await screen.findByText('Backend Keyboard', {}, { timeout: 4000 })).toBeInTheDocument()
     expect(screen.queryByText(/current matches|Details checked/i)).not.toBeInTheDocument()
     expect(apiMocks.searchProducts).toHaveBeenCalledWith('wireless keyboard under 8000', expect.any(AbortSignal), { conversationId: null, conversationToken: null })
-  })
+  }, 10000)
 
   it('makes a backend no-result response honest and actionable', async () => {
     const reply = 'No active keyboard is available under ₹100. The least expensive current keyboard costs ₹2,499.'
@@ -86,13 +86,43 @@ describe('live buyer search', () => {
     renderBuyer()
     const query = 'Quiet wireless keyboard under ₹8,000 for Mac'
 
-    await user.click(screen.getByRole('button', { name: 'Example · quiet keyboard' }))
+    await user.click(screen.getByRole('button', { name: 'Find a quiet keyboard' }))
+
+    expect(screen.queryByRole('button', { name: /Example/i })).not.toBeInTheDocument()
 
     expect(apiMocks.searchProducts).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Shopping intent')).not.toHaveValue(query)
     await waitFor(() => expect(screen.getByLabelText('Shopping intent')).toHaveValue(query), { timeout: 3000 })
     expect(screen.getByLabelText('Send shopping intent')).toBeEnabled()
     expect(apiMocks.searchProducts).not.toHaveBeenCalled()
+  })
+
+  it('finishes typing before revealing recommendation cards one at a time', async () => {
+    const reply = 'I found two suitable keyboards and compared their current details for you.'
+    apiMocks.searchProducts.mockResolvedValue({ data: {
+      conversation_id: '85ea43e5-26f3-4615-8422-1790901d7952',
+      summary_reasoning: reply,
+      recommendations: [
+        { product_id: 51, title: 'Quiet Board One', merchant: 'Nexora Shop', price: '6999.00', stock_quantity: 4, reason: 'A quiet first option.', tradeoffs: [], decision_id: 'd51', decision_token: 'token-51' },
+        { product_id: 52, title: 'Quiet Board Two', merchant: 'Nexora Shop', price: '7499.00', stock_quantity: 3, reason: 'A compact second option.', tradeoffs: [], decision_id: 'd52', decision_token: 'token-52' },
+      ],
+      add_on_suggestions: [],
+    } })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await user.type(screen.getByLabelText('Shopping intent'), 'show two quiet keyboards')
+    await user.click(screen.getByLabelText('Send shopping intent'))
+    const animatedReply = await screen.findByLabelText(reply)
+    expect(animatedReply).toHaveClass('buyer-response-typing')
+    expect(screen.queryByText('Quiet Board One')).not.toBeInTheDocument()
+    expect(screen.queryByText('Quiet Board Two')).not.toBeInTheDocument()
+
+    await waitFor(() => expect(animatedReply).not.toHaveClass('buyer-response-typing'), { timeout: 3000 })
+    expect(screen.queryByText('Quiet Board One')).not.toBeInTheDocument()
+    expect(await screen.findByText('Quiet Board One')).toBeInTheDocument()
+    expect(screen.queryByText('Quiet Board Two')).not.toBeInTheDocument()
+    expect(await screen.findByText('Quiet Board Two')).toBeInTheDocument()
   })
 
   it('deletes a signed-in buyer chat from recent searches', async () => {
@@ -152,6 +182,7 @@ describe('live buyer search', () => {
     const recentButtons = within(sidebar).getAllByRole('button', { name: /^(Latest|Older) chat$/ })
     expect(recentButtons[0]).toHaveTextContent('Latest chat')
     expect(recentButtons[1]).toHaveTextContent('Older chat')
+    expect(recentButtons[0].querySelector('.lucide-clock-3')).toBeNull()
   })
 
   it('moves an older chat to the top after the buyer continues it', async () => {
@@ -243,6 +274,8 @@ describe('live buyer search', () => {
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     await user.click(screen.getByRole('button', { name: 'Search chats' }))
     const search = screen.getByPlaceholderText('Search chats')
+    expect(search).not.toHaveClass('focus-ring')
+    expect(search).toHaveClass('focus:ring-0')
     await user.type(search, 'keyboard')
 
     await waitFor(() => expect(apiMocks.getChatSessions).toHaveBeenLastCalledWith(expect.any(AbortSignal), 'keyboard'))

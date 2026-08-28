@@ -2,11 +2,11 @@ import { ArrowUpRight, Star } from 'lucide-react'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 
-export default function ProductRecommendationCard({ product, featured = false, onApprove }) {
+export default function ProductRecommendationCard({ product, featured = false, onApprove, className = '' }) {
   const keySpecs = [product.specs.wireless, product.specs.switches].filter(Boolean)
 
   return (
-    <article className={`group relative min-w-[300px] snap-start overflow-hidden rounded-[1.5rem] border bg-white/88 shadow-[0_14px_36px_rgba(42,81,68,.08)] transition duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_20px_45px_rgba(42,81,68,.13)] md:min-w-0 ${featured ? 'border-violet-300 ring-2 ring-violet-100' : 'border-emerald-950/10'}`}>
+    <article className={`group relative min-w-[300px] snap-start overflow-hidden rounded-[1.5rem] border bg-white/88 shadow-[0_14px_36px_rgba(42,81,68,.08)] transition duration-300 hover:-translate-y-1 hover:border-violet-400 hover:shadow-[0_20px_45px_rgba(42,81,68,.13)] md:min-w-0 ${featured ? 'border-violet-300 ring-2 ring-violet-100' : 'border-emerald-950/10'} ${className}`}>
       <div className="absolute inset-x-0 top-0 h-1 bg-violet-600 opacity-0 transition group-hover:opacity-100" />
       {featured && <span className="absolute right-3 top-3 z-10 rounded-full bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">Best match</span>}
 

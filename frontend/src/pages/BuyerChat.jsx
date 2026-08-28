@@ -67,10 +67,15 @@ function AgentMark({ active = false }) {
   )
 }
 
-function TypingText({ text, animate = false }) {
+function TypingText({ text, animate = false, onComplete }) {
   const content = String(text ?? '')
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   const [visibleLength, setVisibleLength] = useState(animate && !reduceMotion ? 0 : content.length)
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
   useEffect(() => {
     if (!animate || reduceMotion) {
@@ -90,11 +95,45 @@ function TypingText({ text, animate = false }) {
     return () => window.clearInterval(timer)
   }, [animate, content, reduceMotion])
 
+  useEffect(() => {
+    if (visibleLength >= content.length) onCompleteRef.current?.()
+  }, [content.length, visibleLength])
+
   const typing = visibleLength < content.length
   return (
     <span aria-label={content} className={typing ? 'buyer-response-typing' : undefined}>
       {content.slice(0, visibleLength)}
     </span>
+  )
+}
+
+function SequentialProductCards({ products, ready, animate, onApprove }) {
+  const reduceMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const [visibleCount, setVisibleCount] = useState(animate && !reduceMotion ? 0 : products.length)
+
+  useEffect(() => {
+    if (!animate || reduceMotion) {
+      setVisibleCount(products.length)
+      return undefined
+    }
+    if (!ready) {
+      setVisibleCount(0)
+      return undefined
+    }
+    const timers = products.map((_, index) => window.setTimeout(
+      () => setVisibleCount(index + 1),
+      180 + (index * 500),
+    ))
+    return () => timers.forEach(window.clearTimeout)
+  }, [animate, products, ready, reduceMotion])
+
+  if (!visibleCount) return null
+  return (
+    <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
+      {products.slice(0, visibleCount).map((product, index) => (
+        <ProductRecommendationCard key={product.id} product={product} featured={index === 0} onApprove={onApprove} className="buyer-product-reveal" />
+      ))}
+    </div>
   )
 }
 
@@ -144,6 +183,7 @@ export default function BuyerChat() {
   const [chatSearchLoading, setChatSearchLoading] = useState(false)
   const [renamingConversation, setRenamingConversation] = useState(null)
   const [renameSaving, setRenameSaving] = useState(false)
+  const [typedMessageIds, setTypedMessageIds] = useState(() => new Set())
   const [orderRefreshNonce, setOrderRefreshNonce] = useState(0)
   const logRef = useRef(null)
   const runTimers = useRef([])
@@ -171,6 +211,7 @@ export default function BuyerChat() {
     setEditingMessage(null)
     setShareStatus('idle')
     setHistoryError('')
+    setTypedMessageIds(new Set())
     if (!user) {
       setChatSessions([])
       return () => controller.abort()
@@ -244,6 +285,7 @@ export default function BuyerChat() {
     setEditingMessage(null)
     setShareStatus('idle')
     setRenamingConversation(null)
+    setTypedMessageIds(new Set())
     closeSidebarOnMobile()
   }
 
@@ -271,6 +313,7 @@ export default function BuyerChat() {
       setShareStatus('idle')
       setChatSearchOpen(false)
       setRenamingConversation(null)
+      setTypedMessageIds(new Set())
       closeSidebarOnMobile()
     } catch (error) {
       setHistoryError(getApiError(error, 'Could not open this chat.'))
@@ -484,7 +527,7 @@ export default function BuyerChat() {
             <div className="flex items-center gap-3 border-b border-emerald-950/10 px-4 py-3">
               <Search size={19} className="shrink-0 text-[#31594f]" />
               <label id="chat-search-title" htmlFor="chat-search-input" className="sr-only">Search chats</label>
-              <input id="chat-search-input" autoFocus value={chatSearchQuery} onChange={(event) => setChatSearchQuery(event.target.value)} placeholder="Search chats" className="focus-ring min-w-0 flex-1 bg-transparent py-2 text-sm text-[#17372f] placeholder:text-[#31594f]/55" />
+              <input id="chat-search-input" autoFocus value={chatSearchQuery} onChange={(event) => setChatSearchQuery(event.target.value)} placeholder="Search chats" className="min-w-0 flex-1 bg-transparent py-2 text-sm text-[#17372f] outline-none ring-0 placeholder:text-[#31594f]/55 focus:outline-none focus:ring-0 focus-visible:outline-none" />
               <button type="button" onClick={() => setChatSearchOpen(false)} aria-label="Close chat search" className="focus-ring grid size-9 place-items-center rounded-xl text-[#31594f] transition hover:bg-white hover:text-[#17372f]"><X size={18} /></button>
             </div>
             <div className="modal-scroll max-h-[52vh] min-h-40 overflow-y-auto p-2">
@@ -549,7 +592,6 @@ export default function BuyerChat() {
                         ) : (
                           <>
                             <button type="button" aria-label={session.title} disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-[4.5rem] text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
-                              <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} />
                               <span className="truncate">{session.title}</span>
                             </button>
                             <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => setRenamingConversation({ id: session.conversation_id, title: session.title })} aria-label={`Rename ${session.title}`} title="Rename chat" className="focus-ring absolute right-9 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-[#31594f] opacity-100 transition hover:bg-white hover:text-violet-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
@@ -661,7 +703,7 @@ export default function BuyerChat() {
                         </form>
                       ) : (
                         <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>
-                          {message.role === 'agent' ? <TypingText text={message.text} animate={message.animateText} /> : message.text}
+                          {message.role === 'agent' ? <TypingText text={message.text} animate={message.animateText} onComplete={message.animateText ? () => setTypedMessageIds((current) => current.has(message.id) ? current : new Set(current).add(message.id)) : undefined} /> : message.text}
                         </div>
                       )}
                       {message.role === 'user' && !editing && (
@@ -676,13 +718,7 @@ export default function BuyerChat() {
                           )}
                         </div>
                       )}
-                      {message.products && (
-                        <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
-                          {message.products.map((product, index) => (
-                            <ProductRecommendationCard key={product.id} product={product} featured={index === 0} onApprove={setSelectedProduct} />
-                          ))}
-                        </div>
-                      )}
+                      {message.products && <SequentialProductCards products={message.products} ready={!message.animateText || typedMessageIds.has(message.id)} animate={Boolean(message.animateText)} onApprove={setSelectedProduct} />}
                       {message.products?.length === 0 && message.suggestedQuery && !message.fixture && message.status !== 'error' && (
                         <button type="button" onClick={() => setInput(message.suggestedQuery)} className="focus-ring mt-3 rounded-full border border-violet-300 bg-violet-50 px-4 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100">
                           Try the suggested search

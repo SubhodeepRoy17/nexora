@@ -264,6 +264,7 @@
 
 .buyer-welcome { animation: buyer-welcome-enter .7s cubic-bezier(.2,.8,.2,1) both; }
 .buyer-message { animation: buyer-message-enter .5s cubic-bezier(.2,.8,.2,1) both; }
+.buyer-product-reveal { animation: buyer-product-reveal .48s cubic-bezier(.2,.8,.2,1) backwards; }
 .buyer-welcome-prompt {
   opacity: 0;
   animation: buyer-welcome-prompt 9s cubic-bezier(.4,0,.2,1) infinite;
@@ -324,6 +325,11 @@
 @keyframes buyer-message-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes buyer-product-reveal {
+  from { opacity: 0; transform: translateY(14px) scale(.975); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @keyframes buyer-welcome-prompt {
@@ -1251,6 +1257,7 @@
   .auth-trust-item,
   .buyer-welcome,
   .buyer-message,
+  .buyer-product-reveal,
   .buyer-welcome-prompt,
   .buyer-typing-dot { animation: none; }
   .auth-shell,
@@ -1259,7 +1266,8 @@
   .auth-story-ring,
   .auth-trust-item,
   .buyer-welcome,
-  .buyer-message { opacity: 1; transform: none; filter: none; }
+  .buyer-message,
+  .buyer-product-reveal { opacity: 1; transform: none; filter: none; }
   .auth-switch-form,
   .auth-switch-story { transition: none; }
   .buyer-welcome-prompt { display: none; }

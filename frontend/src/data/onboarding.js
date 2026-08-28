@@ -8,7 +8,7 @@ export const onboardingMessages = [{
 }]
 
 export const examplePrompts = [
-  { id: 'example-keyboard', label: 'Example · quiet keyboard', query: 'Quiet wireless keyboard under ₹8,000 for Mac' },
-  { id: 'example-mouse', label: 'Example · ergonomic mouse', query: 'Ergonomic mouse under ₹5,000 with Bluetooth' },
-  { id: 'example-coding', label: 'Example · coding keyboard', query: 'Hot-swappable keyboard for coding under ₹10,000' },
+  { id: 'example-keyboard', label: 'Find a quiet keyboard', query: 'Quiet wireless keyboard under ₹8,000 for Mac' },
+  { id: 'example-mouse', label: 'Explore ergonomic mice', query: 'Ergonomic mouse under ₹5,000 with Bluetooth' },
+  { id: 'example-coding', label: 'Choose a coding keyboard', query: 'Hot-swappable keyboard for coding under ₹10,000' },
 ]
