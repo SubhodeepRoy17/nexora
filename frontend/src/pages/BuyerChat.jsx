@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Clock3, Copy, Pencil, Plus, Share2, SquarePen, Trash2 } from 'lucide-react'
+import { Check, Clock3, Copy, Pencil, Plus, Search, Share2, SquarePen, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
@@ -12,7 +12,7 @@ import BuyerOrders from '../components/chat/BuyerOrders'
 import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { examplePrompts, onboardingMessages } from '../data/onboarding'
-import { deleteChatSession, extractResults, getApiError, getChatSession, getChatSessions, searchProducts, shareChatSession, toAddOnProduct, toRecommendationProduct } from '../services/api'
+import { deleteChatSession, extractResults, getApiError, getChatSession, getChatSessions, renameChatSession, searchProducts, shareChatSession, toAddOnProduct, toRecommendationProduct } from '../services/api'
 import useWorkspaceSidebar from '../hooks/useWorkspaceSidebar'
 
 const liveThinkingSteps = [
@@ -138,6 +138,12 @@ export default function BuyerChat() {
   const [shareStatus, setShareStatus] = useState('idle')
   const [copiedMessageId, setCopiedMessageId] = useState(null)
   const [editingMessage, setEditingMessage] = useState(null)
+  const [chatSearchOpen, setChatSearchOpen] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
+  const [chatSearchResults, setChatSearchResults] = useState([])
+  const [chatSearchLoading, setChatSearchLoading] = useState(false)
+  const [renamingConversation, setRenamingConversation] = useState(null)
+  const [renameSaving, setRenameSaving] = useState(false)
   const [orderRefreshNonce, setOrderRefreshNonce] = useState(0)
   const logRef = useRef(null)
   const runTimers = useRef([])
@@ -191,6 +197,35 @@ export default function BuyerChat() {
   }, [authLoading, user?.id, setMessages])
 
   useEffect(() => {
+    if (!chatSearchOpen || !user) return undefined
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setChatSearchLoading(true)
+      getChatSessions(controller.signal, chatSearchQuery)
+        .then(({ data }) => setChatSearchResults(sortChatSessions(extractResults(data))))
+        .catch((error) => {
+          if (!controller.signal.aborted) setHistoryError(getApiError(error, 'Could not search your chats.'))
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setChatSearchLoading(false)
+        })
+    }, 180)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [chatSearchOpen, chatSearchQuery, user?.id])
+
+  useEffect(() => {
+    if (!chatSearchOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setChatSearchOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [chatSearchOpen])
+
+  useEffect(() => {
     logRef.current?.scrollTo({
       top: logRef.current.scrollHeight,
       behavior: 'smooth',
@@ -208,6 +243,7 @@ export default function BuyerChat() {
     setInput('')
     setEditingMessage(null)
     setShareStatus('idle')
+    setRenamingConversation(null)
     closeSidebarOnMobile()
   }
 
@@ -233,6 +269,8 @@ export default function BuyerChat() {
       setConversationToken(null)
       setEditingMessage(null)
       setShareStatus('idle')
+      setChatSearchOpen(false)
+      setRenamingConversation(null)
       closeSidebarOnMobile()
     } catch (error) {
       setHistoryError(getApiError(error, 'Could not open this chat.'))
@@ -253,6 +291,34 @@ export default function BuyerChat() {
       setHistoryError(getApiError(error, 'Could not delete this chat history.'))
     } finally {
       setDeletingConversationId(null)
+    }
+  }
+
+  const openChatSearch = () => {
+    setChatSearchQuery('')
+    setChatSearchResults(chatSessions)
+    setHistoryError('')
+    setChatSearchOpen(true)
+  }
+
+  const saveConversationTitle = async (event) => {
+    event.preventDefault()
+    const title = renamingConversation?.title.trim()
+    if (!title || renameSaving) return
+    setRenameSaving(true)
+    setHistoryError('')
+    try {
+      const { data } = await renameChatSession(renamingConversation.id, title)
+      const applyTitle = (items) => items.map((item) => (
+        item.conversation_id === renamingConversation.id ? { ...item, title: data.title } : item
+      ))
+      setChatSessions(applyTitle)
+      setChatSearchResults(applyTitle)
+      setRenamingConversation(null)
+    } catch (error) {
+      setHistoryError(getApiError(error, 'Could not save this chat name.'))
+    } finally {
+      setRenameSaving(false)
     }
   }
 
@@ -346,9 +412,13 @@ export default function BuyerChat() {
       if (user) {
         setChatSessions((current) => {
           const activeSession = current.find((session) => session.conversation_id === data.conversation_id)
-          if (!activeSession) return current
+          if (!activeSession) {
+            return data.conversation_title
+              ? [{ conversation_id: data.conversation_id, title: data.conversation_title, updated_at: new Date().toISOString() }, ...current]
+              : current
+          }
           return [
-            { ...activeSession, updated_at: new Date().toISOString() },
+            { ...activeSession, title: data.conversation_title ?? activeSession.title, updated_at: new Date().toISOString() },
             ...current.filter((session) => session.conversation_id !== data.conversation_id),
           ]
         })
@@ -408,6 +478,32 @@ export default function BuyerChat() {
 
   return (
     <div className="buyer-shell flex h-dvh min-h-[576px] overflow-hidden text-slate-950">
+      {chatSearchOpen && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-[#17372f]/30 px-4 pt-[12vh] backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setChatSearchOpen(false) }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="chat-search-title" className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/70 bg-[#f7f9f4] shadow-[0_30px_90px_rgba(23,55,47,.24)]">
+            <div className="flex items-center gap-3 border-b border-emerald-950/10 px-4 py-3">
+              <Search size={19} className="shrink-0 text-[#31594f]" />
+              <label id="chat-search-title" htmlFor="chat-search-input" className="sr-only">Search chats</label>
+              <input id="chat-search-input" autoFocus value={chatSearchQuery} onChange={(event) => setChatSearchQuery(event.target.value)} placeholder="Search chats" className="focus-ring min-w-0 flex-1 bg-transparent py-2 text-sm text-[#17372f] placeholder:text-[#31594f]/55" />
+              <button type="button" onClick={() => setChatSearchOpen(false)} aria-label="Close chat search" className="focus-ring grid size-9 place-items-center rounded-xl text-[#31594f] transition hover:bg-white hover:text-[#17372f]"><X size={18} /></button>
+            </div>
+            <div className="modal-scroll max-h-[52vh] min-h-40 overflow-y-auto p-2">
+              {!user && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">Sign in to search your saved chats.</p>}
+              {user && chatSearchLoading && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">Searching…</p>}
+              {user && !chatSearchLoading && !chatSearchResults.length && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">No chats found.</p>}
+              {user && !chatSearchLoading && chatSearchResults.map((session) => (
+                <button key={session.conversation_id} type="button" onClick={() => openChatSession(session.conversation_id)} className="focus-ring flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white">
+                  <Clock3 size={16} className="mt-0.5 shrink-0 text-violet-600" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-[#17372f]">{session.title}</span>
+                    {session.last_message_preview && <span className="mt-1 block truncate text-xs text-[#31594f]/65">{session.last_message_preview}</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
       {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <aside
@@ -419,7 +515,12 @@ export default function BuyerChat() {
           <>
             <div className="flex items-center justify-between gap-3 px-1">
               <Link to="/" aria-label="Nexora home" className="focus-ring min-w-0 shrink-0 rounded-md"><Brand /></Link>
-              <WorkspaceSidebarToggle open onToggle={() => setSidebarOpen(false)} controls="buyer-history-sidebar" />
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={openChatSearch} aria-label="Search chats" title="Search chats" className="focus-ring grid size-10 place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]">
+                  <Search size={18} strokeWidth={1.8} />
+                </button>
+                <WorkspaceSidebarToggle open onToggle={() => setSidebarOpen(false)} controls="buyer-history-sidebar" />
+              </div>
             </div>
 
             <button type="button" aria-label="New intent" onClick={startNewIntent} className="focus-ring mt-3 flex w-full items-center gap-3 rounded-xl border border-emerald-950/10 bg-white/72 px-3 py-2.5 text-sm font-semibold text-[#17372f] shadow-[0_8px_24px_rgba(49,89,79,.07)] transition hover:bg-white">
@@ -439,13 +540,26 @@ export default function BuyerChat() {
                   {user &&
                     chatSessions.map((session) => (
                       <div key={session.conversation_id} className="group relative">
-                        <button type="button" disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-11 text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
-                          <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} />
-                          <span className="truncate">{session.title}</span>
-                        </button>
-                        <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => removeChatSession(session.conversation_id)} aria-label={`Delete ${session.title} chat history`} title="Delete chat history" className="focus-ring absolute right-2 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-rose-600 opacity-100 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                          <Trash2 size={13} />
-                        </button>
+                        {renamingConversation?.id === session.conversation_id ? (
+                          <form onSubmit={saveConversationTitle} className="flex items-center gap-1 rounded-xl border border-violet-200 bg-white p-1.5 shadow-sm">
+                            <input autoFocus aria-label="Chat name" maxLength={120} value={renamingConversation.title} onChange={(event) => setRenamingConversation((current) => ({ ...current, title: event.target.value }))} className="focus-ring min-w-0 flex-1 rounded-lg bg-[#f4f7f1] px-2.5 py-2 text-xs text-[#17372f]" />
+                            <button type="submit" disabled={!renamingConversation.title.trim() || renameSaving} aria-label="Save chat name" className="focus-ring grid size-8 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"><Check size={14} /></button>
+                            <button type="button" disabled={renameSaving} onClick={() => setRenamingConversation(null)} aria-label="Cancel renaming" className="focus-ring grid size-8 place-items-center rounded-lg text-[#31594f] hover:bg-slate-100"><X size={14} /></button>
+                          </form>
+                        ) : (
+                          <>
+                            <button type="button" aria-label={session.title} disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-[4.5rem] text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
+                              <Clock3 size={14} className={conversationId === session.conversation_id ? 'text-violet-600' : ''} />
+                              <span className="truncate">{session.title}</span>
+                            </button>
+                            <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => setRenamingConversation({ id: session.conversation_id, title: session.title })} aria-label={`Rename ${session.title}`} title="Rename chat" className="focus-ring absolute right-9 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-[#31594f] opacity-100 transition hover:bg-white hover:text-violet-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                              <Pencil size={13} />
+                            </button>
+                            <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => removeChatSession(session.conversation_id)} aria-label={`Delete ${session.title} chat history`} title="Delete chat history" className="focus-ring absolute right-1 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-rose-600 opacity-100 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
                   {historyError && <p className="px-3 py-2 text-xs leading-5 text-rose-600">{historyError}</p>}
@@ -465,6 +579,9 @@ export default function BuyerChat() {
             <div className="mt-3">
               <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="buyer-history-sidebar" label="Expand sidebar" />
             </div>
+            <button type="button" onClick={openChatSearch} aria-label="Search chats" title="Search chats" className="focus-ring mt-2 grid size-10 place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]">
+              <Search size={19} strokeWidth={1.8} />
+            </button>
             <button type="button" aria-label="New search" title="New search" onClick={startNewIntent} className="focus-ring mt-2 grid size-10 place-items-center rounded-xl text-[#31594f] transition hover:bg-white/75 hover:text-[#17372f]">
               <Plus size={20} strokeWidth={1.8} />
             </button>
@@ -477,8 +594,11 @@ export default function BuyerChat() {
 
       <main className="buyer-main relative flex min-w-0 flex-1 flex-col pt-16">
         {!sidebarOpen && (
-          <div className="absolute left-3 top-[4.75rem] z-20 lg:hidden">
+          <div className="absolute left-3 top-[4.75rem] z-20 flex flex-col gap-2 lg:hidden">
             <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="buyer-history-sidebar" />
+            <button type="button" onClick={openChatSearch} aria-label="Search chats" title="Search chats" className="focus-ring grid size-10 place-items-center rounded-xl border border-emerald-950/10 bg-white/80 text-[#31594f] shadow-sm backdrop-blur transition hover:bg-white hover:text-[#17372f]">
+              <Search size={18} strokeWidth={1.8} />
+            </button>
           </div>
         )}
         {user && conversationId && (

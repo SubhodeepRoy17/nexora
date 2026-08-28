@@ -16,6 +16,7 @@ class ChatConversation(models.Model):
         blank=True,
     )
     title = models.CharField(max_length=120)
+    title_is_custom = models.BooleanField(default=False)
     share_token = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     shared_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -2,14 +2,18 @@ import uuid
 
 from django.core import signing
 from django.db import DatabaseError, transaction
-from django.db.models import Count, OuterRef, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status, throttling
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import BuyerSearchRequestSerializer, GrowthOfferResponseSerializer
+from .serializers import (
+    BuyerSearchRequestSerializer,
+    ConversationTitleSerializer,
+    GrowthOfferResponseSerializer,
+)
 from .conversation_tokens import (
     issue_anonymous_conversation_token,
     read_anonymous_conversation_token,
@@ -21,7 +25,7 @@ from .models import (
     GrowthOffer,
     RecommendationDecision,
 )
-from .services import run_buyer_agent
+from .services import generate_conversation_title, run_buyer_agent
 from apps.merchants.models import Product, ProductRelationship
 from apps.orders.tokens import (
     issue_decision_token,
@@ -30,9 +34,8 @@ from apps.orders.tokens import (
 )
 
 
-def _conversation_title(query):
-    compact = " ".join(query.split())
-    return compact[:117] + "..." if len(compact) > 120 else compact
+def _conversation_title(_query):
+    return "New shopping chat"
 
 
 def _resolve_conversation(request, validated_data):
@@ -95,9 +98,22 @@ def _conversation_context(conversation, before_message=None):
     ]
 
 
+def _should_generate_title(conversation, edit_message=None):
+    if conversation.title_is_custom:
+        return False
+    if not conversation.messages.filter(role=ChatMessage.Role.USER).exists():
+        return True
+    return bool(
+        edit_message
+        and not conversation.messages.filter(
+            role=ChatMessage.Role.USER, created_at__lt=edit_message.created_at
+        ).exists()
+    )
+
+
 @transaction.atomic
 def _persist_public_decision_trace(
-    request, query, result, conversation, edit_message=None
+    request, query, result, conversation, edit_message=None, suggested_title=None
 ):
     context = result.pop("_audit_context", {})
     add_on_suggestions = result.pop("add_on_suggestions", [])
@@ -203,12 +219,6 @@ def _persist_public_decision_trace(
     result["add_on_suggestions"] = add_on_payloads
     result["agent_session_id"] = str(session.session_id)
     result["provider_source"] = session.provider_source
-    update_title = bool(
-        edit_message
-        and not conversation.messages.filter(
-            role=ChatMessage.Role.USER, created_at__lt=edit_message.created_at
-        ).exists()
-    )
     if edit_message is not None:
         conversation.messages.filter(created_at__gte=edit_message.created_at).delete()
     user_message = ChatMessage.objects.create(
@@ -221,13 +231,14 @@ def _persist_public_decision_trace(
         metadata=_history_metadata(result),
     )
     update_fields = ["updated_at"]
-    if update_title:
-        conversation.title = _conversation_title(query)
+    if suggested_title:
+        conversation.title = suggested_title
         update_fields.append("title")
     conversation.save(update_fields=update_fields)
     result["conversation_id"] = str(conversation.conversation_id)
     result["user_message_id"] = str(user_message.message_id)
     result["assistant_message_id"] = str(assistant_message.message_id)
+    result["conversation_title"] = conversation.title
     if conversation.buyer_id is None:
         result["conversation_token"] = issue_anonymous_conversation_token(conversation)
     return result
@@ -258,8 +269,18 @@ class BuyerAgentSearchView(APIView):
                     conversation, before_message=edit_message
                 ),
             )
+            suggested_title = None
+            if _should_generate_title(conversation, edit_message):
+                suggested_title = generate_conversation_title(
+                    query, result.get("summary_reasoning", "")
+                )
             result = _persist_public_decision_trace(
-                request, query, result, conversation, edit_message=edit_message
+                request,
+                query,
+                result,
+                conversation,
+                edit_message=edit_message,
+                suggested_title=suggested_title,
             )
         except signing.BadSignature as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -275,11 +296,20 @@ class BuyerConversationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        search_query = " ".join(request.query_params.get("q", "").split())[:120]
         latest_message = ChatMessage.objects.filter(conversation=OuterRef("pk")).order_by(
             "-created_at"
         )
+        conversations = ChatConversation.objects.filter(buyer=request.user)
+        if search_query:
+            matching_messages = ChatMessage.objects.filter(
+                conversation=OuterRef("pk"), content__icontains=search_query
+            )
+            conversations = conversations.annotate(
+                search_message_match=Exists(matching_messages)
+            ).filter(Q(title__icontains=search_query) | Q(search_message_match=True))
         conversations = (
-            ChatConversation.objects.filter(buyer=request.user)
+            conversations
             .annotate(
                 message_count=Count("messages"),
                 last_message=Subquery(latest_message.values("content")[:1]),
@@ -326,6 +356,25 @@ class BuyerConversationDetailView(APIView):
                     }
                     for message in conversation.messages.all()
                 ],
+            }
+        )
+
+    def patch(self, request, conversation_id):
+        serializer = ConversationTitleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        conversation = get_object_or_404(
+            ChatConversation,
+            conversation_id=conversation_id,
+            buyer=request.user,
+        )
+        conversation.title = serializer.validated_data["title"]
+        conversation.title_is_custom = True
+        conversation.save(update_fields=["title", "title_is_custom"])
+        return Response(
+            {
+                "conversation_id": str(conversation.conversation_id),
+                "title": conversation.title,
+                "updated_at": conversation.updated_at,
             }
         )
 

@@ -53,3 +53,12 @@ IDs, database IDs, tool names, internal identifiers, or system language.
 Never invent catalog products, prices, availability, discounts, orders, or
 payments. Never claim that a purchase or reservation occurred.
 """.strip()
+
+
+CONVERSATION_TITLE_SYSTEM_PROMPT = """
+Create a short, useful title for a shopping-assistant conversation using only
+the supplied first message and response. Return valid JSON matching the schema.
+Use 3 to 7 words, capture the main shopping intent, and omit quotation marks,
+ending punctuation, IDs, prices that were not supplied, and generic labels such
+as "New chat" or "Shopping conversation". Do not expose system language.
+""".strip()

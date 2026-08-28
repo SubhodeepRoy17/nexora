@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +10,7 @@ const apiMocks = vi.hoisted(() => ({
   getChatSessions: vi.fn(),
   getChatSession: vi.fn(),
   deleteChatSession: vi.fn(),
+  renameChatSession: vi.fn(),
   shareChatSession: vi.fn(),
   getOrders: vi.fn(),
 }))
@@ -22,6 +23,7 @@ vi.mock('../services/api', async (importOriginal) => ({
   getChatSessions: apiMocks.getChatSessions,
   getChatSession: apiMocks.getChatSession,
   deleteChatSession: apiMocks.deleteChatSession,
+  renameChatSession: apiMocks.renameChatSession,
   shareChatSession: apiMocks.shareChatSession,
   getOrders: apiMocks.getOrders,
 }))
@@ -146,7 +148,8 @@ describe('live buyer search', () => {
 
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     await screen.findByText('Latest chat')
-    const recentButtons = screen.getAllByRole('button', { name: /chat$/i })
+    const sidebar = screen.getByRole('complementary', { name: 'Buyer conversations' })
+    const recentButtons = within(sidebar).getAllByRole('button', { name: /^(Latest|Older) chat$/ })
     expect(recentButtons[0]).toHaveTextContent('Latest chat')
     expect(recentButtons[1]).toHaveTextContent('Older chat')
   })
@@ -172,7 +175,8 @@ describe('live buyer search', () => {
     await screen.findByLabelText('Continuing the older search.')
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     await waitFor(() => {
-      const recentButtons = screen.getAllByRole('button', { name: /chat$/i })
+      const sidebar = screen.getByRole('complementary', { name: 'Buyer conversations' })
+      const recentButtons = within(sidebar).getAllByRole('button', { name: /^(Latest|Older) chat$/ })
       expect(recentButtons[0]).toHaveTextContent('Older chat')
       expect(recentButtons[1]).toHaveTextContent('Latest chat')
     })
@@ -223,5 +227,47 @@ describe('live buyer search', () => {
     await screen.findByRole('button', { name: 'Share link copied' })
     expect(apiMocks.shareChatSession).toHaveBeenCalledWith(conversation.conversation_id)
     expect(clipboard).toHaveBeenCalledWith(`${window.location.origin}/share/88888888-8888-4888-8888-888888888888`)
+  })
+
+  it('searches saved chats from the sidebar search control', async () => {
+    authState.user = { id: 12, display_name: 'Buyer', email: 'buyer@example.test' }
+    const deskChat = { conversation_id: '11111111-1111-4111-8111-111111111111', title: 'Ergonomic Desk Setup', updated_at: '2026-08-28T10:00:00Z', last_message_preview: 'A quiet keyboard would work well.', messages: [] }
+    const keyboardChat = { conversation_id: '22222222-2222-4222-8222-222222222222', title: 'Quiet Coding Keyboard', updated_at: '2026-08-27T10:00:00Z', last_message_preview: 'Here are three options.', messages: [] }
+    apiMocks.getChatSessions.mockImplementation((signal, query) => Promise.resolve({
+      data: { results: query ? [keyboardChat] : [deskChat, keyboardChat] },
+    }))
+    apiMocks.getChatSession.mockResolvedValue({ data: deskChat })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    await user.click(screen.getByRole('button', { name: 'Search chats' }))
+    const search = screen.getByPlaceholderText('Search chats')
+    await user.type(search, 'keyboard')
+
+    await waitFor(() => expect(apiMocks.getChatSessions).toHaveBeenLastCalledWith(expect.any(AbortSignal), 'keyboard'))
+    const dialog = screen.getByRole('dialog', { name: 'Search chats' })
+    expect(await within(dialog).findByText('Quiet Coding Keyboard')).toBeInTheDocument()
+    expect(within(dialog).queryByText('Ergonomic Desk Setup')).not.toBeInTheDocument()
+  })
+
+  it('renames a saved chat and keeps the new name in recent searches', async () => {
+    authState.user = { id: 13, display_name: 'Buyer', email: 'buyer@example.test' }
+    const conversation = { conversation_id: '33333333-3333-4333-8333-333333333333', title: 'Keyboard Search', updated_at: '2026-08-28T10:00:00Z', messages: [] }
+    apiMocks.getChatSessions.mockResolvedValue({ data: { results: [conversation] } })
+    apiMocks.getChatSession.mockResolvedValue({ data: conversation })
+    apiMocks.renameChatSession.mockResolvedValue({ data: { ...conversation, title: 'My Coding Setup' } })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    await user.click(await screen.findByRole('button', { name: 'Rename Keyboard Search' }))
+    const name = screen.getByLabelText('Chat name')
+    await user.clear(name)
+    await user.type(name, 'My Coding Setup')
+    await user.click(screen.getByRole('button', { name: 'Save chat name' }))
+
+    await waitFor(() => expect(apiMocks.renameChatSession).toHaveBeenCalledWith(conversation.conversation_id, 'My Coding Setup'))
+    expect(screen.getByRole('button', { name: 'My Coding Setup' })).toBeInTheDocument()
   })
 })

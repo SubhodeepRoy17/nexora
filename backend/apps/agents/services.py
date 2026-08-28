@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .prompts import (
     BUYER_AGENT_SYSTEM_PROMPT,
+    CONVERSATION_TITLE_SYSTEM_PROMPT,
     CONVERSATION_SYSTEM_PROMPT,
     NO_RESULT_SYSTEM_PROMPT,
     RECOMMENDATION_SYSTEM_PROMPT,
@@ -98,6 +99,12 @@ class ConversationTurn(BaseModel):
     turn_type: Literal["SHOPPING_SEARCH", "GREETING", "OFF_TOPIC", "FOLLOW_UP"]
     response: str = Field(min_length=1, max_length=900)
     search_query: str | None = Field(default=None, min_length=3, max_length=500)
+
+
+class ConversationTitle(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    title: str = Field(min_length=3, max_length=120)
 
 
 def _compatibility_matches(relationship) -> bool:
@@ -883,6 +890,69 @@ def _close_gemini_client(client) -> None:
             close()
         except Exception:
             logger.debug("Gemini client cleanup failed.", exc_info=True)
+
+
+def _fallback_conversation_title(first_message: str) -> str:
+    compact = " ".join(first_message.split()).strip(" .!?\"'")
+    compact = re.sub(
+        r"^(?:please\s+)?(?:can|could|would)\s+you\s+",
+        "",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    compact = re.sub(
+        r"^(?:please\s+)?(?:show|find|get)\s+me\s+(?:some\s+)?",
+        "",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    compact = re.sub(
+        r"^(?:please\s+)?(?:show|find|get|recommend)\s+(?:some\s+)?",
+        "",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    title = " ".join(compact.split()[:7]).strip(" ,.;:-") or "Shopping ideas"
+    return title[:117] + "..." if len(title) > 120 else title
+
+
+def generate_conversation_title(first_message: str, assistant_response: str) -> str:
+    """Suggest a concise title without making chat persistence depend on Gemini."""
+
+    client = None
+    try:
+        client = _gemini_client()
+        response = client.models.generate_content(
+            model=_model_name(),
+            contents=(
+                f"First message: {first_message}\n"
+                f"Assistant response: {assistant_response}"
+            ),
+            config=genai_types.GenerateContentConfig(
+                system_instruction=CONVERSATION_TITLE_SYSTEM_PROMPT,
+                thinking_config=_thinking_config(),
+                automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+                response_mime_type="application/json",
+                response_json_schema=ConversationTitle.model_json_schema(),
+                max_output_tokens=120,
+            ),
+        )
+        title = ConversationTitle.model_validate_json(response.text or "").title
+        cleaned = " ".join(title.split()).strip(" .!?\"'")[:120]
+        return cleaned or _fallback_conversation_title(first_message)
+    except (
+        genai_errors.APIError,
+        httpx.HTTPError,
+        AgentServiceError,
+        ValidationError,
+        ValueError,
+    ) as exc:
+        logger.warning("Gemini conversation-title fallback after %s", type(exc).__name__)
+        return _fallback_conversation_title(first_message)
+    finally:
+        _close_gemini_client(client)
 
 
 def _follow_up_prompt(

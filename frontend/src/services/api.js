@@ -57,8 +57,12 @@ export const searchProducts = (query, signal, conversation = {}) => api.post('ag
   ...(conversation.conversationToken ? { conversation_token: conversation.conversationToken } : {}),
   ...(conversation.editMessageId ? { edit_message_id: conversation.editMessageId } : {}),
 }, { signal, timeout: AGENT_SEARCH_TIMEOUT_MS })
-export const getChatSessions = (signal) => api.get('agents/conversations/', { signal })
+export const getChatSessions = (signal, query = '') => api.get('agents/conversations/', {
+  signal,
+  ...(query.trim() ? { params: { q: query.trim() } } : {}),
+})
 export const getChatSession = (conversationId, signal) => api.get(`agents/conversations/${conversationId}/`, { signal })
+export const renameChatSession = (conversationId, title) => api.patch(`agents/conversations/${conversationId}/`, { title })
 export const deleteChatSession = (conversationId) => api.delete(`agents/conversations/${conversationId}/`)
 export const shareChatSession = (conversationId) => api.post(`agents/conversations/${conversationId}/share/`, {})
 export const getSharedChatSession = (shareToken, signal) => api.get(`agents/shared-conversations/${shareToken}/`, { signal })

@@ -24,6 +24,7 @@ from .services import (
     _model_name,
     _parse_recommendations,
     _thinking_config,
+    generate_conversation_title,
     run_buyer_agent,
 )
 from .tools import (
@@ -218,6 +219,27 @@ class GeminiProviderTests(SimpleTestCase):
     @patch.dict(os.environ, {"GEMINI_THINKING_LEVEL": "unsupported"})
     def test_invalid_thinking_level_fails_safe_to_low(self):
         self.assertEqual(_thinking_config().thinking_level.value, "LOW")
+
+    @patch("apps.agents.services._gemini_client")
+    def test_gemini_suggests_a_short_conversation_title(self, client_factory):
+        captured = {}
+
+        def generate_content(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(text=json.dumps({"title": "Quiet Coding Keyboards"}))
+
+        client_factory.return_value = SimpleNamespace(
+            models=SimpleNamespace(generate_content=generate_content), close=lambda: None
+        )
+
+        title = generate_conversation_title(
+            "Show me some quiet keyboards for coding",
+            "I found three options that fit your preferences.",
+        )
+
+        self.assertEqual(title, "Quiet Coding Keyboards")
+        self.assertEqual(captured["config"].max_output_tokens, 120)
+        self.assertTrue(captured["config"].automatic_function_calling.disable)
 
     @patch("apps.agents.services.genai.Client")
     @patch.dict(
@@ -633,6 +655,14 @@ class ConversationPrivacyTests(TestCase):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(username="buyer-one", password="test")
         self.other_user = get_user_model().objects.create_user(username="buyer-two", password="test")
+        self.title_patcher = patch(
+            "apps.agents.views.generate_conversation_title",
+            side_effect=lambda first_message, assistant_response: " ".join(
+                first_message.split()
+            )[:120],
+        )
+        self.title_patcher.start()
+        self.addCleanup(self.title_patcher.stop)
 
     @staticmethod
     def agent_result():
@@ -669,6 +699,84 @@ class ConversationPrivacyTests(TestCase):
             reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
         )
         self.assertEqual(detail.status_code, 404)
+
+    @patch("apps.agents.views.generate_conversation_title", return_value="Quiet Coding Keyboards")
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_ai_title_can_be_renamed_and_custom_name_survives_first_message_edit(
+        self, run_mock, title_mock
+    ):
+        run_mock.side_effect = lambda *args, **kwargs: self.agent_result()
+        self.client.force_authenticate(self.user)
+        created = self.client.post(
+            reverse("agents:search"),
+            {"query": "show me a quiet keyboard for coding"},
+            format="json",
+        )
+        self.assertEqual(created.status_code, 200)
+        self.assertEqual(created.data["conversation_title"], "Quiet Coding Keyboards")
+        conversation_id = created.data["conversation_id"]
+
+        renamed = self.client.patch(
+            reverse(
+                "agents:conversation-detail",
+                kwargs={"conversation_id": conversation_id},
+            ),
+            {"title": "My Office Keyboard List"},
+            format="json",
+        )
+        self.assertEqual(renamed.status_code, 200)
+        self.assertEqual(renamed.data["title"], "My Office Keyboard List")
+        conversation = ChatConversation.objects.get(pk=conversation_id)
+        self.assertTrue(conversation.title_is_custom)
+
+        first_message = conversation.messages.filter(role=ChatMessage.Role.USER).get()
+        edited = self.client.post(
+            reverse("agents:search"),
+            {
+                "query": "show me a compact keyboard for coding",
+                "conversation_id": conversation_id,
+                "edit_message_id": first_message.message_id,
+            },
+            format="json",
+        )
+        self.assertEqual(edited.status_code, 200)
+        self.assertEqual(edited.data["conversation_title"], "My Office Keyboard List")
+        self.assertEqual(title_mock.call_count, 1)
+
+    def test_chat_search_matches_owned_titles_and_message_content(self):
+        title_match = ChatConversation.objects.create(
+            buyer=self.user, title="Ergonomic Desk Setup"
+        )
+        message_match = ChatConversation.objects.create(
+            buyer=self.user, title="Work accessories"
+        )
+        hidden = ChatConversation.objects.create(
+            buyer=self.other_user, title="Private keyboard notes"
+        )
+        ChatMessage.objects.create(
+            conversation=message_match,
+            role=ChatMessage.Role.USER,
+            content="I need a silent keyboard",
+        )
+        ChatMessage.objects.create(
+            conversation=hidden,
+            role=ChatMessage.Role.USER,
+            content="silent keyboard",
+        )
+        self.client.force_authenticate(self.user)
+
+        by_title = self.client.get(reverse("agents:conversation-list"), {"q": "desk"})
+        self.assertEqual(
+            [item["conversation_id"] for item in by_title.data["results"]],
+            [str(title_match.conversation_id)],
+        )
+        by_message = self.client.get(
+            reverse("agents:conversation-list"), {"q": "silent keyboard"}
+        )
+        self.assertEqual(
+            [item["conversation_id"] for item in by_message.data["results"]],
+            [str(message_match.conversation_id)],
+        )
 
     @patch("apps.agents.views.run_buyer_agent")
     def test_authenticated_user_can_delete_only_their_chat_history(self, run_mock):
