@@ -7,6 +7,11 @@ if (import.meta.env.PROD && !configuredApiUrl) {
 export const API_BASE_URL = configuredApiUrl ?? 'http://localhost:8000/api/'
 export const AGENT_SEARCH_TIMEOUT_MS = 55000
 
+export function apiUsesCrossOriginCredentials() {
+  if (typeof window === 'undefined') return false
+  return new URL(API_BASE_URL, window.location.origin).origin !== window.location.origin
+}
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },

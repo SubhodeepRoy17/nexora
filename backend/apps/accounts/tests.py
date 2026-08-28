@@ -45,7 +45,11 @@ class IdentityBoundaryTests(TestCase):
         client = APIClient(enforce_csrf_checks=True)
         bootstrap = client.get("/api/auth/me/")
         self.assertEqual(bootstrap.status_code, 200)
+        self.assertFalse(bootstrap.json()["credential_cookie_roundtrip"])
         token = bootstrap.json()["csrf_token"]
+
+        repeated_bootstrap = client.get("/api/auth/me/")
+        self.assertTrue(repeated_bootstrap.json()["credential_cookie_roundtrip"])
 
         denied = client.post(
             "/api/auth/login/",

@@ -32,6 +32,13 @@ credentialed requests, and attaches `X-CSRFToken` to unsafe methods. Buyer
 search remains public. Checkout requires a signed-in account, and merchant
 routes require an account that owns a merchant profile.
 
+When the configured API is cross-origin, the client performs a two-request CSRF-cookie round trip.
+If the browser does not return that credential cookie, an accessible privacy prompt explains how to
+allow third-party cookies for Nexora, offers a server-observed recheck, and still lets the visitor
+continue through public guest search. Browsers do not expose a top-level, location-style API for
+changing this global privacy setting, so the prompt never claims to grant permission itself. A
+same-origin `/api/` deployment bypasses the prompt because it does not need third-party cookies.
+
 `vercel.json` proxies API requests first, then preserves React Router deep links
 when deployed as a Vite SPA.
 

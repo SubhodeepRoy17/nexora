@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { getCurrentUser, loginAccount, logoutAccount, registerAccount, setCsrfToken } from '../services/api'
+import {
+  apiUsesCrossOriginCredentials,
+  getCurrentUser,
+  loginAccount,
+  logoutAccount,
+  registerAccount,
+  setCsrfToken,
+} from '../services/api'
 
 const AuthContext = createContext(null)
 
@@ -7,23 +14,57 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cookieAccess, setCookieAccess] = useState('checking')
+
+  const loadSession = useCallback(async () => {
+    const first = await getCurrentUser()
+    setCsrfToken(first.data.csrf_token)
+    if (!apiUsesCrossOriginCredentials()) {
+      return { data: first.data, cookieAccess: 'same-origin' }
+    }
+    if (first.data.credential_cookie_roundtrip) {
+      return { data: first.data, cookieAccess: 'available' }
+    }
+
+    // The first cross-origin response sets the probe cookie. Only a second
+    // credentialed request can prove that the browser returned it.
+    const second = await getCurrentUser()
+    setCsrfToken(second.data.csrf_token)
+    return {
+      data: second.data,
+      cookieAccess: second.data.credential_cookie_roundtrip ? 'available' : 'blocked',
+    }
+  }, [])
 
   const refresh = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const { data } = await getCurrentUser()
-      setCsrfToken(data.csrf_token)
+      const { data, cookieAccess: nextCookieAccess } = await loadSession()
+      setCookieAccess(nextCookieAccess)
       setUser(data.user)
       return data.user
     } catch {
       setUser(null)
+      setCookieAccess('unavailable')
       setError('Unable to verify your session. Please try again.')
       return null
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [loadSession])
+
+  const recheckCookieAccess = useCallback(async () => {
+    try {
+      const { data, cookieAccess: nextCookieAccess } = await loadSession()
+      setCookieAccess(nextCookieAccess)
+      setUser(data.user)
+      return nextCookieAccess
+    } catch {
+      setCookieAccess('unavailable')
+      return 'unavailable'
+    }
+  }, [loadSession])
 
   useEffect(() => {
     refresh()
@@ -57,7 +98,10 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const value = useMemo(() => ({ user, loading, error, refresh, signIn, signUp, signOut }), [user, loading, error, refresh, signIn, signUp, signOut])
+  const value = useMemo(
+    () => ({ user, loading, error, cookieAccess, refresh, recheckCookieAccess, signIn, signUp, signOut }),
+    [user, loading, error, cookieAccess, refresh, recheckCookieAccess, signIn, signUp, signOut],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

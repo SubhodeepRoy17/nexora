@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Navbar from './components/common/Navbar'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import CrossSiteCookiePrompt from './components/auth/CrossSiteCookiePrompt'
 import BuyerChat from './pages/BuyerChat'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
@@ -13,6 +14,7 @@ export default function App() {
 
   return (
     <div className="min-h-dvh bg-[#f6f5f1]">
+      <CrossSiteCookiePrompt />
       {!authPage && <Navbar />}
       <Routes>
         <Route path="/" element={<LandingPage />} />

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import login, logout
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
@@ -36,7 +37,16 @@ class CurrentUserView(APIView):
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request):
-        return Response({"user": user_payload(request.user), "csrf_token": get_token(request)})
+        return Response(
+            {
+                "user": user_payload(request.user),
+                "csrf_token": get_token(request),
+                # The first request sets the CSRF cookie. A follow-up request can
+                # use this flag to prove that the browser returned a credential
+                # cookie across the frontend/API boundary.
+                "credential_cookie_roundtrip": settings.CSRF_COOKIE_NAME in request.COOKIES,
+            }
+        )
 
 
 @method_decorator(csrf_protect, name="dispatch")
