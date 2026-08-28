@@ -1444,6 +1444,29 @@
 .merchant-light [class~="text-rose-300"] { color: #be123c !important; }
 
 /* Modal content remains scrollable, but the browser scrollbar chrome is hidden. */
+.checkout-dialog {
+  animation: checkout-dialog-enter .38s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.checkout-step-node {
+  transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease, transform .35s ease;
+}
+
+.checkout-step-done {
+  animation: checkout-step-complete .42s cubic-bezier(.2, .9, .25, 1.25) both;
+}
+
+@keyframes checkout-dialog-enter {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes checkout-step-complete {
+  0% { transform: scale(.76); }
+  65% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
 .modal-scroll {
   -ms-overflow-style: none;
   scrollbar-width: none;

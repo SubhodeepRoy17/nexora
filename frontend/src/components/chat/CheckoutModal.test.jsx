@@ -54,14 +54,28 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout()
     expect(screen.getByLabelText('Basket, current step')).toHaveAttribute('aria-current', 'step')
     await reachQuote(user)
-    expect(screen.getByLabelText('Basket, completed')).toHaveClass('bg-emerald-600')
+    expect(screen.getByLabelText('Basket, completed').querySelector('[data-step-state="complete"]')).toHaveClass('bg-emerald-600')
     expect(screen.getByLabelText('Review, current step')).toHaveAttribute('aria-current', 'step')
     expect(screen.getByRole('button', { name: /Approve & pay/i })).toBeDisabled()
     await approve(user)
     await waitFor(() => expect(apiMocks.approveQuote).toHaveBeenCalledOnce())
     expect(apiMocks.createOrder).toHaveBeenCalledOnce()
-    expect(screen.getByLabelText('Review, completed')).toHaveClass('bg-emerald-600')
+    expect(screen.getByLabelText('Review, completed').querySelector('[data-step-state="complete"]')).toHaveClass('bg-emerald-600')
     expect(screen.getByLabelText('Pay, current step')).toHaveAttribute('aria-current', 'step')
+  })
+
+  it('shows a loading state inside the active progress step', async () => {
+    let releaseCart
+    apiMocks.createCart.mockReturnValue(new Promise((resolve) => { releaseCart = resolve }))
+    const user = userEvent.setup(); renderCheckout()
+
+    await user.click(screen.getByRole('button', { name: /See final total/i }))
+    const activeReview = screen.getByLabelText('Review, current step')
+    expect(activeReview.querySelector('.animate-spin')).toBeInTheDocument()
+
+    releaseCart({ data: { cart_id: 'cart-1' } })
+    expect(await screen.findByRole('heading', { name: 'Review and approve' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Review, current step').querySelector('.animate-spin')).not.toBeInTheDocument()
   })
 
   it('surfaces a deterministic policy block without opening Razorpay', async () => {
@@ -132,7 +146,7 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout({ onOrderPlaced: placed }); await reachQuote(user); await approve(user)
     expect(await screen.findByRole('heading', { name: 'Order confirmed' })).toBeInTheDocument()
     for (const label of ['Basket', 'Review', 'Pay', 'Done']) {
-      expect(screen.getByLabelText(`${label}, completed`)).toHaveClass('bg-emerald-600')
+      expect(screen.getByLabelText(`${label}, completed`).querySelector('[data-step-state="complete"]')).toHaveClass('bg-emerald-600')
     }
     expect(placed).toHaveBeenCalledWith({ product, order: paidOrder })
   })

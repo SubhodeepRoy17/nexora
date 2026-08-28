@@ -24,6 +24,39 @@ const statusMessages = {
   MANUAL_REVIEW: 'This payment needs a quick review.',
 }
 
+function CheckoutProgress({ steps, activeIndex, paid, loading }) {
+  return (
+    <nav className="border-b border-[#17372f]/10 bg-white px-4 py-5 sm:px-8 sm:py-6" aria-label="Checkout progress">
+      <ol className="mx-auto grid max-w-3xl grid-cols-4">
+        {steps.map(({ label }, index) => {
+          const complete = index < activeIndex || (paid && index === activeIndex)
+          const current = index === activeIndex && !complete
+          const busy = current && loading
+          return (
+            <li
+              key={label}
+              aria-current={current ? 'step' : undefined}
+              aria-label={`${label}, ${complete ? 'completed' : current ? 'current step' : 'upcoming'}`}
+              className="relative flex min-w-0 flex-col items-center text-center"
+            >
+              {index < steps.length - 1 && (
+                <span className={`absolute left-1/2 top-4 h-px w-full transition-colors duration-500 sm:top-[1.125rem] ${index < activeIndex ? 'bg-emerald-500' : 'bg-[#17372f]/15'}`} aria-hidden="true" />
+              )}
+              <span
+                data-step-state={complete ? 'complete' : current ? 'current' : 'upcoming'}
+                className={`checkout-step-node relative z-10 grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-semibold sm:size-9 ${complete ? 'checkout-step-done border-emerald-600 bg-emerald-600 text-white' : current ? 'border-[#17372f] bg-[#17372f] text-white shadow-[0_0_0_4px_rgba(23,55,47,.1)]' : 'border-[#17372f]/15 bg-white text-[#31594f]/45'}`}
+              >
+                {complete ? <Check size={15} strokeWidth={3} /> : busy ? <LoaderCircle size={15} className="animate-spin" /> : index + 1}
+              </span>
+              <span className={`mt-2 w-full truncate px-1 text-[10px] font-semibold sm:text-xs ${complete ? 'text-emerald-700' : current ? 'text-[#17372f]' : 'text-[#31594f]/45'}`}>{label}</span>
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
+  )
+}
+
 export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -267,6 +300,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const statusLabel = order?.status?.replaceAll('_', ' ') ?? ''
   const stopped = ['blocked', 'error', 'terminal'].includes(stage)
   const stepIndex = stage === 'cart' ? 0 : ['quoting', 'quote', 'blocked', 'error'].includes(stage) ? 1 : stage === 'paid' ? 3 : 2
+  const stepLoading = processing || ['verifying', 'cancelling', 'refunding'].includes(stage)
   const stageTitle = stage === 'cart' ? 'Review your order' : stage === 'quote' ? 'Confirm the total' : stage === 'paid' ? 'Order confirmed' : stage === 'refunding' ? 'Refund pending' : stage === 'opening' ? 'Opening payment' : ['verifying', 'cancelling'].includes(stage) ? 'Confirming payment' : stage === 'terminal' ? statusLabel : stage === 'blocked' ? 'Checkout paused' : processing ? 'Preparing checkout' : 'Checkout paused'
   const stageCopy = stage === 'paid' ? 'Payment received. Your order is complete.' : stage === 'refunding' ? 'Your refund is being confirmed.' : stage === 'opening' ? 'Razorpay will open in a moment.' : ['verifying', 'cancelling'].includes(stage) ? `${checkoutProofVerified ? 'Payment details accepted. ' : ''}Waiting for final confirmation.` : stopped ? 'Nothing else will happen until you choose what to do next.' : stage === 'quote' ? 'Check the items and approve the final amount.' : 'Check your item and quantity before continuing.'
   const displayLines = lines.length
@@ -287,73 +321,39 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         })),
       ]
   const checkoutSteps = [
-    { label: 'Basket', hint: 'Check items' },
-    { label: 'Review', hint: 'Approve total' },
-    { label: 'Pay', hint: 'Use Razorpay' },
-    { label: 'Done', hint: 'Confirmation' },
+    { label: 'Basket' },
+    { label: 'Review' },
+    { label: 'Pay' },
+    { label: 'Done' },
   ]
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-[#17372f]/65 backdrop-blur-md sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="modal-scroll max-h-full w-full overflow-y-auto rounded-t-[2rem] border border-white/75 bg-[#f6f8f2] text-slate-950 shadow-[0_30px_100px_rgba(2,6,23,.35)] sm:max-w-6xl sm:rounded-[2rem]">
-        <header className={`relative border-b px-5 py-5 sm:px-7 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-violet-200 bg-violet-50 text-slate-950'}`}>
+    <div className="fixed inset-x-0 bottom-0 top-16 z-50 grid place-items-end bg-[#17372f]/55 backdrop-blur-sm sm:top-20 sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="modal-scroll checkout-dialog max-h-full w-full overflow-y-auto rounded-t-[1.75rem] border border-white/80 bg-[#fbfcf9] text-slate-950 shadow-[0_32px_90px_rgba(12,35,29,.28)] sm:max-w-5xl sm:rounded-[1.75rem]">
+        <header className="relative border-b border-[#17372f]/10 bg-[#f4f7f1] px-5 py-5 sm:px-8 sm:py-6">
           {!processing && (
-            <button type="button" onClick={onClose} aria-label="Close checkout" className="focus-ring absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-100">
+            <button type="button" onClick={onClose} aria-label="Close checkout" className="focus-ring absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-[#17372f]/10 bg-white text-[#31594f] transition hover:bg-[#edf3ea] sm:right-6 sm:top-6">
               <X size={16} />
             </button>
           )}
-          <div className="flex max-w-3xl items-start gap-4 pr-10">
-            <span className={`grid size-11 shrink-0 place-items-center rounded-2xl border ${stage === 'paid' ? 'border-emerald-600 bg-emerald-500 text-white' : stopped ? 'border-rose-600 bg-rose-500 text-white' : 'border-violet-400 bg-violet-600 text-white shadow-sm'}`}>{stage === 'paid' ? <PackageCheck size={21} /> : stopped ? <AlertTriangle size={20} /> : processing || ['verifying', 'cancelling'].includes(stage) ? <LoaderCircle size={21} className="animate-spin" /> : <LockKeyhole size={20} />}</span>
+          <div className="flex max-w-3xl items-start gap-3 pr-10 sm:gap-4">
+            <span className={`grid size-10 shrink-0 place-items-center rounded-full ${stage === 'paid' ? 'bg-emerald-600 text-white' : stopped ? 'bg-rose-100 text-rose-700' : 'bg-[#17372f] text-white'}`}>{stage === 'paid' ? <PackageCheck size={19} /> : stopped ? <AlertTriangle size={18} /> : <LockKeyhole size={18} />}</span>
             <div>
-              <p className={`text-[10px] font-semibold uppercase tracking-[.12em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-violet-700'}`}>Secure checkout</p>
-              <h2 id="checkout-title" className="mt-2 text-xl font-semibold sm:text-2xl">
+              <p className={`text-[10px] font-semibold ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-[#31594f]'}`}>Secure checkout</p>
+              <h2 id="checkout-title" className="mt-1 text-xl font-semibold tracking-[-.025em] text-[#17372f] sm:text-2xl">
                 {stageTitle}
               </h2>
-              <p className="mt-2 text-xs leading-5 text-slate-600 sm:text-sm">{stageCopy}</p>
+              <p className="mt-1.5 text-xs leading-5 text-[#31594f]/75 sm:text-sm">{stageCopy}</p>
             </div>
           </div>
         </header>
 
-        <nav className="border-b border-emerald-950/10 bg-[#edf3ea] px-3 py-3 sm:px-7 sm:py-4" aria-label="Checkout progress">
-          <ol className="mx-auto grid max-w-4xl grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            {checkoutSteps.map(({ label, hint }, index) => {
-              const complete = index < stepIndex || (stage === 'paid' && index === stepIndex)
-              const current = index === stepIndex && !complete
-              return (
-                <li
-                  key={label}
-                  aria-current={current ? 'step' : undefined}
-                  aria-label={`${label}, ${complete ? 'completed' : current ? 'current step' : 'upcoming'}`}
-                  className={`min-w-0 rounded-xl border px-2 py-2.5 transition-all duration-300 sm:px-3 sm:py-3 ${complete ? 'border-emerald-600 bg-emerald-600 text-white shadow-[0_8px_20px_rgba(5,150,105,.2)]' : current ? 'border-[#17372f] bg-[#17372f] text-white shadow-[0_8px_20px_rgba(23,55,47,.18)]' : 'border-emerald-950/10 bg-white/75 text-[#31594f]/55'}`}
-                >
-                  <div className="flex items-center gap-1.5 sm:gap-2.5">
-                    <span className={`grid size-6 shrink-0 place-items-center rounded-full border text-[9px] font-bold sm:size-8 sm:text-[11px] ${complete ? 'border-white/45 bg-white text-emerald-700' : current ? 'border-white/25 bg-white/10 text-white' : 'border-emerald-950/15 bg-white text-[#31594f]/55'}`}>
-                      {complete ? <Check size={14} strokeWidth={3} /> : index + 1}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[10px] font-semibold sm:text-xs">{label}</span>
-                      <span className={`mt-0.5 hidden truncate text-[9px] md:block ${complete || current ? 'text-white/70' : 'text-[#31594f]/45'}`}>{hint}</span>
-                    </span>
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-        </nav>
+        <CheckoutProgress steps={checkoutSteps} activeIndex={stepIndex} paid={stage === 'paid'} loading={stepLoading} />
 
-        <div className="grid lg:grid-cols-[1.18fr_.82fr]">
-          <div className="border-slate-300 p-5 sm:p-7 lg:border-r">
-            {processing && (
-              <div className="mb-5 flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4" aria-live="polite">
-                <LoaderCircle size={16} className="animate-spin text-violet-600" />
-                <div>
-                  <p className="text-xs font-semibold text-violet-900">Preparing your checkout</p>
-                  <p className="mt-1 text-[10px] text-violet-700">This will only take a moment.</p>
-                </div>
-              </div>
-            )}
+        <div className="grid lg:grid-cols-[1.12fr_.88fr]">
+          <div className="p-5 sm:p-8 lg:border-r lg:border-[#17372f]/10">
             {error && (
-              <div className="mb-5 border border-rose-300 bg-rose-50 p-4 text-xs text-rose-800" role="alert">
+              <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800" role="alert">
                 <p className="font-semibold">{error}</p>
                 {quantityBlock && (
                   <div className="mt-3 border-t border-rose-200 pt-3" aria-label="Safe block outcome">
@@ -371,8 +371,8 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                     <h3 id="basket-product" className="text-lg font-semibold">Your item</h3>
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">In stock</span>
                   </div>
-                  <article className="mt-4 flex flex-col gap-4 rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-[0_10px_28px_rgba(42,81,68,.07)] sm:flex-row sm:items-center">
-                    <span className="grid size-16 shrink-0 place-items-center rounded-2xl border border-slate-800 bg-slate-950 font-mono text-sm font-bold tracking-widest text-violet-300">{product.imageLabel}</span>
+                  <article className="mt-4 flex flex-col gap-4 rounded-2xl border border-[#17372f]/10 bg-white p-4 shadow-[0_12px_30px_rgba(42,81,68,.06)] sm:flex-row sm:items-center">
+                    <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-[#17372f] font-mono text-sm font-bold tracking-widest text-[#d9fbd8]">{product.imageLabel}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">{product.name}</p>
                       <p className="mt-1 text-[10px] text-slate-500">{product.merchant.name} · verified merchant</p>
@@ -380,11 +380,11 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                         {money(product.price)} <span className="text-[10px] font-normal text-slate-400">per item</span>
                       </p>
                     </div>
-                    <div className="flex items-center overflow-hidden rounded-full border border-slate-300">
+                    <div className="flex items-center overflow-hidden rounded-full border border-[#17372f]/15 bg-[#f4f7f1]">
                       <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="focus-ring grid size-9 place-items-center text-slate-600 hover:bg-slate-100">
                         <Minus size={13} />
                       </button>
-                      <span className="grid h-9 w-10 place-items-center border-x border-slate-300 text-sm font-semibold">{quantity}</span>
+                      <span className="grid h-9 w-10 place-items-center border-x border-[#17372f]/10 text-sm font-semibold">{quantity}</span>
                       <button type="button" aria-label="Increase quantity" onClick={() => setQuantity((value) => value + 1)} className="focus-ring grid size-9 place-items-center text-slate-600 hover:bg-slate-100">
                         <Plus size={13} />
                       </button>
@@ -406,7 +406,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                     </div>
                     <div className="mt-4 space-y-3">
                       {product.addOns.map((addOn) => (
-                        <article key={addOn.offerId} className={`border bg-white p-4 transition ${addOnChoices[addOn.offerId] === true ? 'border-emerald-400 shadow-[3px_3px_0_rgba(16,185,129,.15)]' : addOnChoices[addOn.offerId] === false ? 'border-slate-300 opacity-75' : 'border-slate-300 hover:border-violet-300'}`}>
+                        <article key={addOn.offerId} className={`rounded-2xl border bg-white p-4 transition ${addOnChoices[addOn.offerId] === true ? 'border-emerald-400 bg-emerald-50/40 shadow-[0_10px_24px_rgba(16,185,129,.08)]' : addOnChoices[addOn.offerId] === false ? 'border-[#17372f]/10 opacity-75' : 'border-[#17372f]/10 hover:border-violet-300'}`}>
                           <div className="flex justify-between gap-4">
                             <div>
                               <p className="text-xs font-semibold">{addOn.name}</p>
@@ -424,7 +424,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                                   [addOn.offerId]: true,
                                 }))
                               }
-                              className={`focus-ring border py-2 text-[10px] font-semibold ${addOnChoices[addOn.offerId] === true ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 text-slate-600 hover:border-emerald-500'}`}
+                              className={`focus-ring rounded-xl border py-2 text-[10px] font-semibold ${addOnChoices[addOn.offerId] === true ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[#17372f]/15 text-slate-600 hover:border-emerald-500'}`}
                             >
                               Add to basket
                             </button>
@@ -436,7 +436,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                                   [addOn.offerId]: false,
                                 }))
                               }
-                              className={`focus-ring border py-2 text-[10px] font-semibold ${addOnChoices[addOn.offerId] === false ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-300 text-slate-600 hover:border-slate-950'}`}
+                              className={`focus-ring rounded-xl border py-2 text-[10px] font-semibold ${addOnChoices[addOn.offerId] === false ? 'border-[#17372f] bg-[#17372f] text-white' : 'border-[#17372f]/15 text-slate-600 hover:border-[#17372f]'}`}
                             >
                               No thanks
                             </button>
@@ -456,7 +456,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                   <p className="mt-2 text-xs leading-6 text-slate-500">Check the items and final amount before paying.</p>
                 </section>
                 {line?.explanation && (
-                  <div className="mt-5 border-l-4 border-violet-500 bg-white p-4">
+                  <div className="mt-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
                     <p className="font-mono text-[8px] text-violet-600">WHY THIS WAS RECOMMENDED</p>
                     <p className="mt-2 text-xs leading-6 text-slate-700">{line.explanation}</p>
                     {line.trade_offs?.length > 0 && <p className="mt-2 text-[10px] text-amber-700">Trade-off: {line.trade_offs.join(' · ')}</p>}
@@ -470,14 +470,14 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                       [money(quote.policy_snapshot.limits.max_order_value), 'Order ceiling'],
                       ['Practice checkout', 'Payment'],
                     ].map(([value, label]) => (
-                      <div key={label} className="border border-slate-300 bg-white p-3">
+                      <div key={label} className="rounded-xl border border-[#17372f]/10 bg-white p-3">
                         <p className="text-[10px] font-semibold text-slate-900">{value}</p>
                         <p className="mt-1 font-mono text-[7px] uppercase text-slate-400">{label}</p>
                       </div>
                     ))}
                   </div>
                 )}
-                <label className={`mt-5 flex cursor-pointer items-start gap-3 border p-4 transition ${approvedExactQuote ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}>
+                <label className={`mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${approvedExactQuote ? 'border-emerald-500 bg-emerald-50' : 'border-[#17372f]/10 bg-white hover:border-[#17372f]/25'}`}>
                   <input type="checkbox" checked={approvedExactQuote} onChange={(event) => setApprovedExactQuote(event.target.checked)} className="mt-0.5 size-4 accent-emerald-600" />
                   <span className="text-xs leading-6 text-slate-700">
                     <strong className="block text-slate-950">I approve {money(total)}.</strong>The items, quantities and total are correct.
@@ -487,7 +487,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
             )}
 
             {order && (
-              <section className={`border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`} role="status" aria-live="polite">
+              <section className={`rounded-2xl border p-5 ${stage === 'paid' ? 'border-emerald-300 bg-emerald-50' : stopped ? 'border-rose-300 bg-rose-50' : 'border-amber-200 bg-amber-50'}`} role="status" aria-live="polite">
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-mono text-[8px] text-slate-500">ORDER STATUS</p>
                   <DataFreshness updatedAt={statusUpdatedAt} staleAfterMs={10000} />
@@ -506,17 +506,17 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
             )}
           </div>
 
-          <aside className="bg-white p-5 sm:p-7">
+          <aside className="bg-[#f4f7f1] p-5 sm:p-8">
             <div className="lg:sticky lg:top-0">
-              <p className="mono-label text-slate-400">Order summary</p>
-              <div className="mt-4 divide-y divide-slate-200 border-y border-slate-300">
+              <h3 className="text-base font-semibold text-[#17372f]">Order summary</h3>
+              <div className="mt-4 divide-y divide-[#17372f]/10 border-y border-[#17372f]/10">
                 {displayLines.map((item, index) => (
                   <div key={item.product ?? `${item.product_title}-${index}`} className="flex justify-between gap-4 py-4">
                     <div>
                       <p className="text-xs font-semibold">{item.product_title}</p>
-                      <p className="mt-1 font-mono text-[8px] text-slate-400">
-                        QTY {item.quantity ?? 1} · {item.merchant_name}
-                        {item.growth_offer ? ' · ADD-ON' : ''}
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        Qty {item.quantity ?? 1} · {item.merchant_name}
+                        {item.growth_offer ? ' · Add-on' : ''}
                       </p>
                     </div>
                     <p className="shrink-0 text-xs font-bold">{money(item.line_total)}</p>
@@ -524,7 +524,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 ))}
               </div>
               {quote && (
-                <div className="mt-4 flex items-center justify-between border border-amber-300 bg-amber-50 p-3">
+                <div className="mt-4 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <div>
                     <p className="text-[9px] font-semibold text-amber-800">Price held</p>
                     <p className="mt-1 text-[9px] text-amber-700">Complete before time runs out</p>
@@ -538,19 +538,19 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
               <div className="mt-5 flex items-end justify-between">
                 <div>
                   <p className="text-xs text-slate-500">{quote ? 'Exact quote total' : 'Estimated total'}</p>
-                  <p className="mt-1 font-mono text-[8px] text-slate-400">INR · taxes included where applicable</p>
+                  <p className="mt-1 text-[10px] text-slate-400">Taxes included where applicable</p>
                 </div>
                 <p className="text-2xl font-bold tracking-tight">{money(total)}</p>
               </div>
 
               {stage === 'cart' && (
-                <button type="button" disabled={!choicesComplete} onClick={() => requestQuote()} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
+                <button type="button" disabled={!choicesComplete} onClick={() => requestQuote()} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(23,55,47,.16)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
                   {user ? (choicesComplete ? 'See final total' : 'Answer each add-on offer') : 'Sign in to continue'} <ChevronRight size={15} />
                 </button>
               )}
               {stage === 'quote' && (
                 <>
-                  <button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-violet-700 bg-violet-600 py-3.5 text-sm font-semibold text-white shadow-[4px_4px_0_#111827] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
+                  <button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(23,55,47,.16)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
                     <CreditCard size={16} /> Approve & pay
                   </button>
                   <button type="button" onClick={() => requestQuote(Number(quote.policy_snapshot?.limits?.max_item_quantity ?? 5) + 1)} className="focus-ring mt-3 w-full py-2 text-[9px] text-slate-400 hover:text-rose-600">
@@ -559,12 +559,12 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 </>
               )}
               {['verifying', 'opening'].includes(stage) && order?.cancellable && (
-                <button type="button" onClick={cancelPendingOrder} className="focus-ring mt-6 w-full border border-rose-300 bg-rose-50 py-3 text-xs font-semibold text-rose-700">
+                <button type="button" onClick={cancelPendingOrder} className="focus-ring mt-6 w-full rounded-xl border border-rose-300 bg-rose-50 py-3 text-xs font-semibold text-rose-700">
                   Cancel and release reserved stock
                 </button>
               )}
               {stage === 'paid' && (
-                <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white">
+                <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(5,150,105,.15)]">
                   <Check size={16} /> Finish
                 </button>
               )}
@@ -579,13 +579,13 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                     approvalKey.current = newIdempotencyKey('quote-approval')
                     paymentKey.current = newIdempotencyKey('payment-order')
                   }}
-                  className="focus-ring mt-6 w-full border border-violet-700 bg-violet-600 py-3 text-sm font-semibold text-white"
+                  className="focus-ring mt-6 w-full rounded-xl border border-[#17372f] bg-[#17372f] py-3 text-sm font-semibold text-white transition hover:border-violet-700 hover:bg-violet-700"
                 >
                   Return to basket and retry
                 </button>
               )}
               {stage === 'terminal' && (
-                <button type="button" onClick={onClose} className="focus-ring mt-6 w-full border border-slate-950 bg-slate-950 py-3 text-sm font-semibold text-white">
+                <button type="button" onClick={onClose} className="focus-ring mt-6 w-full rounded-xl border border-[#17372f] bg-[#17372f] py-3 text-sm font-semibold text-white">
                   Close checkout
                 </button>
               )}
