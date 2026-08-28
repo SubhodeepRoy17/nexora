@@ -153,6 +153,15 @@ python manage.py reconcile_razorpay --stale-minutes 10 --limit 250
 
 It is idempotent and repairs only one exact Razorpay-captured payment. Its JSON output and admin `ReconciliationException` list expose ambiguous cases. For an already captured order that cannot be fulfilled, follow `docs/RazorpayRunbook.md`; the refund command requires the order UUID twice, an enumerated reason, test credentials, exact full amount, and the configured cap.
 
+For deployed Test Mode acceptance, `frontend/scripts/run-deployed-razorpay-webhook-proof.mjs`
+drives the public buyer approval path and deliberately withholds the browser payment-status callback,
+so only a real signed webhook can settle the order. The narrower
+`frontend/scripts/complete-existing-razorpay-test-order.mjs` completes an already approved exact Test
+order. Both helpers require environment-provided values, reject non-Test public keys, and print only
+short identifier suffixes, amounts, and states. They are evidence aids, not substitutes for the
+Razorpay Dashboard delivery row or its manual **Redeliver** action. See
+`docs/RazorpayRunbook.md` for the active event allowlist, redaction rules, and acceptance checklist.
+
 See `docs/API.md` for request/response contracts and stable money-action reason codes.
 
 The deliberate graceful-failure proof is recorded in `docs/Phase3Evidence.md`. With both apps

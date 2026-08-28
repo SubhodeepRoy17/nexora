@@ -21,8 +21,9 @@ can discover and transact with a Nexora merchant through public HTTP APIs.
 | External-agent discovery | [commerce capability document](https://nexora-agentic-api.onrender.com/.well-known/nexora-commerce.json) |
 | Agent-commerce contract | [docs/AgentCommerceAPI.md](docs/AgentCommerceAPI.md) |
 
-The public deployment is in Razorpay Test Mode. The latest deployment boundary, including the
-pending scheduler/webhook and same-origin proxy evidence, is recorded in
+The public deployment is in Razorpay Test Mode. Real signed webhook settlement, delayed recovery,
+and invalid-signature rejection are verified; the remaining Dashboard redelivery and other
+deployment boundaries are recorded in
 [docs/Phase7Evidence.md](docs/Phase7Evidence.md). Do not enter real payment credentials.
 
 ## Who it serves and why it is different
@@ -209,8 +210,9 @@ answers and the final permissions/deployment/video checklist.
 
 ## Current limitations
 
-- Public scheduler heartbeats and real Razorpay webhook delivery/redelivery still need deployed
-  evidence before operational acceptance is claimed.
+- A redacted Razorpay Dashboard delivery-row capture and account-owner redelivery of that exact
+  successful event remain required before webhook operational acceptance is complete. Real signed
+  delivery, delayed reconciliation, and invalid-signature no-mutation behavior are verified.
 - The checked-in same-origin Vercel `/api/*` proxy is not active in the currently deployed frontend;
   direct cross-site session cookies can be blocked by browser policy.
 - Evaluation uses a bounded synthetic catalogue and deterministic provider-shaped responses; it
@@ -221,8 +223,8 @@ answers and the final permissions/deployment/video checklist.
 ## Roadmap to submission
 
 Repository-controlled implementation and packaging are complete. The remaining gates are
-operational: deploy the same-origin proxy, establish both scheduler heartbeats, capture real
-Razorpay Test webhook delivery/redelivery and recovery evidence, make the repository public, record
+operational: deploy the same-origin proxy, establish both scheduler heartbeats, capture the
+Razorpay Test Dashboard delivery row and exact manual redelivery evidence, make the repository public, record
 the five-minute video, and perform the final signed-out form/link audit. Track deployment acceptance
 in [docs/Phase7Evidence.md](docs/Phase7Evidence.md) and final submission readiness in
 [docs/Submission.md](docs/Submission.md). Optional protocol adapters and causal-lift experiments

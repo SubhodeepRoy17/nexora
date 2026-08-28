@@ -23,6 +23,7 @@ from apps.merchants.models import Merchant, Product
 
 from .lifecycle import LifecycleError, expire_stale_checkouts, reserve_order_inventory, transition_order
 from .models import (
+    AgentTransactionAudit,
     ApprovalGrant,
     MoneyActionAudit,
     Order,
@@ -516,6 +517,52 @@ class ApprovalGatedMoneyActionTests(TestCase):
         self.assertEqual(WebhookEvent.objects.filter(razorpay_event_id="evt_capture_once").count(), 1)
         self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
         self.assertEqual(MoneyActionAudit.objects.filter(order=order, action="PAYMENT_CAPTURED").count(), 1)
+        self.assertEqual(
+            AgentTransactionAudit.objects.filter(
+                order=order,
+                conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED,
+            ).count(),
+            1,
+        )
+        inbox = WebhookEvent.objects.get(razorpay_event_id="evt_capture_once")
+        self.assertEqual(inbox.attempt_count, 2)
+
+    @override_settings(RAZORPAY_WEBHOOK_SECRET="unit-test-webhook-secret")
+    def test_invalid_capture_signature_cannot_mutate_order_inventory_or_outcomes(self):
+        order = self.create_pending_order("order_invalid_signature")
+        payload = {
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {
+                "order_id": order.razorpay_order_id,
+                "id": "pay_invalid_signature",
+                "status": "captured",
+                "currency": "INR",
+                "amount": 250000,
+            }}},
+        }
+
+        response = self._post_webhook(payload, "evt_invalid_signature", signature="invalid")
+
+        self.assertEqual(response.status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PAYMENT_PENDING)
+        self.assertIsNone(order.razorpay_payment_id)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+        self.assertEqual(
+            StockReservation.objects.get(order=order).status,
+            StockReservation.Status.ACTIVE,
+        )
+        self.assertFalse(
+            MoneyActionAudit.objects.filter(
+                order=order, action=MoneyActionAudit.Action.PAYMENT_CAPTURED
+            ).exists()
+        )
+        self.assertFalse(
+            AgentTransactionAudit.objects.filter(
+                order=order,
+                conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED,
+            ).exists()
+        )
 
     def test_out_of_order_failure_then_capture_enters_refund_pending(self):
         order = self.create_pending_order("order_out_of_order")
@@ -575,6 +622,36 @@ class ApprovalGatedMoneyActionTests(TestCase):
         self.assertEqual(result["exceptions"], [])
         self.assertEqual(order.status, Order.Status.PAID)
         self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+        self.assertEqual(
+            MoneyActionAudit.objects.filter(
+                order=order, action=MoneyActionAudit.Action.PAYMENT_CAPTURED
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            MoneyActionAudit.objects.filter(
+                order=order, action=MoneyActionAudit.Action.RECONCILED
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            AgentTransactionAudit.objects.filter(
+                order=order,
+                conversion_status=AgentTransactionAudit.ConversionStatus.PURCHASED,
+            ).count(),
+            1,
+        )
+
+        retry = reconcile_stale_orders(client=client, stale_minutes=10)
+        self.assertEqual(retry["checked"], 0)
+        self.assertEqual(retry["repaired"], 0)
+        self.assertEqual(Product.objects.get(pk=self.product.pk).stock_quantity, 4)
+        self.assertEqual(
+            MoneyActionAudit.objects.filter(
+                order=order, action=MoneyActionAudit.Action.PAYMENT_CAPTURED
+            ).count(),
+            1,
+        )
 
     def test_stale_pending_reconciliation_lists_ambiguous_state(self):
         order = self.create_pending_order("order_reconcile_pending")

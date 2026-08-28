@@ -112,12 +112,39 @@ The inbox stores no payload, card, email, contact, Checkout/webhook signature, k
 
 This checklist must be completed against the deployed environment before Phase 11 is marked complete. Store redacted screenshots/JSON outside secret-bearing logs, then link them from the submission evidence folder.
 
+### 2026-08-28 deployed acceptance run
+
+The public Render endpoint is registered in the Razorpay Test account with the exact trailing-slash
+URL above and a webhook secret separate from the Test API secret. One active registration remains;
+an accidentally created registration with a mismatched secret was deactivated. The active
+registration is limited to the seven events documented above.
+
+The evidence below was read from Razorpay Test APIs and the deployed PostgreSQL state. It contains
+only shortened identifiers, amounts, states, counts, and reason codes. It contains no credentials,
+signatures, raw request body, cookie, buyer email/contact, or payment-instrument data.
+
+| Scenario | Sanitized deployed result |
+| --- | --- |
+| Signed provider delivery | Local order `…1413dd`, provider order `…rG2Llj`, and payment `…ZzjFS4` reached `PAID`; `payment.authorized`, `payment.captured`, and `order.paid` each entered the payload-free inbox as `PROCESSED` on attempt 1. |
+| Exactly-once outcome | Two reservations are `CONSUMED`; there is one capture audit, one merchant `PURCHASED` conversion, one attributed add-on line, and ₹999.00 attributed add-on revenue. Capture did not deduct stock a second time. |
+| Delayed delivery recovery | Captured order `…855d0b` remained pending after deliberately invalid delivery. Reconciliation repaired it once; a second run repaired zero. It has two consumed reservations, one capture audit, one reconciliation audit, one purchase conversion, one attributed add-on line, and ₹999.00 attributed revenue. |
+| Invalid signature | Three payload-free inbox rows were rejected as `SIGNATURE_INVALID` across provider retries (attempt counts 5, 4, and 5). The targeted pending order, active reservations, inventory, capture audits, conversions, and attributed revenue were unchanged. |
+
+The real signed delivery and delayed/invalid paths are complete. A Razorpay Dashboard delivery-row
+screenshot and a manual **Redeliver** of the successful `payment.captured` event remain open because
+the available browser session is not authenticated to the account. This is a provider-control-plane
+gate: it must be performed by an account owner after this release is deployed. On redelivery, verify
+the response is `{"status":"already_processed"}`, the existing inbox row's `attempt_count` becomes
+2, and every business count in the exactly-once row above remains unchanged. Do not substitute a
+locally signed request for that Dashboard action.
+
 Successful payment:
 
-- [ ] Test-mode Dashboard shows the exact Razorpay order, captured payment, paise amount, and INR.
-- [ ] Local order ID/receipt linkage matches and local state converges to `PAID`.
-- [ ] Each `StockReservation` is `CONSUMED`; product availability decreased only at reservation.
-- [ ] Exactly one `PAYMENT_CAPTURED` audit and one merchant purchase conversion exist.
+- [x] Test APIs show the matching Razorpay order, captured payment, 849800 paise, and INR; the
+  Dashboard delivery-row screenshot remains open.
+- [x] Local order/receipt linkage matches and local state converges to `PAID`.
+- [x] Each `StockReservation` is `CONSUMED`; product availability decreased only at reservation.
+- [x] Exactly one `PAYMENT_CAPTURED` audit and one merchant purchase conversion exist.
 - [ ] Re-delivering the same webhook yields `already_processed`; inbox count, stock, paid audits, and attributed revenue remain unchanged.
 
 Graceful failure:
@@ -129,6 +156,6 @@ Graceful failure:
 
 Evidence redaction:
 
-- [ ] Show only shortened provider/local IDs; hide keys, secrets, signatures, emails, contacts, card/VPA/bank details, and full webhook payloads.
-- [ ] Record deployment URL, UTC timestamp, commit hash, migration version, and commands used.
-- [ ] Record any unresolved exception honestly; do not label mocked or local-only results as deployed Razorpay evidence.
+- [x] Show only shortened provider/local IDs; hide keys, secrets, signatures, emails, contacts, card/VPA/bank details, and full webhook payloads.
+- [ ] Record deployment URL, UTC timestamp, deployed commit hash, migration version, and the final Dashboard redelivery action.
+- [x] Record any unresolved exception honestly; do not label mocked or local-only results as deployed Razorpay evidence.

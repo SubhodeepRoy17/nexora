@@ -428,6 +428,9 @@ def razorpay_webhook(request):
         with transaction.atomic():
             event = WebhookEvent.objects.select_for_update().get(pk=event.pk)
             if event.processing_state in {WebhookEvent.ProcessingState.PROCESSED, WebhookEvent.ProcessingState.IGNORED}:
+                event.attempt_count += 1
+                event.last_attempt_at = timezone.now()
+                event.save(update_fields=["attempt_count", "last_attempt_at"])
                 return JsonResponse({"status": "already_processed"})
             event.attempt_count += 1
             event.last_attempt_at = timezone.now()

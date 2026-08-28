@@ -1,6 +1,6 @@
 # P0.7 Public Deployment Evidence
 
-Status: **public deployment verified; operational acceptance pending**
+Status: **public deployment and real Test webhook settlement verified; one Dashboard redelivery gate pending**
 
 Checked on 2026-08-26 UTC against release
 `7234e56760963c1d802a195e2a9e469f928ca74c`.
@@ -61,6 +61,34 @@ origins. This is a documented deployment limitation, not a disabled CSRF control
   rotation, reconciliation, and refund runbooks.
 - A production frontend build guard, public build marker, and checked-in same-origin proxy route.
 
+## Razorpay Test webhook acceptance — 2026-08-28 UTC
+
+The account is configured with Test-only API credentials, and the deployed readiness guard rejects
+live keys. The active Razorpay webhook uses a distinct secret, targets the exact public
+`/api/orders/webhook/razorpay/` path, and subscribes only to Nexora's three supported payment events,
+`payment.failed`, and three supported refund events.
+
+A buyer-approved ₹8,498 two-line order completed through real Razorpay Test Checkout while the
+browser settlement callback was withheld. Razorpay delivered signed `payment.authorized`,
+`payment.captured`, and `order.paid` events to Render. The payload-free inbox recorded each as
+`PROCESSED` on its first attempt. Sanitized linkage is local order `…1413dd`, provider order
+`…rG2Llj`, and payment `…ZzjFS4`.
+
+The authoritative result is `PAID` with both reservations `CONSUMED`, exactly one capture audit,
+one merchant purchase conversion, one attributed add-on line, and ₹999.00 attributed revenue.
+A separate captured order `…855d0b` demonstrated delayed recovery: strict reconciliation repaired
+it once, a second reconciliation repaired zero, and all stock/audit/conversion/revenue counts stayed
+at one. Three deliveries signed with the intentionally mismatched secret were rejected as
+`SIGNATURE_INVALID` across retries and produced no money, order, inventory, audit, conversion, or
+revenue mutation.
+
+No raw provider body, signature, key, secret, cookie, full email/contact, payment instrument, or
+full identifier is retained here. Full acceptance still requires an account owner to sign in to the
+Razorpay Test Dashboard, capture a redacted successful delivery row, click **Redeliver** on the same
+successful capture after this release is live, and record the `already_processed` response plus an
+inbox attempt count of 2 with unchanged business counts. The current automation session reaches the
+Razorpay login screen and cannot perform that account-owner action.
+
 ## External acceptance checklist
 
 - [x] Record stable public frontend and API HTTPS URLs.
@@ -71,10 +99,9 @@ origins. This is a documented deployment limitation, not a disabled CSRF control
   default third-party-cookie blocking, or move both services under same-site custom subdomains.
 - [ ] Run `deployment_smoke.py` without `--allow-pending-schedulers` after both scheduler heartbeats
   are fresh.
-- [ ] Register the Razorpay Test Mode webhook and attach a redacted successful delivery plus exact
-  redelivery/idempotency result.
-- [ ] Verify restart recovery, delayed webhook recovery, reservation expiry, and reconciliation retry
-  on the deployed environment.
+- [ ] Attach the redacted Razorpay Dashboard successful-delivery row and exact manual
+  redelivery/idempotency result; registration and real signed delivery are verified.
+- [x] Verify delayed webhook recovery and reconciliation retry on the deployed environment.
 - [ ] Confirm Render health/deploy/scheduler alerts and operational admin visibility.
 - [ ] Complete the deployed test-mode payment and graceful-failure checklist in
   `docs/RazorpayRunbook.md`.

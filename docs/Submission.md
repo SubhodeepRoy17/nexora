@@ -1,6 +1,7 @@
 # Nexora Submission Checklist
 
-Last official-source audit: **2026-08-26 UTC**.
+Last official-source audit: **2026-08-26 UTC**. Deployed payment acceptance evidence updated
+**2026-08-28 UTC**.
 
 - Official program page: <https://razorpay.com/buildathon/>
 - Official application form linked by that page:
@@ -103,8 +104,10 @@ chooses to publish them.
 - [ ] Frontend, API readiness, capability, OpenAPI, and JSON Schema URLs return expected content.
 - [ ] Vercel `/api/health/` returns Render JSON and login works with default browser privacy settings.
 - [ ] Both scheduler heartbeats are fresh and the smoke verifier passes without a waiver.
-- [ ] Razorpay Test webhook delivery and exact redelivery evidence are attached and redacted.
-- [ ] Successful ₹8,498 payment and `QUANTITY_LIMIT_EXCEEDED` failure are demonstrated honestly.
+- [ ] Attach the redacted Razorpay Dashboard delivery row and manually redeliver that exact event;
+  real signed delivery, delayed reconciliation, invalid-signature rejection, and exactly-once state
+  are already verified in `Phase7Evidence.md`.
+- [x] Successful ₹8,498 payment and `QUANTITY_LIMIT_EXCEEDED` failure are demonstrated honestly.
 - [ ] Video is at most five minutes, accessible signed out, and contains no secrets or buyer/payment
   PII.
 - [ ] Architecture and project-objective links render correctly.

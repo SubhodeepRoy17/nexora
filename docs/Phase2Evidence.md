@@ -11,18 +11,18 @@ payment instrument, raw webhook body, password, or buyer PII.
 - Primary item: `Nexora Nomad 75` — ₹7,499
 - Compatible add-on explicitly accepted: `Nexora Nomad 75 Travel Case` — ₹999
 - Exact approved total: ₹8,498
-- Agent session: `351ef154-bcde-413d-a7e4-5ac1a2f4b5c5`
-- Primary decision: `85be8d5b-82f3-4ae0-b45e-adc29ca77521`
-- Add-on decision: `93ccc477-602a-459c-b476-664da1af736f`
-- Growth offer: `fc809407-8548-4280-ba59-6bda2956948e` (`ACCEPTED`)
+- Agent session: `…a2f4b5c5`
+- Primary decision: `…9ca77521`
+- Add-on decision: `…a1af736f`
+- Growth offer: `…2956948e` (`ACCEPTED`)
 
 ## Bounded money action
 
-- Quote: `99710ee9-d4e3-4236-a082-e561713ba5a7`
-- Exact approval: `5b6dcf23-6988-4ecb-81a3-0e3e7f1bd7e7`
-- Nexora order: `a1d57f14-d844-4aac-8e2a-2f4148ad5f54`
-- Razorpay test order: `order_TUHmXrLtRo9UwA`
-- Razorpay test payment: `pay_TUHqe7bllCEPh9`
+- Quote: `…713ba5a7`
+- Exact approval: `…1bd7e7`
+- Nexora order: `…48ad5f54`
+- Razorpay test order: `…Ro9UwA`
+- Razorpay test payment: `…llCEPh9`
 - Provider result: `captured`, Netbanking, INR 849800 subunits
 - Authoritative Nexora result after strict provider reconciliation: `PAID`
 
@@ -61,7 +61,7 @@ handoff page and uses the already-installed `playwright-core`. The helper contai
 
 ## Deployment boundary
 
-This local proof used strict provider reconciliation because the local environment had no public HTTPS
-webhook URL. A public endpoint now exists, and signed handling/deduplication remain covered by backend
-tests, but Razorpay dashboard registration plus real delivery/redelivery evidence are still open P0.7
-acceptance items. They must not be claimed complete until the redacted deployed evidence is recorded.
+This original proof used strict provider reconciliation because the local environment had no public
+HTTPS webhook URL. Real deployed signed delivery is now verified in `Phase7Evidence.md`. A redacted
+Razorpay Dashboard delivery-row capture and account-owner redelivery remain the final webhook
+control-plane evidence and must not be replaced with a mocked or locally signed request.
