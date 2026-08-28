@@ -265,6 +265,7 @@
 .buyer-welcome { animation: buyer-welcome-enter .7s cubic-bezier(.2,.8,.2,1) both; }
 .buyer-message { animation: buyer-message-enter .5s cubic-bezier(.2,.8,.2,1) both; }
 .buyer-product-reveal { animation: buyer-product-reveal .48s cubic-bezier(.2,.8,.2,1) backwards; }
+.buyer-order-dialog { animation: buyer-order-dialog-enter .34s cubic-bezier(.2,.8,.2,1) both; }
 .buyer-welcome-prompt {
   opacity: 0;
   animation: buyer-welcome-prompt 9s cubic-bezier(.4,0,.2,1) infinite;
@@ -329,6 +330,11 @@
 
 @keyframes buyer-product-reveal {
   from { opacity: 0; transform: translateY(14px) scale(.975); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes buyer-order-dialog-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.985); filter: blur(3px); }
   to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
@@ -1258,6 +1264,7 @@
   .buyer-welcome,
   .buyer-message,
   .buyer-product-reveal,
+  .buyer-order-dialog,
   .buyer-welcome-prompt,
   .buyer-typing-dot { animation: none; }
   .auth-shell,
@@ -1267,7 +1274,8 @@
   .auth-trust-item,
   .buyer-welcome,
   .buyer-message,
-  .buyer-product-reveal { opacity: 1; transform: none; filter: none; }
+  .buyer-product-reveal,
+  .buyer-order-dialog { opacity: 1; transform: none; filter: none; }
   .auth-switch-form,
   .auth-switch-story { transition: none; }
   .buyer-welcome-prompt { display: none; }

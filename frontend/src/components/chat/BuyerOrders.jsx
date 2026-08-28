@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertTriangle, CheckCircle2, Clock3, CreditCard, Package, RefreshCw, X } from 'lucide-react'
-import DataFreshness from '../common/DataFreshness'
 import useBoundedPolling from '../../hooks/useBoundedPolling'
 import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
 import { cancelOrder, extractResults, getApiError, getOrder, getOrders, loadRazorpayCheckout, verifyCheckoutPayment } from '../../services/api'
@@ -130,87 +130,99 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
     }
   }
 
-  const paid = order.status === 'PAID'
-  return (
-    <div className="fixed inset-x-0 bottom-0 top-20 z-50 grid place-items-end bg-slate-950/75 backdrop-blur-sm sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="modal-scroll max-h-full w-full overflow-y-auto border border-slate-300 bg-[#f6f5f1] p-5 shadow-2xl sm:max-w-2xl sm:p-7">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id="order-detail-title" className="text-xl font-semibold">
-              Order {order.order_id.slice(0, 8).toUpperCase()}
-            </h2>
-            <div className="mt-2">
-              <DataFreshness updatedAt={state.updatedAt} loading={state.loading} staleAfterMs={10000} />
+  const successful = order.status === 'PAID' || order.status === 'REFUNDED'
+  const terminalFailure = ['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED'].includes(order.status)
+  const statusStyle = successful
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+    : terminalFailure
+      ? 'border-rose-200 bg-rose-50 text-rose-950'
+      : 'border-amber-200 bg-amber-50 text-amber-950'
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-[#17372f]/30 px-4 pt-[12vh] backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="buyer-order-dialog modal-scroll max-h-[76vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/70 bg-[#f7f9f4] shadow-[0_30px_90px_rgba(23,55,47,.24)]">
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-emerald-950/10 bg-[#f7f9f4]/95 px-4 py-3 backdrop-blur sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#17372f] text-white"><Package size={18} /></span>
+            <div className="min-w-0">
+              <h2 id="order-detail-title" className="truncate text-base font-semibold text-[#17372f]">Order details</h2>
+              <p className="mt-0.5 text-xs text-[#31594f]/65">{order.order_id.slice(0, 8).toUpperCase()} · {new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
             </div>
           </div>
-          <button type="button" onClick={close} disabled={Boolean(state.action)} aria-label="Close order receipt" className="focus-ring grid size-9 place-items-center border border-slate-300 bg-white">
-            <X size={16} />
+          <button type="button" onClick={close} disabled={Boolean(state.action)} aria-label="Close order receipt" className="focus-ring grid size-9 shrink-0 place-items-center rounded-xl text-[#31594f] transition hover:bg-white hover:text-[#17372f] disabled:opacity-40">
+            <X size={18} />
           </button>
         </header>
-        <div className={`mt-5 border p-4 ${paid ? 'border-emerald-300 bg-emerald-50' : TERMINAL.has(order.status) ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50'}`} role="status" aria-live="polite">
-          <div className="flex items-center gap-2">
-            {paid ? <CheckCircle2 size={17} className="text-emerald-600" /> : <Clock3 size={17} className="text-amber-600" />}
-            <p className="text-sm font-semibold">{order.status.replaceAll('_', ' ')}</p>
+
+        <div className="p-4 sm:p-5">
+          <div className={`rounded-2xl border p-4 ${statusStyle}`} role="status" aria-live="polite">
+            <div className="flex items-center gap-2">
+              {state.loading ? <RefreshCw size={17} className="animate-spin" /> : successful ? <CheckCircle2 size={17} className="text-emerald-600" /> : terminalFailure ? <AlertTriangle size={17} className="text-rose-600" /> : <Clock3 size={17} className="text-amber-600" />}
+              <p className="text-sm font-semibold">{order.status.replaceAll('_', ' ')}</p>
+            </div>
+            <p className="mt-2 text-xs leading-5 opacity-75">{statusCopy[order.status] ?? 'We are checking the latest order status.'}</p>
           </div>
-          <p className="mt-2 text-xs leading-5 text-slate-600">{statusCopy[order.status]}</p>
-        </div>
-        {state.error && (
-          <p id="order-action-error" className="mt-4 border border-rose-300 bg-rose-50 p-3 text-xs text-rose-800" role="alert">
-            {state.error}
-          </p>
-        )}
-        <div className="mt-5 divide-y divide-slate-200 border-y border-slate-300 bg-white">
-          {order.items?.map((item) => (
-            <div key={item.product} className="flex justify-between gap-4 p-4">
-              <div>
-                <p className="text-xs font-semibold">{item.product_title}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {item.merchant_name} · Quantity {item.quantity}
-                  {item.growth_offer ? ' · Optional add-on' : ''}
-                </p>
+
+          {state.error && (
+            <p id="order-action-error" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-800" role="alert">
+              {state.error}
+            </p>
+          )}
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-950/10 bg-white/75">
+            {order.items?.map((item, index) => (
+              <div key={item.product} className={`flex items-start justify-between gap-4 px-4 py-3.5 ${index ? 'border-t border-emerald-950/10' : ''}`}>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#17372f]">{item.product_title}</p>
+                  <p className="mt-1 text-xs text-[#31594f]/65">
+                    {item.merchant_name} · Qty {item.quantity}{item.growth_offer ? ' · Add-on' : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-[#17372f]">{money(item.line_total, order.currency)}</p>
               </div>
-              <p className="text-xs font-bold">{money(item.line_total, order.currency)}</p>
+            ))}
+            <div className="flex items-end justify-between gap-4 border-t border-emerald-950/10 bg-[#edf3ea]/70 px-4 py-4">
+              <div>
+                <p className="text-xs text-[#31594f]/65">Approved total</p>
+                <p className="mt-1 text-xs text-[#31594f]/45">{new Date(order.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              </div>
+              <p className="text-xl font-semibold tracking-tight text-[#17372f]">{money(order.total_amount, order.currency)}</p>
+            </div>
+          </div>
+
+          {order.refunds?.map((refund) => (
+            <div key={refund.refund_id} className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3 text-xs text-violet-800">
+              Refund {refund.status.replaceAll('_', ' ').toLowerCase()} · {money(refund.amount, refund.currency)}
             </div>
           ))}
-        </div>
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <p className="text-xs text-slate-500">Exact approved total</p>
-            <p className="mt-1 text-xs text-slate-400">{new Date(order.created_at).toLocaleString('en-IN')}</p>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            {order.status === 'PAYMENT_PENDING' && order.key && (
+              <button type="button" onClick={resumePayment} disabled={Boolean(state.action)} aria-describedby={state.error ? 'order-action-error' : undefined} className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-700 bg-violet-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50">
+                <CreditCard size={15} /> {state.action === 'payment' ? 'Opening…' : 'Resume Razorpay payment'}
+              </button>
+            )}
+            {order.cancellable && (
+              <button type="button" onClick={cancel} disabled={Boolean(state.action)} className="focus-ring flex-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
+                Cancel and release stock
+              </button>
+            )}
+            {['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED'].includes(order.status) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onRetry(order.items?.[0]?.product_title ?? '')
+                  onClose()
+                }}
+                className="focus-ring flex-1 rounded-xl border border-[#17372f] bg-[#17372f] px-4 py-3 text-xs font-semibold text-white transition hover:bg-[#244b41]"
+              >
+                <RefreshCw size={14} className="mr-2 inline" /> Start a fresh search
+              </button>
+            )}
           </div>
-          <p className="text-xl font-bold">{money(order.total_amount, order.currency)}</p>
-        </div>
-        {order.refunds?.map((refund) => (
-          <div key={refund.refund_id} className="mt-4 border border-violet-200 bg-violet-50 p-3 text-xs text-violet-800">
-            Refund {refund.status.replaceAll('_', ' ').toLowerCase()} · {money(refund.amount, refund.currency)}
-          </div>
-        ))}
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-          {order.status === 'PAYMENT_PENDING' && order.key && (
-            <button type="button" onClick={resumePayment} disabled={Boolean(state.action)} aria-describedby={state.error ? 'order-action-error' : undefined} className="focus-ring flex flex-1 items-center justify-center gap-2 border border-violet-700 bg-violet-600 px-4 py-3 text-xs font-semibold text-white disabled:opacity-50">
-              <CreditCard size={15} /> {state.action === 'payment' ? 'Opening…' : 'Resume Razorpay payment'}
-            </button>
-          )}
-          {order.cancellable && (
-            <button type="button" onClick={cancel} disabled={Boolean(state.action)} className="focus-ring flex-1 border border-rose-300 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 disabled:opacity-50">
-              Cancel and release stock
-            </button>
-          )}
-          {['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED'].includes(order.status) && (
-            <button
-              type="button"
-              onClick={() => {
-                onRetry(order.items?.[0]?.product_title ?? '')
-                onClose()
-              }}
-              className="focus-ring flex-1 border border-slate-950 bg-slate-950 px-4 py-3 text-xs font-semibold text-white"
-            >
-              <RefreshCw size={14} className="mr-2 inline" /> Start a fresh search
-            </button>
-          )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

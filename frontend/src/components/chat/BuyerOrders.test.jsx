@@ -37,4 +37,22 @@ describe('buyer order receipt polling', () => {
     await new Promise((resolve) => window.setTimeout(resolve, 100))
     expect(apiMocks.getOrder).toHaveBeenCalledTimes(1)
   })
+
+  it('opens order details in a centered document-level receipt modal', async () => {
+    render(
+      <div data-testid="sidebar-shell" className="translate-x-0">
+        <BuyerOrders user={{ id: 7 }} onRetry={vi.fn()} />
+      </div>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /Quiet Keyboard/i }))
+    const dialog = await screen.findByRole('dialog', { name: 'Order details' })
+
+    expect(dialog.closest('[data-testid="sidebar-shell"]')).toBeNull()
+    expect(dialog).toHaveClass('max-w-xl', 'rounded-2xl', 'buyer-order-dialog')
+    expect(dialog.parentElement).toHaveClass('pt-[12vh]', 'backdrop-blur-sm')
+    expect(screen.getByText('Approved total')).toBeInTheDocument()
+    expect(screen.getAllByText(/₹7,499/).length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Close order receipt' })).toBeInTheDocument()
+  })
 })
