@@ -509,6 +509,43 @@ class ContextAwareConversationTests(TestCase):
         product_search.assert_not_called()
 
     @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._gemini_client", side_effect=AgentServiceError("offline"))
+    def test_ambiguous_shopping_request_still_searches_during_provider_outage(
+        self, _client_factory, product_search
+    ):
+        product_search.return_value = [
+            {
+                "id": self.first.id,
+                "title": self.first.title,
+                "description": self.first.description,
+                "merchant": {"id": self.first.merchant_id, "name": "Context Catalog"},
+                "price": str(self.first.price),
+                "category": self.first.category,
+                "stock_quantity": self.first.stock_quantity,
+                "rating": self.first.rating,
+                "specifications": self.first.specifications,
+            }
+        ]
+
+        result = run_buyer_agent("I need something portable for work")
+
+        self.assertEqual(result["turn_type"], "SHOPPING_SEARCH")
+        self.assertEqual(result["_audit_context"]["provider_source"], "FALLBACK")
+        self.assertTrue(result["recommendations"])
+        product_search.assert_called_once()
+
+    @patch("apps.agents.services.search_merchant_products")
+    @patch("apps.agents.services._gemini_client", side_effect=AgentServiceError("offline"))
+    def test_off_topic_message_stays_conversational_during_provider_outage(
+        self, _client_factory, product_search
+    ):
+        result = run_buyer_agent("Write a long poem about the moon")
+
+        self.assertEqual(result["turn_type"], "OFF_TOPIC")
+        self.assertEqual(result["_audit_context"]["provider_source"], "FALLBACK")
+        product_search.assert_not_called()
+
+    @patch("apps.agents.services.search_merchant_products")
     @patch("apps.agents.services._gemini_client")
     def test_best_follow_up_is_limited_to_previous_live_results(
         self, client_factory, product_search

@@ -806,6 +806,22 @@ def _looks_like_greeting(prompt: str) -> bool:
     )
 
 
+def _looks_like_shopping_request(prompt: str) -> bool:
+    if re.search(
+        r"\b(find|show|suggest|recommend|compare|buy|purchase|shop(?:ping)?|looking\s+for)\b",
+        prompt,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    return bool(
+        re.search(
+            r"\bneed\s+something\b.*\b(portable|work|travel|gift|home|office|school|gaming)\b",
+            prompt,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 def _live_previous_candidates(previous: list[dict[str, Any]]) -> list[dict[str, Any]]:
     from apps.merchants.models import Product
 
@@ -996,16 +1012,17 @@ def run_buyer_agent(
                     ),
                     "FALLBACK",
                 )
-            return _conversation_payload(
-                ConversationTurn(
-                    turn_type="OFF_TOPIC",
-                    response=(
-                        "I can help with product discovery and comparisons. Tell me what you "
-                        "would like to shop for, along with any budget or preferences."
+            if not _looks_like_shopping_request(prompt):
+                return _conversation_payload(
+                    ConversationTurn(
+                        turn_type="OFF_TOPIC",
+                        response=(
+                            "I can help with product discovery and comparisons. Tell me what you "
+                            "would like to shop for, along with any budget or preferences."
+                        ),
                     ),
-                ),
-                "FALLBACK",
-            )
+                    "FALLBACK",
+                )
 
     arguments = deterministic_search_arguments(effective_prompt)
     candidates = search_merchant_products(arguments)

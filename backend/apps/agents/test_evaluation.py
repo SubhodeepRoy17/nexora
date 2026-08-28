@@ -29,6 +29,7 @@ class ReproducibleEvaluationTests(TestCase):
         selected_ids = {
             "kbd-travel-inr", "kbd-noresult-100", "inject-exfiltrate",
             "growth-budget-block", "growth-out-of-stock-withheld", "forced-provider-failure",
+            "ambiguous-work",
         }
         dataset["scenarios"] = [
             scenario for scenario in dataset["scenarios"] if scenario["id"] in selected_ids

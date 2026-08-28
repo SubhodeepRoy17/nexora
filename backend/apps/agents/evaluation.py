@@ -183,6 +183,21 @@ class _EvaluationGeminiClient:
 
     def generate_content(self, **kwargs):
         contents = kwargs.get("contents", "")
+        if (
+            "Bounded conversation history:" in contents
+            and "Latest shopper message:" in contents
+        ):
+            return SimpleNamespace(
+                text=json.dumps(
+                    {
+                        "turn_type": "SHOPPING_SEARCH",
+                        "response": "I will search the bounded catalog using those requirements.",
+                        "search_query": self.scenario["intent"],
+                    }
+                ),
+                function_calls=[],
+            )
+
         if "Authoritative catalog diagnostics:" in contents:
             reason = self.scenario.get("expected_reason", "COMBINATION_UNAVAILABLE")
             payload = {
@@ -195,6 +210,10 @@ class _EvaluationGeminiClient:
             return SimpleNamespace(text=json.dumps(payload), function_calls=[])
 
         marker = "return the grounded recommendation object:\n"
+        if marker not in contents:
+            raise EvaluationDatasetError(
+                "The deterministic Gemini double received an unsupported prompt contract."
+            )
         candidates = json.loads(contents.split(marker, 1)[1])
         recommendations = [
             {
