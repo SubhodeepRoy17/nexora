@@ -76,41 +76,38 @@ export default function DashboardOverview({ analytics, inventory, events, onNavi
         <button type="button" onClick={() => onNavigate('inventory')} className="focus-ring rounded-full bg-[#17372f] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-violet-700">Manage products</button>
       </section>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <div>
-          <div className="mb-2 flex justify-end">
-            <DataFreshness updatedAt={timelineState.updatedAt} loading={timelineState.loading} staleAfterMs={20000} dark />
+      <section className="merchant-card merchant-reveal rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><Sparkles size={15} /></span>
+            <h2 className="text-base font-semibold text-[#17372f]">Offer performance</h2>
           </div>
-          <AgentTimelineFeed events={events} />
+          <DataFreshness updatedAt={analyticsState.updatedAt} loading={analyticsState.loading} staleAfterMs={30000} dark />
         </div>
-        <section className="merchant-card merchant-reveal h-fit self-start rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><Sparkles size={15} /></span>
-              <h2 className="text-base font-semibold text-[#17372f]">Offer performance</h2>
-            </div>
-            <DataFreshness updatedAt={analyticsState.updatedAt} loading={analyticsState.loading} staleAfterMs={30000} dark />
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-[#31594f]/70">Shopper responses</p>
+            <p className="mt-1 text-lg font-semibold text-[#17372f]">{number(growth.responded_offers)} / {number(growth.offer_impressions)}</p>
           </div>
-          <dl className="mt-5 space-y-4 text-sm">
-            <div className="flex justify-between border-b border-emerald-950/10 pb-3">
-              <dt className="text-[#31594f]/70">Shopper responses</dt>
-              <dd className="font-semibold text-[#17372f]">
-                {number(growth.responded_offers)} / {number(growth.offer_impressions)}
-              </dd>
-            </div>
-            <div className="flex justify-between border-b border-emerald-950/10 pb-3">
-              <dt className="text-[#31594f]/70">Acceptance rate</dt>
-              <dd className="font-semibold text-[#17372f]">{Number(growth.accept_rate_percent ?? 0).toFixed(2)}%</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[#31594f]/70">Purchased offer rate</dt>
-              <dd className="font-semibold text-[#17372f]">{Number(growth.paid_attachment_rate_percent ?? 0).toFixed(2)}%</dd>
-            </div>
-          </dl>
-          <button type="button" onClick={() => onNavigate('insights')} className="mt-5 text-xs font-semibold text-violet-700 transition hover:text-violet-900">
-            View sales insights →
-          </button>
-        </section>
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-[#31594f]/70">Acceptance rate</p>
+            <p className="mt-1 text-lg font-semibold text-[#17372f]">{Number(growth.accept_rate_percent ?? 0).toFixed(2)}%</p>
+          </div>
+          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-[#31594f]/70">Purchased offer rate</p>
+            <p className="mt-1 text-lg font-semibold text-[#17372f]">{Number(growth.paid_attachment_rate_percent ?? 0).toFixed(2)}%</p>
+          </div>
+        </div>
+        <button type="button" onClick={() => onNavigate('insights')} className="mt-5 text-xs font-semibold text-violet-700 transition hover:text-violet-900">
+          View sales insights →
+        </button>
+      </section>
+
+      <div>
+        <div className="mb-2 flex justify-end">
+          <DataFreshness updatedAt={timelineState.updatedAt} loading={timelineState.loading} staleAfterMs={20000} dark />
+        </div>
+        <AgentTimelineFeed events={events} />
       </div>
       <div>
         <MerchantOperations orders={orders} workspace={workspace} state={operationsState} onRetry={onRetryOperations} />
