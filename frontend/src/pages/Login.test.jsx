@@ -44,12 +44,26 @@ describe('Login', () => {
     const user = userEvent.setup()
     renderLogin()
 
-    expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Create account' }))
+    expect(screen.getByRole('heading', { name: 'Sign in to Nexora' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Create an account' }))
 
     expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument()
     expect(screen.getByLabelText('Display name')).toBeInTheDocument()
     expect(screen.getByLabelText('Confirm password')).toBeInTheDocument()
+    expect(document.querySelector('[data-auth-mode="signup"]')).toHaveClass('auth-switch-signup')
+  })
+
+  it('lets users inspect a password without changing its value', async () => {
+    const user = userEvent.setup()
+    renderLogin()
+    const password = screen.getByLabelText('Password')
+
+    await user.type(password, 'private-demo-password')
+    expect(password).toHaveAttribute('type', 'password')
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveValue('private-demo-password')
   })
 
   it('presents the merchant route with the same switch layout', () => {
@@ -58,6 +72,6 @@ describe('Login', () => {
     expect(screen.getByRole('heading', { name: 'Seller sign in' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Buyer sign in' })).toHaveAttribute('href', '/login')
     expect(container.querySelector('.auth-switch-shell')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Create account' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Create an account' })).not.toBeInTheDocument()
   })
 })
