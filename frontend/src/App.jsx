@@ -3,6 +3,7 @@ import Navbar from './components/common/Navbar'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import CrossSiteCookiePrompt from './components/auth/CrossSiteCookiePrompt'
 import BuyerChat from './pages/BuyerChat'
+import AgentCommerce from './pages/AgentCommerce'
 import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import MerchantDashboard from './pages/MerchantDashboard'
@@ -19,6 +20,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/buyer" element={<BuyerChat />} />
+        <Route path="/ai-shoppers" element={<AgentCommerce />} />
         <Route path="/login" element={<Login />} />
         <Route path="/share/:shareToken" element={<SharedConversation />} />
         <Route path="/merchant" element={<ProtectedRoute role="merchant"><MerchantDashboard /></ProtectedRoute>} />

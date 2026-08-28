@@ -17,7 +17,7 @@ describe('workspace navigation', () => {
 
     expect(screen.getByRole('link', { name: 'Shopping assistant' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Seller workspace' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'For AI shoppers' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'For AI shoppers' })).toHaveAttribute('href', '/ai-shoppers')
     expect(screen.queryByRole('link', { name: 'Nexora home' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
   })
