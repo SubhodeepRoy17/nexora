@@ -4,7 +4,9 @@ from .views import (
     BuyerAgentSearchView,
     BuyerConversationDetailView,
     BuyerConversationListView,
+    BuyerConversationShareView,
     GrowthOfferResponseView,
+    SharedConversationDetailView,
 )
 
 
@@ -17,6 +19,16 @@ urlpatterns = [
         "conversations/<uuid:conversation_id>/",
         BuyerConversationDetailView.as_view(),
         name="conversation-detail",
+    ),
+    path(
+        "conversations/<uuid:conversation_id>/share/",
+        BuyerConversationShareView.as_view(),
+        name="conversation-share",
+    ),
+    path(
+        "shared-conversations/<uuid:share_token>/",
+        SharedConversationDetailView.as_view(),
+        name="shared-conversation-detail",
     ),
     path(
         "growth-offers/<uuid:offer_id>/respond/",

@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 
 from apps.merchants.models import Merchant, Product
 
-from .models import AgentSession, ChatConversation
+from .models import AgentSession, ChatConversation, ChatMessage
 from .services import (
     AgentServiceError,
     BuyerAgentResponse,
@@ -730,3 +730,93 @@ class ConversationPrivacyTests(TestCase):
             }, format="json",
         )
         self.assertEqual(rejected.status_code, 400)
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_recent_conversations_are_sorted_by_latest_activity(self, run_mock):
+        run_mock.side_effect = lambda *args, **kwargs: self.agent_result()
+        self.client.force_authenticate(self.user)
+        older = self.client.post(
+            reverse("agents:search"), {"query": "first keyboard search"}, format="json"
+        ).data
+        newer = self.client.post(
+            reverse("agents:search"), {"query": "second keyboard search"}, format="json"
+        ).data
+
+        initial = self.client.get(reverse("agents:conversation-list")).data["results"]
+        self.assertEqual(initial[0]["conversation_id"], newer["conversation_id"])
+
+        self.client.post(
+            reverse("agents:search"),
+            {"query": "continue the first search", "conversation_id": older["conversation_id"]},
+            format="json",
+        )
+        refreshed = self.client.get(reverse("agents:conversation-list")).data["results"]
+        self.assertEqual(refreshed[0]["conversation_id"], older["conversation_id"])
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_editing_a_user_message_replaces_the_later_chat_branch(self, run_mock):
+        run_mock.side_effect = lambda *args, **kwargs: self.agent_result()
+        self.client.force_authenticate(self.user)
+        first = self.client.post(
+            reverse("agents:search"), {"query": "quiet keyboard"}, format="json"
+        ).data
+        first_message_id = first["user_message_id"]
+        self.client.post(
+            reverse("agents:search"),
+            {"query": "which one is best?", "conversation_id": first["conversation_id"]},
+            format="json",
+        )
+
+        edited = self.client.post(
+            reverse("agents:search"),
+            {
+                "query": "quiet keyboard for a Mac",
+                "conversation_id": first["conversation_id"],
+                "edit_message_id": first_message_id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(edited.status_code, 200)
+        messages = ChatMessage.objects.filter(
+            conversation_id=first["conversation_id"]
+        )
+        self.assertEqual(
+            list(messages.values_list("content", flat=True)),
+            ["quiet keyboard for a Mac", "No grounded result in this test fixture."],
+        )
+        self.assertEqual(run_mock.call_args.kwargs["conversation_context"], [])
+        self.assertEqual(
+            AgentSession.objects.filter(conversation_id=first["conversation_id"]).count(),
+            3,
+        )
+
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_owner_can_create_a_private_share_token_for_a_public_transcript(self, run_mock):
+        run_mock.return_value = self.agent_result()
+        self.client.force_authenticate(self.user)
+        created = self.client.post(
+            reverse("agents:search"), {"query": "share this keyboard search"}, format="json"
+        ).data
+        share_url = reverse(
+            "agents:conversation-share",
+            kwargs={"conversation_id": created["conversation_id"]},
+        )
+        shared = self.client.post(share_url, {}, format="json")
+        self.assertEqual(shared.status_code, 200)
+
+        self.client.force_authenticate(self.other_user)
+        self.assertEqual(self.client.post(share_url, {}, format="json").status_code, 404)
+
+        self.client.force_authenticate(user=None)
+        public = self.client.get(
+            reverse(
+                "agents:shared-conversation-detail",
+                kwargs={"share_token": shared.data["share_token"]},
+            )
+        )
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(public.data["title"], "share this keyboard search")
+        self.assertEqual(len(public.data["messages"]), 2)
+        self.assertNotIn("provider_source", public.data["messages"][1]["metadata"])
+        self.assertNotIn("agent_session_id", public.data["messages"][1]["metadata"])

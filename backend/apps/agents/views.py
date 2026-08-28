@@ -1,3 +1,5 @@
+import uuid
+
 from django.core import signing
 from django.db import DatabaseError, transaction
 from django.db.models import Count, OuterRef, Subquery
@@ -78,8 +80,11 @@ def _history_metadata(result):
     }
 
 
-def _conversation_context(conversation):
-    recent = list(conversation.messages.order_by("-created_at")[:8])
+def _conversation_context(conversation, before_message=None):
+    messages = conversation.messages.all()
+    if before_message is not None:
+        messages = messages.filter(created_at__lt=before_message.created_at)
+    recent = list(messages.order_by("-created_at")[:8])
     return [
         {
             "role": message.role,
@@ -91,7 +96,9 @@ def _conversation_context(conversation):
 
 
 @transaction.atomic
-def _persist_public_decision_trace(request, query, result, conversation):
+def _persist_public_decision_trace(
+    request, query, result, conversation, edit_message=None
+):
     context = result.pop("_audit_context", {})
     add_on_suggestions = result.pop("add_on_suggestions", [])
     session = AgentSession.objects.create(
@@ -196,17 +203,31 @@ def _persist_public_decision_trace(request, query, result, conversation):
     result["add_on_suggestions"] = add_on_payloads
     result["agent_session_id"] = str(session.session_id)
     result["provider_source"] = session.provider_source
-    ChatMessage.objects.create(
+    update_title = bool(
+        edit_message
+        and not conversation.messages.filter(
+            role=ChatMessage.Role.USER, created_at__lt=edit_message.created_at
+        ).exists()
+    )
+    if edit_message is not None:
+        conversation.messages.filter(created_at__gte=edit_message.created_at).delete()
+    user_message = ChatMessage.objects.create(
         conversation=conversation, role=ChatMessage.Role.USER, content=query
     )
-    ChatMessage.objects.create(
+    assistant_message = ChatMessage.objects.create(
         conversation=conversation,
         role=ChatMessage.Role.ASSISTANT,
         content=result.get("summary_reasoning", "Search completed."),
         metadata=_history_metadata(result),
     )
-    conversation.save(update_fields=["updated_at"])
+    update_fields = ["updated_at"]
+    if update_title:
+        conversation.title = _conversation_title(query)
+        update_fields.append("title")
+    conversation.save(update_fields=update_fields)
     result["conversation_id"] = str(conversation.conversation_id)
+    result["user_message_id"] = str(user_message.message_id)
+    result["assistant_message_id"] = str(assistant_message.message_id)
     if conversation.buyer_id is None:
         result["conversation_token"] = issue_anonymous_conversation_token(conversation)
     return result
@@ -223,8 +244,23 @@ class BuyerAgentSearchView(APIView):
         query = serializer.validated_data["query"]
         try:
             conversation = _resolve_conversation(request, serializer.validated_data)
-            result = run_buyer_agent(query, conversation_context=_conversation_context(conversation))
-            result = _persist_public_decision_trace(request, query, result, conversation)
+            edit_message = None
+            if serializer.validated_data.get("edit_message_id"):
+                edit_message = get_object_or_404(
+                    ChatMessage,
+                    message_id=serializer.validated_data["edit_message_id"],
+                    conversation=conversation,
+                    role=ChatMessage.Role.USER,
+                )
+            result = run_buyer_agent(
+                query,
+                conversation_context=_conversation_context(
+                    conversation, before_message=edit_message
+                ),
+            )
+            result = _persist_public_decision_trace(
+                request, query, result, conversation, edit_message=edit_message
+            )
         except signing.BadSignature as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except DatabaseError:
@@ -247,7 +283,8 @@ class BuyerConversationListView(APIView):
             .annotate(
                 message_count=Count("messages"),
                 last_message=Subquery(latest_message.values("content")[:1]),
-            )[:50]
+            )
+            .order_by("-updated_at", "-created_at")[:50]
         )
         return Response(
             {
@@ -305,6 +342,65 @@ class BuyerConversationDetailView(APIView):
         AgentSession.objects.filter(conversation=conversation).update(conversation=None)
         conversation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BuyerConversationShareView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, conversation_id):
+        conversation = get_object_or_404(
+            ChatConversation.objects.select_for_update(),
+            conversation_id=conversation_id,
+            buyer=request.user,
+        )
+        if conversation.share_token is None:
+            conversation.share_token = uuid.uuid4()
+            conversation.shared_at = timezone.now()
+            conversation.save(update_fields=["share_token", "shared_at"])
+        return Response(
+            {
+                "share_token": str(conversation.share_token),
+                "shared_at": conversation.shared_at,
+            }
+        )
+
+
+class SharedConversationDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, share_token):
+        conversation = get_object_or_404(
+            ChatConversation.objects.prefetch_related("messages"),
+            share_token=share_token,
+            shared_at__isnull=False,
+        )
+        return Response(
+            {
+                "title": conversation.title,
+                "shared_at": conversation.shared_at,
+                "messages": [
+                    {
+                        "message_id": str(message.message_id),
+                        "role": message.role,
+                        "content": message.content,
+                        "metadata": {
+                            key: message.metadata.get(key)
+                            for key in (
+                                "recommendations",
+                                "add_on_suggestions",
+                                "suggested_query",
+                                "turn_type",
+                            )
+                            if message.metadata.get(key) is not None
+                        },
+                        "created_at": message.created_at,
+                    }
+                    for message in conversation.messages.all()
+                ],
+            }
+        )
 
 
 class GrowthOfferResponseView(APIView):

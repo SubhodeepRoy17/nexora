@@ -4,11 +4,16 @@ from rest_framework import serializers
 class BuyerSearchRequestSerializer(serializers.Serializer):
     query = serializers.CharField(min_length=1, max_length=2_000, trim_whitespace=True)
     conversation_id = serializers.UUIDField(required=False)
+    edit_message_id = serializers.UUIDField(required=False)
     conversation_token = serializers.CharField(
         required=False, min_length=20, max_length=2_048, trim_whitespace=False
     )
 
     def validate(self, attrs):
+        if attrs.get("edit_message_id") and not attrs.get("conversation_id"):
+            raise serializers.ValidationError(
+                {"edit_message_id": "Editing requires an existing conversation."}
+            )
         if bool(attrs.get("conversation_id")) != bool(attrs.get("conversation_token")):
             request = self.context.get("request")
             if not request or not request.user.is_authenticated:

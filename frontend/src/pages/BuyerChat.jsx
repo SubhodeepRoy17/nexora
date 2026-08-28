@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Clock3, Plus, SquarePen, Trash2 } from 'lucide-react'
+import { Check, Clock3, Copy, Pencil, Plus, Share2, SquarePen, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
@@ -12,7 +12,7 @@ import BuyerOrders from '../components/chat/BuyerOrders'
 import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { examplePrompts, onboardingMessages } from '../data/onboarding'
-import { deleteChatSession, extractResults, getApiError, getChatSession, getChatSessions, searchProducts, toAddOnProduct, toRecommendationProduct } from '../services/api'
+import { deleteChatSession, extractResults, getApiError, getChatSession, getChatSessions, searchProducts, shareChatSession, toAddOnProduct, toRecommendationProduct } from '../services/api'
 import useWorkspaceSidebar from '../hooks/useWorkspaceSidebar'
 
 const liveThinkingSteps = [
@@ -35,6 +35,29 @@ const welcomePrompts = [
   'What is your budget?',
   'Which details matter most?',
 ]
+
+const sortChatSessions = (sessions) =>
+  [...sessions].sort((left, right) => {
+    const activityDifference = Date.parse(right.updated_at ?? 0) - Date.parse(left.updated_at ?? 0)
+    return activityDifference || String(right.conversation_id).localeCompare(String(left.conversation_id))
+  })
+
+const copyToClipboard = async (text) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+  const field = document.createElement('textarea')
+  field.value = text
+  field.setAttribute('readonly', '')
+  field.style.position = 'fixed'
+  field.style.opacity = '0'
+  document.body.appendChild(field)
+  field.select()
+  const copied = document.execCommand('copy')
+  field.remove()
+  if (!copied) throw new Error('Copy is not available in this browser.')
+}
 
 function AgentMark({ active = false }) {
   return (
@@ -88,6 +111,7 @@ const restoreMessages = (data) =>
       id: message.message_id,
       role: assistant ? 'agent' : 'user',
       text: message.content,
+      persisted: true,
       products,
       suggestedQuery: assistant ? message.metadata?.suggested_query : undefined,
       turnType: assistant ? message.metadata?.turn_type : undefined,
@@ -111,6 +135,9 @@ export default function BuyerChat() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [deletingConversationId, setDeletingConversationId] = useState(null)
   const [historyError, setHistoryError] = useState('')
+  const [shareStatus, setShareStatus] = useState('idle')
+  const [copiedMessageId, setCopiedMessageId] = useState(null)
+  const [editingMessage, setEditingMessage] = useState(null)
   const [orderRefreshNonce, setOrderRefreshNonce] = useState(0)
   const logRef = useRef(null)
   const runTimers = useRef([])
@@ -135,6 +162,8 @@ export default function BuyerChat() {
     setConversationId(null)
     setConversationToken(null)
     setMessages(onboardingMessages)
+    setEditingMessage(null)
+    setShareStatus('idle')
     setHistoryError('')
     if (!user) {
       setChatSessions([])
@@ -143,7 +172,7 @@ export default function BuyerChat() {
     setHistoryLoading(true)
     getChatSessions(controller.signal)
       .then(async ({ data }) => {
-        const sessions = extractResults(data)
+        const sessions = sortChatSessions(extractResults(data))
         setChatSessions(sessions)
         if (!sessions.length) return
         const { data: latest } = await getChatSession(sessions[0].conversation_id, controller.signal)
@@ -177,6 +206,8 @@ export default function BuyerChat() {
     setConversationToken(null)
     setMessages(onboardingMessages)
     setInput('')
+    setEditingMessage(null)
+    setShareStatus('idle')
     closeSidebarOnMobile()
   }
 
@@ -184,7 +215,7 @@ export default function BuyerChat() {
     if (!user) return
     try {
       const { data } = await getChatSessions()
-      setChatSessions(extractResults(data))
+      setChatSessions(sortChatSessions(extractResults(data)))
     } catch {
       // A completed search remains usable even if the history refresh fails.
     }
@@ -200,6 +231,8 @@ export default function BuyerChat() {
       setMessages(restored.length ? restored : onboardingMessages)
       setConversationId(data.conversation_id)
       setConversationToken(null)
+      setEditingMessage(null)
+      setShareStatus('idle')
       closeSidebarOnMobile()
     } catch (error) {
       setHistoryError(getApiError(error, 'Could not open this chat.'))
@@ -223,15 +256,48 @@ export default function BuyerChat() {
     }
   }
 
-  const submitMessage = async (rawQuery) => {
+  const copyMessage = async (message) => {
+    try {
+      await copyToClipboard(message.text)
+      setCopiedMessageId(message.id)
+      window.setTimeout(() => setCopiedMessageId((current) => (current === message.id ? null : current)), 1600)
+    } catch {
+      setHistoryError('This browser could not copy the message.')
+    }
+  }
+
+  const shareCurrentChat = async () => {
+    if (!conversationId || !user || shareStatus === 'loading') return
+    setShareStatus('loading')
+    setHistoryError('')
+    try {
+      const { data } = await shareChatSession(conversationId)
+      const shareUrl = `${window.location.origin}/share/${data.share_token}`
+      await copyToClipboard(shareUrl)
+      setShareStatus('copied')
+      window.setTimeout(() => setShareStatus('idle'), 2200)
+    } catch (error) {
+      setShareStatus('error')
+      setHistoryError(getApiError(error, 'Could not create a share link.'))
+    }
+  }
+
+  const submitMessage = async (rawQuery, { editMessageId = null } = {}) => {
     const query = rawQuery.trim()
     if (!query || activeRun) return
 
     clearRunTimers()
     const controller = new AbortController()
     requestRef.current = controller
-    const messageId = Date.now()
-    setMessages((current) => [...current, { id: messageId, role: 'user', text: query, time: 'Now' }])
+    const messageId = globalThis.crypto?.randomUUID?.() ?? String(Date.now())
+    const previousMessages = editMessageId ? messages : null
+    setMessages((current) => {
+      const nextUserMessage = { id: messageId, role: 'user', text: query, time: 'Now', persisted: false }
+      if (!editMessageId) return [...current, nextUserMessage]
+      const editIndex = current.findIndex((message) => String(message.id) === String(editMessageId))
+      return [...(editIndex >= 0 ? current.slice(0, editIndex) : current), nextUserMessage]
+    })
+    setEditingMessage(null)
     setInput('')
     setActiveRun({ steps: liveThinkingSteps, activeIndex: 0 })
 
@@ -250,6 +316,7 @@ export default function BuyerChat() {
       const { data } = await searchProducts(query, controller.signal, {
         conversationId,
         conversationToken,
+        ...(editMessageId ? { editMessageId } : {}),
       })
       if (requestRef.current !== controller) return
       setConversationId(data.conversation_id)
@@ -260,9 +327,13 @@ export default function BuyerChat() {
         products = [{ ...products[0], addOns }, ...products.slice(1)]
       }
       setMessages((current) => [
-        ...current,
+        ...current.map((message) =>
+          message.id === messageId && data.user_message_id
+            ? { ...message, id: data.user_message_id, persisted: true }
+            : message,
+        ),
         {
-          id: messageId + 1,
+          id: data.assistant_message_id ?? `${messageId}-reply`,
           role: 'agent',
           text: data.summary_reasoning,
           animateText: true,
@@ -272,13 +343,29 @@ export default function BuyerChat() {
           time: 'Now',
         },
       ])
+      if (user) {
+        setChatSessions((current) => {
+          const activeSession = current.find((session) => session.conversation_id === data.conversation_id)
+          if (!activeSession) return current
+          return [
+            { ...activeSession, updated_at: new Date().toISOString() },
+            ...current.filter((session) => session.conversation_id !== data.conversation_id),
+          ]
+        })
+      }
       refreshSessions()
     } catch (error) {
       if (controller.signal.aborted) return
+      if (editMessageId) {
+        setMessages(previousMessages)
+        setEditingMessage({ id: editMessageId, text: query })
+        setHistoryError(getApiError(error, 'Could not update this message.'))
+        return
+      }
       setMessages((current) => [
         ...current,
         {
-          id: messageId + 1,
+          id: `${messageId}-error`,
           role: 'agent',
           text: getApiError(error, 'I could not complete this catalog search.'),
           evidence: 'SEARCH COULD NOT FINISH · TRY AGAIN',
@@ -394,6 +481,18 @@ export default function BuyerChat() {
             <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="buyer-history-sidebar" />
           </div>
         )}
+        {user && conversationId && (
+          <button
+            type="button"
+            onClick={shareCurrentChat}
+            disabled={shareStatus === 'loading'}
+            aria-label={shareStatus === 'copied' ? 'Share link copied' : shareStatus === 'error' ? 'Share failed, try again' : 'Share current chat'}
+            className={`focus-ring absolute right-3 top-[4.75rem] z-20 flex h-9 items-center gap-2 rounded-full border bg-white/85 px-3 text-xs font-semibold shadow-[0_8px_22px_rgba(42,81,68,.09)] backdrop-blur transition hover:bg-white disabled:cursor-wait sm:right-5 ${shareStatus === 'error' ? 'border-rose-200 text-rose-700' : 'border-emerald-950/10 text-[#17372f]'}`}
+          >
+            {shareStatus === 'copied' ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
+            <span className="hidden sm:inline">{shareStatus === 'loading' ? 'Creating link…' : shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Try again' : 'Share'}</span>
+          </button>
+        )}
 
         <div ref={logRef} className="buyer-log flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-4xl px-4 py-8 md:px-8 md:py-12">
@@ -413,13 +512,50 @@ export default function BuyerChat() {
             <div className="space-y-7">
               {visibleMessages.map((message, messageIndex) => {
                 const latestAgent = message.role === 'agent' && !visibleMessages.slice(messageIndex + 1).some((item) => item.role === 'agent')
+                const editing = message.role === 'user' && String(editingMessage?.id) === String(message.id)
                 return (
-                  <div key={message.id} className={`buyer-message flex gap-3 ${message.role === 'user' ? 'ml-auto max-w-2xl flex-row-reverse' : 'max-w-full'}`}>
+                  <div key={message.id} className={`buyer-message group flex gap-3 ${message.role === 'user' ? 'ml-auto max-w-2xl flex-row-reverse' : 'max-w-full'}`}>
                     {message.role === 'agent' && <AgentMark active={latestAgent} />}
                     <div className={`min-w-0 ${message.role === 'agent' ? 'w-full' : ''}`}>
-                      <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>
-                        {message.role === 'agent' ? <TypingText text={message.text} animate={message.animateText} /> : message.text}
-                      </div>
+                      {editing ? (
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault()
+                            submitMessage(editingMessage.text, { editMessageId: message.id })
+                          }}
+                          className="w-[min(78vw,38rem)] rounded-2xl border border-[#17372f]/15 bg-white p-3 shadow-[0_16px_38px_rgba(42,81,68,.12)]"
+                        >
+                          <textarea
+                            autoFocus
+                            rows={3}
+                            maxLength={2000}
+                            aria-label="Edit message"
+                            value={editingMessage.text}
+                            onChange={(event) => setEditingMessage((current) => ({ ...current, text: event.target.value }))}
+                            className="focus-ring min-h-20 w-full resize-none rounded-xl bg-[#f4f7f1] px-3 py-2.5 text-[13px] leading-6 text-[#17372f]"
+                          />
+                          <div className="mt-2 flex justify-end gap-2">
+                            <button type="button" onClick={() => setEditingMessage(null)} className="focus-ring rounded-full px-4 py-2 text-xs font-semibold text-[#31594f] hover:bg-[#edf3ea]">Cancel</button>
+                            <button type="submit" disabled={!editingMessage.text.trim()} className="focus-ring rounded-full bg-[#17372f] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Send</button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className={`text-[13px] leading-6 ${message.role === 'user' ? 'rounded-[1.4rem] rounded-br-md bg-[#17372f] px-4 py-3 text-white shadow-[0_10px_25px_rgba(23,55,47,.16)]' : message.status === 'placed' ? 'max-w-3xl rounded-2xl border border-emerald-300 bg-emerald-50/90 px-4 py-3 text-emerald-950' : message.status === 'error' ? 'max-w-3xl rounded-2xl border border-rose-300 bg-rose-50/90 px-4 py-3 text-rose-900' : 'max-w-3xl px-1 py-1 text-[#294b43]'}`}>
+                          {message.role === 'agent' ? <TypingText text={message.text} animate={message.animateText} /> : message.text}
+                        </div>
+                      )}
+                      {message.role === 'user' && !editing && (
+                        <div className="mt-1.5 flex justify-end gap-1 text-[#31594f]/65 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                          <button type="button" onClick={() => copyMessage(message)} aria-label="Copy message" title="Copy message" className="focus-ring grid size-8 place-items-center rounded-lg hover:bg-white hover:text-[#17372f]">
+                            {copiedMessageId === message.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                          </button>
+                          {message.persisted !== false && (
+                            <button type="button" disabled={Boolean(activeRun)} onClick={() => setEditingMessage({ id: message.id, text: message.text })} aria-label="Edit message" title="Edit message" className="focus-ring grid size-8 place-items-center rounded-lg hover:bg-white hover:text-[#17372f] disabled:cursor-wait disabled:opacity-40">
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {message.products && (
                         <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-4 md:grid md:grid-cols-3 md:overflow-visible">
                           {message.products.map((product, index) => (

@@ -10,6 +10,7 @@ const apiMocks = vi.hoisted(() => ({
   getChatSessions: vi.fn(),
   getChatSession: vi.fn(),
   deleteChatSession: vi.fn(),
+  shareChatSession: vi.fn(),
   getOrders: vi.fn(),
 }))
 const authState = vi.hoisted(() => ({ user: null, signOut: vi.fn() }))
@@ -21,6 +22,7 @@ vi.mock('../services/api', async (importOriginal) => ({
   getChatSessions: apiMocks.getChatSessions,
   getChatSession: apiMocks.getChatSession,
   deleteChatSession: apiMocks.deleteChatSession,
+  shareChatSession: apiMocks.shareChatSession,
   getOrders: apiMocks.getOrders,
 }))
 
@@ -131,5 +133,95 @@ describe('live buyer search', () => {
     expect(screen.getByRole('button', { name: 'Open sidebar' })).toHaveAttribute('aria-expanded', 'false')
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     expect(screen.getByRole('button', { name: 'Close sidebar' })).toBeInTheDocument()
+  })
+
+  it('sorts recent chats by latest activity', async () => {
+    authState.user = { id: 9, display_name: 'Buyer', email: 'buyer@example.test' }
+    const older = { conversation_id: '11111111-1111-4111-8111-111111111111', title: 'Older chat', updated_at: '2026-08-20T10:00:00Z', messages: [] }
+    const latest = { conversation_id: '22222222-2222-4222-8222-222222222222', title: 'Latest chat', updated_at: '2026-08-28T10:00:00Z', messages: [] }
+    apiMocks.getChatSessions.mockResolvedValue({ data: { results: [older, latest] } })
+    apiMocks.getChatSession.mockResolvedValue({ data: latest })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    await screen.findByText('Latest chat')
+    const recentButtons = screen.getAllByRole('button', { name: /chat$/i })
+    expect(recentButtons[0]).toHaveTextContent('Latest chat')
+    expect(recentButtons[1]).toHaveTextContent('Older chat')
+  })
+
+  it('moves an older chat to the top after the buyer continues it', async () => {
+    authState.user = { id: 11, display_name: 'Buyer', email: 'buyer@example.test' }
+    const older = { conversation_id: '11111111-1111-4111-8111-111111111111', title: 'Older chat', updated_at: '2026-08-20T10:00:00Z', messages: [] }
+    const latest = { conversation_id: '22222222-2222-4222-8222-222222222222', title: 'Latest chat', updated_at: '2026-08-28T10:00:00Z', messages: [] }
+    apiMocks.getChatSessions
+      .mockResolvedValueOnce({ data: { results: [latest, older] } })
+      .mockResolvedValueOnce({ data: { results: [{ ...older, updated_at: '2026-08-29T10:00:00Z' }, latest] } })
+    apiMocks.getChatSession
+      .mockResolvedValueOnce({ data: latest })
+      .mockResolvedValueOnce({ data: older })
+    apiMocks.searchProducts.mockResolvedValue({ data: { conversation_id: older.conversation_id, user_message_id: '99999999-9999-4999-8999-999999999999', assistant_message_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', summary_reasoning: 'Continuing the older search.', recommendations: [], add_on_suggestions: [] } })
+    const user = userEvent.setup()
+    renderBuyer()
+
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    await user.click(await screen.findByRole('button', { name: 'Older chat' }))
+    await user.type(screen.getByLabelText('Shopping intent'), 'show another option')
+    await user.click(screen.getByLabelText('Send shopping intent'))
+    await screen.findByLabelText('Continuing the older search.')
+    await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
+    await waitFor(() => {
+      const recentButtons = screen.getAllByRole('button', { name: /chat$/i })
+      expect(recentButtons[0]).toHaveTextContent('Older chat')
+      expect(recentButtons[1]).toHaveTextContent('Latest chat')
+    })
+  })
+
+  it('copies a sent message and resends an edited branch', async () => {
+    const conversationId = '85ea43e5-26f3-4615-8422-1790901d7952'
+    const firstMessageId = '33333333-3333-4333-8333-333333333333'
+    apiMocks.searchProducts
+      .mockResolvedValueOnce({ data: { conversation_id: conversationId, user_message_id: firstMessageId, assistant_message_id: '44444444-4444-4444-8444-444444444444', summary_reasoning: 'Here is the first answer.', recommendations: [], add_on_suggestions: [] } })
+      .mockResolvedValueOnce({ data: { conversation_id: conversationId, user_message_id: '55555555-5555-4555-8555-555555555555', assistant_message_id: '66666666-6666-4666-8666-666666666666', summary_reasoning: 'Here is the revised answer.', recommendations: [], add_on_suggestions: [] } })
+    const user = userEvent.setup()
+    const clipboard = vi.spyOn(navigator.clipboard, 'writeText')
+    renderBuyer()
+
+    await user.type(screen.getByLabelText('Shopping intent'), 'keyboard under 8000')
+    await user.click(screen.getByLabelText('Send shopping intent'))
+    await screen.findByLabelText('Here is the first answer.')
+    await user.click(screen.getByRole('button', { name: 'Copy message' }))
+    expect(clipboard).toHaveBeenCalledWith('keyboard under 8000')
+
+    await user.click(screen.getByRole('button', { name: 'Edit message' }))
+    const editor = screen.getByLabelText('Edit message')
+    await user.clear(editor)
+    await user.type(editor, 'quiet keyboard under 8000')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByLabelText('Here is the revised answer.')
+    expect(apiMocks.searchProducts).toHaveBeenLastCalledWith('quiet keyboard under 8000', expect.any(AbortSignal), {
+      conversationId,
+      conversationToken: null,
+      editMessageId: firstMessageId,
+    })
+    expect(screen.queryByText('Here is the first answer.')).not.toBeInTheDocument()
+  })
+
+  it('copies a public share link for the current signed-in chat', async () => {
+    authState.user = { id: 10, display_name: 'Buyer', email: 'buyer@example.test' }
+    const conversation = { conversation_id: '77777777-7777-4777-8777-777777777777', title: 'Shareable chat', updated_at: '2026-08-28T10:00:00Z', messages: [] }
+    apiMocks.getChatSessions.mockResolvedValue({ data: { results: [conversation] } })
+    apiMocks.getChatSession.mockResolvedValue({ data: conversation })
+    apiMocks.shareChatSession.mockResolvedValue({ data: { share_token: '88888888-8888-4888-8888-888888888888' } })
+    const user = userEvent.setup()
+    const clipboard = vi.spyOn(navigator.clipboard, 'writeText')
+    renderBuyer()
+
+    const share = await screen.findByRole('button', { name: 'Share current chat' })
+    await user.click(share)
+    await screen.findByRole('button', { name: 'Share link copied' })
+    expect(apiMocks.shareChatSession).toHaveBeenCalledWith(conversation.conversation_id)
+    expect(clipboard).toHaveBeenCalledWith(`${window.location.origin}/share/88888888-8888-4888-8888-888888888888`)
   })
 })

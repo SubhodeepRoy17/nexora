@@ -55,10 +55,13 @@ export const searchProducts = (query, signal, conversation = {}) => api.post('ag
   query,
   ...(conversation.conversationId ? { conversation_id: conversation.conversationId } : {}),
   ...(conversation.conversationToken ? { conversation_token: conversation.conversationToken } : {}),
+  ...(conversation.editMessageId ? { edit_message_id: conversation.editMessageId } : {}),
 }, { signal, timeout: AGENT_SEARCH_TIMEOUT_MS })
 export const getChatSessions = (signal) => api.get('agents/conversations/', { signal })
 export const getChatSession = (conversationId, signal) => api.get(`agents/conversations/${conversationId}/`, { signal })
 export const deleteChatSession = (conversationId) => api.delete(`agents/conversations/${conversationId}/`)
+export const shareChatSession = (conversationId) => api.post(`agents/conversations/${conversationId}/share/`, {})
+export const getSharedChatSession = (shareToken, signal) => api.get(`agents/shared-conversations/${shareToken}/`, { signal })
 export const respondToGrowthOffer = ({ offerId, offerToken, accepted }) => api.post(
   `agents/growth-offers/${offerId}/respond/`,
   { offer_token: offerToken, accepted },
