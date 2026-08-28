@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Navbar from './components/common/Navbar'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import BuyerChat from './pages/BuyerChat'
@@ -7,9 +7,12 @@ import Login from './pages/Login'
 import MerchantDashboard from './pages/MerchantDashboard'
 
 export default function App() {
+  const location = useLocation()
+  const authPage = location.pathname === '/login'
+
   return (
     <div className="min-h-dvh bg-[#f6f5f1]">
-      <Navbar />
+      {!authPage && <Navbar />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/buyer" element={<BuyerChat />} />

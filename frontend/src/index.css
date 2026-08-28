@@ -88,12 +88,61 @@
 }
 
 .auth-story-title { font-family: 'Fraunces', Georgia, serif; }
-.auth-form-panel { background: linear-gradient(145deg, rgba(255,255,255,.74), rgba(246,248,241,.68)); }
+.auth-switch-shell { min-height: 680px; }
 
-.auth-proof {
-  opacity: 0;
-  transform: translateX(-18px);
-  animation: auth-proof-enter .55s cubic-bezier(.2,.8,.2,1) var(--auth-delay) forwards;
+.auth-switch-form,
+.auth-switch-story {
+  position: absolute;
+  inset-block: 0;
+  transition: transform .78s cubic-bezier(.22,.82,.2,1), border-radius .78s cubic-bezier(.22,.82,.2,1);
+}
+
+.auth-switch-form {
+  left: 0;
+  width: 58%;
+  z-index: 1;
+}
+
+.auth-switch-story {
+  left: 58%;
+  width: 42%;
+  z-index: 2;
+  border-left: 1px solid rgba(255,255,255,.72);
+  box-shadow: -18px 0 48px rgba(42,81,68,.08);
+}
+
+.auth-switch-signup .auth-switch-form { transform: translateX(72.4138%); }
+.auth-switch-signup .auth-switch-story {
+  transform: translateX(-138.0952%);
+  border-left: 0;
+  border-right: 1px solid rgba(255,255,255,.72);
+  box-shadow: 18px 0 48px rgba(42,81,68,.08);
+}
+
+.auth-switch-story-content {
+  animation: auth-switch-copy-enter .5s cubic-bezier(.2,.8,.2,1) both;
+}
+
+@media (max-width: 1023px) {
+  .auth-switch-shell {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .auth-switch-form,
+  .auth-switch-story,
+  .auth-switch-signup .auth-switch-form,
+  .auth-switch-signup .auth-switch-story {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    transform: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .auth-switch-story { min-height: 230px; }
 }
 
 .buyer-shell {
@@ -148,8 +197,9 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes auth-proof-enter {
-  to { opacity: 1; transform: translateX(0); }
+@keyframes auth-switch-copy-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes auth-aurora-drift {
@@ -1086,15 +1136,17 @@
 @media (prefers-reduced-motion: reduce) {
   .auth-aurora,
   .auth-shell,
-  .auth-proof,
+  .auth-switch-story-content,
   .buyer-welcome,
   .buyer-message,
   .buyer-welcome-prompt,
   .buyer-typing-dot { animation: none; }
   .auth-shell,
-  .auth-proof,
+  .auth-switch-story-content,
   .buyer-welcome,
   .buyer-message { opacity: 1; transform: none; }
+  .auth-switch-form,
+  .auth-switch-story { transition: none; }
   .buyer-welcome-prompt { display: none; }
   .buyer-welcome-prompt:first-child { display: block; opacity: 1; transform: translateY(-50%); filter: none; }
   .buyer-input,
