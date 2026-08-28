@@ -17,10 +17,11 @@ ALLOWED_SPEC_KEYS = frozenset(ProductSpecifications.model_fields)
 MAX_SEARCH_RESULTS = 10
 SEARCH_STOP_WORDS = {
     "a", "an", "and", "at", "below", "best", "bring", "buy", "compare", "details",
-    "for", "find", "from", "give", "in", "item", "items", "list", "looking", "me",
-    "most", "need", "of", "options", "or", "please", "prefer", "prioritize", "product",
-    "products", "result", "show", "some", "than", "that", "the", "to", "under", "value",
-    "want", "what", "with", "worth",
+    "find", "for", "from", "gift", "give", "highest", "in", "item", "items", "list",
+    "looking", "me", "most", "need", "of", "options", "or", "please", "prefer",
+    "prioritize", "product", "products", "rated", "recommend", "result", "shop", "shopping",
+    "show", "some", "suggest", "tech", "than", "that", "the", "to", "under", "useful",
+    "value", "want", "what", "with", "worth",
 }
 CATEGORY_ALIASES = {
     "keyboard": "Keyboards",

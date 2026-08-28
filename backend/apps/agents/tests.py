@@ -122,6 +122,18 @@ class CatalogRelevanceTests(TestCase):
 
         self.assertEqual([item["title"] for item in results], ["Aluminium Laptop Stand"])
 
+    @patch("apps.agents.tools.vector_index_available", return_value=False)
+    def test_generic_gift_and_rating_language_browses_ranked_inventory(self, _vector):
+        gift = search_merchant_products(
+            deterministic_search_arguments("Suggest a useful tech gift under ₹2000")
+        )
+        highest_rated = search_merchant_products(
+            deterministic_search_arguments("Show the highest rated product")
+        )
+
+        self.assertEqual([item["title"] for item in gift], ["Aluminium Laptop Stand"])
+        self.assertEqual([item["title"] for item in highest_rated], ["Aluminium Laptop Stand"])
+
 
 class RecommendationGroundingTests(SimpleTestCase):
     def test_catalog_data_overrides_model_supplied_product_fields(self):
