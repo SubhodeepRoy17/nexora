@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock3, CreditCard, Inbox, ShieldAlert } from 'lucide-react'
 import DataFreshness from '../common/DataFreshness'
+import LoadMoreRecords from '../common/LoadMoreRecords'
+import useProgressiveList from '../../hooks/useProgressiveList'
 
 const money = (value, currency = 'INR') => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(Number(value ?? 0))
 
@@ -8,6 +10,7 @@ export default function MerchantOperations({ orders, workspace, state, onRetry }
   const orderStates = operations.orders_by_status ?? {}
   const webhookStates = operations.webhooks_by_state ?? {}
   const paidOrders = orders.filter((order) => order.status === 'PAID')
+  const { visibleItems: visiblePaidOrders, shownCount, remainingCount, nextBatchCount, loadMore } = useProgressiveList(paidOrders, 5)
   if (state.loading && !workspace) return <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">Loading payments and orders…</section>
   if (state.error && !workspace)
     return (
@@ -65,7 +68,7 @@ export default function MerchantOperations({ orders, workspace, state, onRetry }
           <p className="mt-3 rounded-xl border border-dashed border-emerald-950/15 bg-[#f7faf5] p-4 text-sm text-slate-500">No completed payments yet.</p>
         ) : (
           <div className="mt-2 divide-y divide-emerald-950/10 border-y border-emerald-950/10">
-            {paidOrders.slice(0, 5).map((order) => (
+            {visiblePaidOrders.map((order) => (
               <article key={order.order_id} className="flex flex-col justify-between gap-2 py-3 sm:flex-row sm:items-center">
                 <div>
                   <p className="text-sm font-semibold text-[#17372f]">{order.items.map((item) => item.product_title).join(', ')}</p>
@@ -80,6 +83,7 @@ export default function MerchantOperations({ orders, workspace, state, onRetry }
             ))}
           </div>
         )}
+        <LoadMoreRecords shownCount={shownCount} totalCount={paidOrders.length} remainingCount={remainingCount} nextBatchCount={nextBatchCount} onLoadMore={loadMore} noun="orders" />
       </div>
     </section>
   )

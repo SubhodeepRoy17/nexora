@@ -1,4 +1,6 @@
-import { AlertTriangle, Check, CircleDollarSign, Radio, RotateCcw, Search, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, CircleDollarSign, Radio, RotateCcw, Search, Sparkles, Wifi } from 'lucide-react'
+import LoadMoreRecords from '../common/LoadMoreRecords'
+import useProgressiveList from '../../hooks/useProgressiveList'
 
 const typeStyles = {
   converted: { icon: CircleDollarSign, color: 'bg-emerald-500 text-white', label: 'Sale completed', labelColor: 'text-emerald-700' },
@@ -9,13 +11,23 @@ const typeStyles = {
 }
 
 export default function AgentTimelineFeed({ events, expanded = false }) {
-  const visibleEvents = expanded ? events : events.slice(0, 5)
+  const pageSize = expanded ? 8 : 5
+  const { visibleItems: visibleEvents, shownCount, remainingCount, nextBatchCount, loadMore } = useProgressiveList(events, pageSize)
 
   return (
     <section className="merchant-card merchant-reveal rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
-      <header className="flex items-center justify-between gap-4"><div className="flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><Radio size={16} /></span><h2 className="text-base font-semibold text-[#17372f]">Recent shopper activity</h2></div><span className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />Live</span></header>
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><Radio size={16} /></span><h2 className="text-base font-semibold text-[#17372f]">Recent shopper activity</h2></div>
+        <span className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[.08em] text-emerald-700">
+          <span className="relative grid size-5 place-items-center">
+            <span className="absolute size-4 animate-ping rounded-full bg-emerald-400/25" />
+            <Wifi size={13} className="relative" strokeWidth={2.4} />
+          </span>
+          Live
+        </span>
+      </header>
 
-      <div className="relative mt-5 space-y-5 before:absolute before:bottom-2 before:left-[13px] before:top-2 before:w-px before:bg-emerald-950/10">
+      <div className="relative mt-5 space-y-5 before:absolute before:bottom-2 before:left-[13px] before:top-2 before:w-0.5 before:rounded-full before:bg-gradient-to-b before:from-emerald-400 before:via-emerald-200 before:to-emerald-950/10">
         {visibleEvents.length === 0 && <p className="rounded-xl border border-dashed border-emerald-950/15 bg-[#f7faf5] p-4 text-sm text-[#31594f]/65">No shopper activity yet. New searches and order updates will appear automatically.</p>}
         {visibleEvents.map((event) => {
           const style = typeStyles[event.type] ?? typeStyles.searched
@@ -33,6 +45,7 @@ export default function AgentTimelineFeed({ events, expanded = false }) {
           )
         })}
       </div>
+      <LoadMoreRecords shownCount={shownCount} totalCount={events.length} remainingCount={remainingCount} nextBatchCount={nextBatchCount} onLoadMore={loadMore} noun="activities" />
     </section>
   )
 }

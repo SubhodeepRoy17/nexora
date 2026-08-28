@@ -76,14 +76,14 @@ export default function DashboardOverview({ analytics, inventory, events, onNavi
         <button type="button" onClick={() => onNavigate('inventory')} className="focus-ring rounded-full bg-[#17372f] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-violet-700">Manage products</button>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
+      <div className="grid items-start gap-5 xl:grid-cols-[1.2fr_.8fr]">
         <div>
           <div className="mb-2 flex justify-end">
             <DataFreshness updatedAt={timelineState.updatedAt} loading={timelineState.loading} staleAfterMs={20000} dark />
           </div>
           <AgentTimelineFeed events={events} />
         </div>
-        <section className="merchant-card merchant-reveal rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
+        <section className="merchant-card merchant-reveal h-fit self-start rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><Sparkles size={15} /></span>

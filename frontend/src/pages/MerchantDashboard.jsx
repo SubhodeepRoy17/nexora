@@ -263,14 +263,6 @@ export default function MerchantDashboard() {
             </div>
 
             <div className="modal-scroll mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="mt-3 flex w-full items-center gap-2.5 rounded-xl border border-emerald-950/10 bg-white/70 p-3 shadow-[0_8px_24px_rgba(49,89,79,.06)]" aria-label={`Selected merchant: ${workspace?.merchant?.name ?? user?.merchant?.name}`}>
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-violet-600 text-xs font-bold text-white shadow-[2px_2px_0_#c4b5fd]">{user?.merchant?.name?.slice(0, 2).toUpperCase() ?? 'NM'}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-semibold text-slate-800">{workspace?.merchant?.name ?? user?.merchant?.name}</span>
-                  <span className="mt-0.5 block font-mono text-[8px] text-emerald-700">PRIVATE SELLER WORKSPACE</span>
-                </span>
-              </div>
-
               <nav className="mt-6 space-y-1" aria-label="Merchant dashboard">
                 <p className="mono-label mb-2 px-3 text-slate-500">Workspace</p>
                 {tabs.map(({ id, label, icon: Icon }) => (

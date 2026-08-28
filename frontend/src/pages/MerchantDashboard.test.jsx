@@ -43,10 +43,10 @@ describe('owner-scoped merchant workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Open sidebar' }))
     expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveTextContent('NEXORA')
     expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveAttribute('href', '/')
-    expect(await screen.findByLabelText('Selected merchant: Authenticated Shop')).toBeInTheDocument()
     await waitFor(() => expect(apiMocks.getProducts).toHaveBeenCalled())
     expect(apiMocks.getProducts.mock.calls[0]).toHaveLength(1)
-    expect(screen.getByText('PRIVATE SELLER WORKSPACE')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Selected merchant: Authenticated Shop')).not.toBeInTheDocument()
+    expect(screen.queryByText('PRIVATE SELLER WORKSPACE')).not.toBeInTheDocument()
   })
 
   it('renders honest empty states for catalog, paid orders, timeline, and relationships', async () => {

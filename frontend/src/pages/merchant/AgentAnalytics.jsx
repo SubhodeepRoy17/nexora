@@ -1,5 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, RefreshCw, Target, TrendingDown } from 'lucide-react'
 import DataFreshness from '../../components/common/DataFreshness'
+import LoadMoreRecords from '../../components/common/LoadMoreRecords'
+import useProgressiveList from '../../hooks/useProgressiveList'
 
 const money = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -44,6 +46,16 @@ const metricConfig = [
 ]
 
 export default function AgentAnalytics({ analytics, state, onRetry }) {
+  const losses = analytics?.lost_opportunities?.breakdown ?? []
+  const growth = analytics?.growth?.real ?? {}
+  const topComplements = analytics?.growth?.top_converting_complements ?? []
+  const rejectedOffers = analytics?.growth?.rejected_offers ?? []
+  const compatibilityGaps = analytics?.growth?.compatibility_gaps ?? []
+  const complementList = useProgressiveList(topComplements, 3)
+  const rejectedList = useProgressiveList(rejectedOffers, 3)
+  const gapList = useProgressiveList(compatibilityGaps, 3)
+  const lossList = useProgressiveList(losses, 4)
+
   if (state.loading && !analytics)
     return (
       <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">
@@ -59,12 +71,6 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
         </button>
       </div>
     )
-  const losses = analytics?.lost_opportunities?.breakdown ?? []
-  const growth = analytics?.growth?.real ?? {}
-  const topComplements = analytics?.growth?.top_converting_complements ?? []
-  const rejectedOffers = analytics?.growth?.rejected_offers ?? []
-  const compatibilityGaps = analytics?.growth?.compatibility_gaps ?? []
-
   return (
     <div>
       <div className="mb-3 flex justify-end">
@@ -132,40 +138,43 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
             <p className="mt-1 text-xs text-slate-500">Declined without changing checkout</p>
           </article>
         </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+        <div className="mt-4 grid items-start gap-3 lg:grid-cols-3">
+          <div className="h-fit rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
               <ArrowUpRight size={14} className="text-emerald-700" /> Top product pairings
             </p>
-            {topComplements.map((item) => (
+            {complementList.visibleItems.map((item) => (
               <p key={`${item.product_id}-${item.product_title}`} className="mt-3 text-xs text-slate-600">
                 {item.product_title} · {item.paid_attachments} paid · {money(item.revenue)}
               </p>
             ))}
             {!topComplements.length && <p className="mt-3 text-xs text-slate-500">No purchased pairing yet.</p>}
+            <LoadMoreRecords shownCount={complementList.shownCount} totalCount={topComplements.length} remainingCount={complementList.remainingCount} nextBatchCount={complementList.nextBatchCount} onLoadMore={complementList.loadMore} noun="pairings" />
           </div>
-          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+          <div className="h-fit rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
               <PackageX size={14} className="text-rose-600" /> Declined offers
             </p>
-            {rejectedOffers.map((item) => (
+            {rejectedList.visibleItems.map((item) => (
               <p key={`${item.product_id}-${item.product__title}`} className="mt-3 text-xs text-slate-600">
                 {item.product__title} · {item.rejections} rejected
               </p>
             ))}
             {!rejectedOffers.length && <p className="mt-3 text-xs text-slate-500">No declined offers yet.</p>}
+            <LoadMoreRecords shownCount={rejectedList.shownCount} totalCount={rejectedOffers.length} remainingCount={rejectedList.remainingCount} nextBatchCount={rejectedList.nextBatchCount} onLoadMore={rejectedList.loadMore} noun="offers" />
           </div>
-          <div className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+          <div className="h-fit rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-[#17372f]">
               <Puzzle size={14} className="text-amber-600" /> Pairings needing attention
             </p>
-            {compatibilityGaps.map((item) => (
+            {gapList.visibleItems.map((item) => (
               <p key={item.source_product_id} className="mt-3 text-xs text-slate-600">
                 {item.source_product__title} · {item.gap_count} pairing
                 {item.gap_count === 1 ? ' needs' : 's need'} attention
               </p>
             ))}
             {!compatibilityGaps.length && <p className="mt-3 text-xs text-slate-500">All linked products are available.</p>}
+            <LoadMoreRecords shownCount={gapList.shownCount} totalCount={compatibilityGaps.length} remainingCount={gapList.remainingCount} nextBatchCount={gapList.nextBatchCount} onLoadMore={gapList.loadMore} noun="gaps" />
           </div>
         </div>
       </section>
@@ -183,7 +192,7 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
         </header>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          {losses.map((insight) => (
+          {lossList.visibleItems.map((insight) => (
             <article key={`${insight.reason}-${insight.product_id}-${insight.product_title}`} className={`rounded-xl border p-4 ${insight.reason === 'PRICE' ? 'border-rose-200 bg-rose-50/70' : 'border-amber-200 bg-amber-50/70'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -197,6 +206,7 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
           ))}
           {losses.length === 0 && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">No price or stock losses have been recorded yet.</div>}
         </div>
+        <LoadMoreRecords shownCount={lossList.shownCount} totalCount={losses.length} remainingCount={lossList.remainingCount} nextBatchCount={lossList.nextBatchCount} onLoadMore={lossList.loadMore} noun="missed-sale records" />
 
         <div className="mt-4 flex gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
           <Lightbulb size={15} className="mt-0.5 shrink-0 text-violet-700" />

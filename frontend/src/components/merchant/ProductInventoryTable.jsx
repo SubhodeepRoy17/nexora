@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Check, ChevronDown, Edit3, Package, Pencil, Plus, Search, X } from 'lucide-react'
 import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
+import useProgressiveList from '../../hooks/useProgressiveList'
+import LoadMoreRecords from '../common/LoadMoreRecords'
 
 const money = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -64,6 +66,13 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
       }),
     [products, query, status],
   )
+  const {
+    visibleItems: visibleProducts,
+    shownCount,
+    remainingCount,
+    nextBatchCount,
+    loadMore,
+  } = useProgressiveList(filtered, 8, `${query}:${status}`)
 
   const beginPriceEdit = (product) => {
     setEditingPriceId(product.id)
@@ -119,7 +128,7 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
               </tr>
             </thead>
             <tbody>
-              {filtered.map((product) => (
+              {visibleProducts.map((product) => (
                 <tr key={product.id} className="border-b border-slate-200 bg-white text-xs transition even:bg-slate-50 last:border-0 hover:bg-violet-50">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -186,13 +195,16 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
           </table>
           {!filtered.length && <div className="grid h-44 place-items-center text-sm text-slate-500">No products match this view.</div>}
         </div>
-        <footer className="flex items-center justify-between border-t border-emerald-950/10 px-5 py-3">
-          <p className="text-xs text-slate-500">
-            {filtered.length} of {products.length} products
-          </p>
-          <p className="text-xs text-slate-500">
-            <span className="font-semibold text-emerald-700">{products.filter((product) => product.active).length}</span> visible to shoppers
-          </p>
+        <footer className="border-t border-emerald-950/10 px-5 py-3">
+          <LoadMoreRecords shownCount={shownCount} totalCount={filtered.length} remainingCount={remainingCount} nextBatchCount={nextBatchCount} onLoadMore={loadMore} noun="products" />
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              {filtered.length} matching · {products.length} total
+            </p>
+            <p className="text-xs text-slate-500">
+              <span className="font-semibold text-emerald-700">{products.filter((product) => product.active).length}</span> visible to shoppers
+            </p>
+          </div>
         </footer>
       </section>
       <SpecViewer product={specProduct} onClose={() => setSpecProduct(null)} />

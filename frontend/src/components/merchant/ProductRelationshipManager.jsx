@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link2, Plus, Trash2 } from 'lucide-react'
+import LoadMoreRecords from '../common/LoadMoreRecords'
+import useProgressiveList from '../../hooks/useProgressiveList'
 
 const emptyForm = {
   source_product: '',
@@ -14,6 +16,13 @@ export default function ProductRelationshipManager({ products, relationships, on
   const [form, setForm] = useState(emptyForm)
   const activeProducts = useMemo(() => products.filter((product) => product.active && product.stock > 0), [products])
   const ready = form.source_product && form.related_product && form.source_product !== form.related_product && form.benefit.trim()
+  const {
+    visibleItems: visibleRelationships,
+    shownCount,
+    remainingCount,
+    nextBatchCount,
+    loadMore,
+  } = useProgressiveList(relationships, 6)
 
   const submit = async (event) => {
     event.preventDefault()
@@ -121,7 +130,7 @@ export default function ProductRelationshipManager({ products, relationships, on
         </div>
       </form>
       <div className="mt-4 grid gap-2 lg:grid-cols-2">
-        {relationships.map((item) => (
+        {visibleRelationships.map((item) => (
           <article key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#17372f]">
@@ -145,6 +154,7 @@ export default function ProductRelationshipManager({ products, relationships, on
         ))}
         {relationships.length === 0 && <p className="rounded-xl border border-dashed border-emerald-950/15 bg-[#f7faf5] p-4 text-sm text-slate-500">No product pairings yet. No optional offers will be shown.</p>}
       </div>
+      <LoadMoreRecords shownCount={shownCount} totalCount={relationships.length} remainingCount={remainingCount} nextBatchCount={nextBatchCount} onLoadMore={loadMore} noun="pairings" />
     </section>
   )
 }
