@@ -64,14 +64,12 @@ describe('approval-gated checkout', () => {
     expect(screen.getByLabelText('Pay, current step')).toHaveAttribute('aria-current', 'step')
   })
 
-  it('sizes the desktop overlay to the shared workspace sidebar state', () => {
-    const { rerender } = renderCheckout({ sidebarOpen: true })
-    expect(screen.getByRole('dialog').parentElement).toHaveAttribute('data-sidebar-state', 'expanded')
-    expect(screen.getByRole('dialog').parentElement).toHaveClass('lg:left-[288px]')
+  it('covers and blurs the entire workspace behind the checkout', () => {
+    renderCheckout()
+    const overlay = screen.getByRole('dialog').parentElement
 
-    rerender(<MemoryRouter><CheckoutModal product={product} onClose={vi.fn()} onOrderPlaced={vi.fn()} sidebarOpen={false} /></MemoryRouter>)
-    expect(screen.getByRole('dialog').parentElement).toHaveAttribute('data-sidebar-state', 'collapsed')
-    expect(screen.getByRole('dialog').parentElement).toHaveClass('lg:left-[72px]')
+    expect(overlay).toHaveClass('fixed', 'inset-0', 'z-[100]', 'backdrop-blur-md')
+    expect(overlay).not.toHaveAttribute('data-sidebar-state')
   })
 
   it('shows a loading state inside the active progress step', async () => {
@@ -156,8 +154,9 @@ describe('approval-gated checkout', () => {
     const user = userEvent.setup(); renderCheckout({ onOrderPlaced: placed }); await reachQuote(user); await approve(user)
     expect(await screen.findByRole('heading', { name: 'Order confirmed' })).toBeInTheDocument()
     for (const label of ['Basket', 'Review', 'Pay', 'Done']) {
-      expect(screen.getByLabelText(`${label}, completed`).querySelector('[data-step-state="complete"]')).toHaveClass('bg-emerald-600')
+      expect(screen.getByLabelText(`${label}, completed`).querySelector('[data-step-state="complete"]')).toHaveClass('checkout-step-done', 'bg-emerald-600', 'text-white')
     }
+    expect(screen.getByRole('button', { name: 'Finish' })).toHaveClass('checkout-finish-button', 'bg-emerald-600', 'text-white')
     expect(placed).toHaveBeenCalledWith({ product, order: paidOrder })
   })
 })

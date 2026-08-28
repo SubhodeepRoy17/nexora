@@ -1456,6 +1456,34 @@
   transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease, transform .35s ease;
 }
 
+.checkout-step-node[data-step-state='complete'] {
+  border-color: #059669 !important;
+  background-color: #059669 !important;
+  color: #fff !important;
+}
+
+.checkout-step-node[data-step-state='complete'] svg {
+  opacity: 1;
+  color: #fff;
+  stroke: currentColor;
+}
+
+.checkout-finish-button {
+  border-color: #059669 !important;
+  background-color: #059669 !important;
+  color: #fff !important;
+}
+
+.checkout-finish-button svg {
+  color: #fff;
+  stroke: currentColor;
+}
+
+.checkout-finish-button:hover {
+  border-color: #047857 !important;
+  background-color: #047857 !important;
+}
+
 .checkout-step-done {
   animation: checkout-step-complete .42s cubic-bezier(.2, .9, .25, 1.25) both;
 }
@@ -1467,7 +1495,7 @@
 
 @keyframes checkout-overlay-enter {
   from { background-color: rgb(15 23 42 / 0); backdrop-filter: blur(0); }
-  to { background-color: rgb(15 23 42 / .45); backdrop-filter: blur(2px); }
+  to { background-color: rgb(15 23 42 / .55); backdrop-filter: blur(12px); }
 }
 
 @keyframes checkout-step-complete {

@@ -449,7 +449,7 @@ export default function BuyerChat() {
         </div>
       </main>
 
-      <CheckoutModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onOrderPlaced={confirmOrderPlaced} sidebarOpen={sidebarOpen} />
+      <CheckoutModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onOrderPlaced={confirmOrderPlaced} />
     </div>
   )
 }

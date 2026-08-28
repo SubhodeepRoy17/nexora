@@ -57,7 +57,7 @@ function CheckoutProgress({ steps, activeIndex, paid, loading }) {
   )
 }
 
-export default function CheckoutModal({ product, onClose, onOrderPlaced, sidebarOpen = false }) {
+export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [stage, setStage] = useState('cart')
@@ -328,7 +328,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced, sidebar
   ]
 
   return (
-    <div className={`checkout-overlay fixed bottom-0 right-0 top-16 z-50 flex items-end justify-center bg-slate-950/45 pt-3 backdrop-blur-[2px] transition-[left] duration-300 sm:top-20 sm:items-center sm:p-5 ${sidebarOpen ? 'left-0 lg:left-[288px]' : 'left-0 lg:left-[72px]'}`} role="presentation" data-sidebar-state={sidebarOpen ? 'expanded' : 'collapsed'} onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
+    <div className="checkout-overlay fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 pt-3 backdrop-blur-md sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" aria-describedby="checkout-description" className="checkout-dialog flex max-h-full min-h-0 w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,.24)] sm:max-h-[calc(100%-1rem)] sm:max-w-[1040px] sm:rounded-2xl">
         <header className="relative shrink-0 border-b border-slate-200 bg-white px-5 py-5 sm:px-8 sm:py-6">
           {!processing && (
@@ -568,7 +568,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced, sidebar
                 </button>
               )}
               {stage === 'paid' && (
-                <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(5,150,105,.2)] transition hover:border-emerald-700 hover:bg-emerald-700">
+                <button type="button" onClick={onClose} className="checkout-finish-button focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(5,150,105,.2)] transition hover:border-emerald-700 hover:bg-emerald-700">
                   <Check size={16} /> Finish
                 </button>
               )}
