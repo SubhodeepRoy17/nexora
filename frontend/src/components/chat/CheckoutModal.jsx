@@ -26,8 +26,8 @@ const statusMessages = {
 
 function CheckoutProgress({ steps, activeIndex, paid, loading }) {
   return (
-    <nav className="border-b border-[#17372f]/10 bg-white px-4 py-5 sm:px-8 sm:py-6" aria-label="Checkout progress">
-      <ol className="mx-auto grid max-w-3xl grid-cols-4">
+    <nav className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-8 sm:py-5" aria-label="Checkout progress">
+      <ol className="mx-auto grid max-w-2xl grid-cols-4">
         {steps.map(({ label }, index) => {
           const complete = index < activeIndex || (paid && index === activeIndex)
           const current = index === activeIndex && !complete
@@ -40,15 +40,15 @@ function CheckoutProgress({ steps, activeIndex, paid, loading }) {
               className="relative flex min-w-0 flex-col items-center text-center"
             >
               {index < steps.length - 1 && (
-                <span className={`absolute left-1/2 top-4 h-px w-full transition-colors duration-500 sm:top-[1.125rem] ${index < activeIndex ? 'bg-emerald-500' : 'bg-[#17372f]/15'}`} aria-hidden="true" />
+                <span className={`absolute left-1/2 top-[15px] h-0.5 w-full transition-colors duration-500 sm:top-[17px] ${index < activeIndex ? 'bg-emerald-500' : 'bg-slate-200'}`} aria-hidden="true" />
               )}
               <span
                 data-step-state={complete ? 'complete' : current ? 'current' : 'upcoming'}
-                className={`checkout-step-node relative z-10 grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-semibold sm:size-9 ${complete ? 'checkout-step-done border-emerald-600 bg-emerald-600 text-white' : current ? 'border-[#17372f] bg-[#17372f] text-white shadow-[0_0_0_4px_rgba(23,55,47,.1)]' : 'border-[#17372f]/15 bg-white text-[#31594f]/45'}`}
+                className={`checkout-step-node relative z-10 grid size-8 shrink-0 place-items-center rounded-full border-2 text-[11px] font-semibold sm:size-9 ${complete ? 'checkout-step-done border-emerald-600 bg-emerald-600 text-white shadow-[0_0_0_4px_rgba(5,150,105,.1)]' : current ? 'border-[#17372f] bg-white text-[#17372f] shadow-[0_0_0_4px_rgba(23,55,47,.08)]' : 'border-slate-200 bg-white text-slate-400'}`}
               >
                 {complete ? <Check size={15} strokeWidth={3} /> : busy ? <LoaderCircle size={15} className="animate-spin" /> : index + 1}
               </span>
-              <span className={`mt-2 w-full truncate px-1 text-[10px] font-semibold sm:text-xs ${complete ? 'text-emerald-700' : current ? 'text-[#17372f]' : 'text-[#31594f]/45'}`}>{label}</span>
+              <span className={`mt-2 w-full truncate px-0.5 text-[9px] font-medium sm:text-xs ${complete ? 'text-emerald-700' : current ? 'text-[#17372f]' : 'text-slate-400'}`}>{label}</span>
             </li>
           )
         })}
@@ -57,7 +57,7 @@ function CheckoutProgress({ steps, activeIndex, paid, loading }) {
   )
 }
 
-export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
+export default function CheckoutModal({ product, onClose, onOrderPlaced, sidebarOpen = false }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [stage, setStage] = useState('cart')
@@ -328,30 +328,31 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
   ]
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-16 z-50 grid place-items-end bg-[#17372f]/55 backdrop-blur-sm sm:top-20 sm:place-items-center sm:p-5" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" className="modal-scroll checkout-dialog max-h-full w-full overflow-y-auto rounded-t-[1.75rem] border border-white/80 bg-[#fbfcf9] text-slate-950 shadow-[0_32px_90px_rgba(12,35,29,.28)] sm:max-w-5xl sm:rounded-[1.75rem]">
-        <header className="relative border-b border-[#17372f]/10 bg-[#f4f7f1] px-5 py-5 sm:px-8 sm:py-6">
+    <div className={`checkout-overlay fixed bottom-0 right-0 top-16 z-50 flex items-end justify-center bg-slate-950/45 pt-3 backdrop-blur-[2px] transition-[left] duration-300 sm:top-20 sm:items-center sm:p-5 ${sidebarOpen ? 'left-0 lg:left-[288px]' : 'left-0 lg:left-[72px]'}`} role="presentation" data-sidebar-state={sidebarOpen ? 'expanded' : 'collapsed'} onMouseDown={(event) => event.target === event.currentTarget && safeClose()}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="checkout-title" aria-describedby="checkout-description" className="checkout-dialog flex max-h-full min-h-0 w-full flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white text-slate-950 shadow-[0_24px_80px_rgba(15,23,42,.24)] sm:max-h-[calc(100%-1rem)] sm:max-w-[1040px] sm:rounded-2xl">
+        <header className="relative shrink-0 border-b border-slate-200 bg-white px-5 py-5 sm:px-8 sm:py-6">
           {!processing && (
-            <button type="button" onClick={onClose} aria-label="Close checkout" className="focus-ring absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-[#17372f]/10 bg-white text-[#31594f] transition hover:bg-[#edf3ea] sm:right-6 sm:top-6">
+            <button type="button" onClick={onClose} aria-label="Close checkout" className="focus-ring absolute right-4 top-4 grid size-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800 sm:right-6 sm:top-6">
               <X size={16} />
             </button>
           )}
-          <div className="flex max-w-3xl items-start gap-3 pr-10 sm:gap-4">
-            <span className={`grid size-10 shrink-0 place-items-center rounded-full ${stage === 'paid' ? 'bg-emerald-600 text-white' : stopped ? 'bg-rose-100 text-rose-700' : 'bg-[#17372f] text-white'}`}>{stage === 'paid' ? <PackageCheck size={19} /> : stopped ? <AlertTriangle size={18} /> : <LockKeyhole size={18} />}</span>
+          <div className="flex max-w-3xl items-start gap-3 pr-12 sm:gap-4">
+            <span className={`grid size-10 shrink-0 place-items-center rounded-xl border ${stage === 'paid' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : stopped ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-slate-50 text-[#17372f]'}`}>{stage === 'paid' ? <PackageCheck size={19} /> : stopped ? <AlertTriangle size={18} /> : <LockKeyhole size={18} />}</span>
             <div>
-              <p className={`text-[10px] font-semibold ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-[#31594f]'}`}>Secure checkout</p>
-              <h2 id="checkout-title" className="mt-1 text-xl font-semibold tracking-[-.025em] text-[#17372f] sm:text-2xl">
+              <p className={`text-[10px] font-semibold uppercase tracking-[.12em] ${stopped ? 'text-rose-700' : stage === 'paid' ? 'text-emerald-700' : 'text-slate-500'}`}>Nexora protected checkout</p>
+              <h2 id="checkout-title" className="mt-1.5 text-xl font-semibold tracking-[-.025em] text-slate-950 sm:text-2xl">
                 {stageTitle}
               </h2>
-              <p className="mt-1.5 text-xs leading-5 text-[#31594f]/75 sm:text-sm">{stageCopy}</p>
+              <p id="checkout-description" className="mt-1.5 text-xs leading-5 text-slate-500 sm:text-sm">{stageCopy}</p>
             </div>
           </div>
         </header>
 
         <CheckoutProgress steps={checkoutSteps} activeIndex={stepIndex} paid={stage === 'paid'} loading={stepLoading} />
 
-        <div className="grid lg:grid-cols-[1.12fr_.88fr]">
-          <div className="p-5 sm:p-8 lg:border-r lg:border-[#17372f]/10">
+        <div className="modal-scroll min-h-0 flex-1 overflow-y-auto">
+          <div className="grid lg:min-h-full lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
+            <div className="p-5 sm:p-8 lg:border-r lg:border-slate-200">
             {error && (
               <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800" role="alert">
                 <p className="font-semibold">{error}</p>
@@ -504,11 +505,14 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 )}
               </section>
             )}
-          </div>
+            </div>
 
-          <aside className="bg-[#f4f7f1] p-5 sm:p-8">
-            <div className="lg:sticky lg:top-0">
-              <h3 className="text-base font-semibold text-[#17372f]">Order summary</h3>
+            <aside className="border-t border-slate-200 bg-slate-50/80 p-5 sm:p-8 lg:border-t-0">
+              <div className="lg:sticky lg:top-8">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold text-slate-950">Order summary</h3>
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[.08em] text-slate-500">INR</span>
+              </div>
               <div className="mt-4 divide-y divide-[#17372f]/10 border-y border-[#17372f]/10">
                 {displayLines.map((item, index) => (
                   <div key={item.product ?? `${item.product_title}-${index}`} className="flex justify-between gap-4 py-4">
@@ -535,22 +539,22 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                   </span>
                 </div>
               )}
-              <div className="mt-5 flex items-end justify-between">
+              <div className="mt-5 flex items-end justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div>
                   <p className="text-xs text-slate-500">{quote ? 'Exact quote total' : 'Estimated total'}</p>
                   <p className="mt-1 text-[10px] text-slate-400">Taxes included where applicable</p>
                 </div>
-                <p className="text-2xl font-bold tracking-tight">{money(total)}</p>
+                <p className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">{money(total)}</p>
               </div>
 
               {stage === 'cart' && (
-                <button type="button" disabled={!choicesComplete} onClick={() => requestQuote()} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(23,55,47,.16)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
+                <button type="button" disabled={!choicesComplete} onClick={() => requestQuote()} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(23,55,47,.16)] transition hover:border-[#244d42] hover:bg-[#244d42] disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
                   {user ? (choicesComplete ? 'See final total' : 'Answer each add-on offer') : 'Sign in to continue'} <ChevronRight size={15} />
                 </button>
               )}
               {stage === 'quote' && (
                 <>
-                  <button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(23,55,47,.16)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
+                  <button type="button" disabled={!approvedExactQuote || remainingSeconds <= 0} onClick={approveAndReserve} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-[#17372f] bg-[#17372f] py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(23,55,47,.16)] transition hover:border-[#244d42] hover:bg-[#244d42] disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300 disabled:shadow-none">
                     <CreditCard size={16} /> Approve & pay
                   </button>
                   <button type="button" onClick={() => requestQuote(Number(quote.policy_snapshot?.limits?.max_item_quantity ?? 5) + 1)} className="focus-ring mt-3 w-full py-2 text-[9px] text-slate-400 hover:text-rose-600">
@@ -564,7 +568,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                 </button>
               )}
               {stage === 'paid' && (
-                <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(5,150,105,.15)]">
+                <button type="button" onClick={onClose} className="focus-ring mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(5,150,105,.2)] transition hover:border-emerald-700 hover:bg-emerald-700">
                   <Check size={16} /> Finish
                 </button>
               )}
@@ -579,7 +583,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                     approvalKey.current = newIdempotencyKey('quote-approval')
                     paymentKey.current = newIdempotencyKey('payment-order')
                   }}
-                  className="focus-ring mt-6 w-full rounded-xl border border-[#17372f] bg-[#17372f] py-3 text-sm font-semibold text-white transition hover:border-violet-700 hover:bg-violet-700"
+                  className="focus-ring mt-6 w-full rounded-xl border border-[#17372f] bg-[#17372f] py-3 text-sm font-semibold text-white transition hover:border-[#244d42] hover:bg-[#244d42]"
                 >
                   Return to basket and retry
                 </button>
@@ -594,8 +598,9 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
                   <ShieldCheck size={14} className="text-emerald-600" /> Payment completes only after confirmation.
                 </p>
               </div>
-            </div>
-          </aside>
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
     </div>

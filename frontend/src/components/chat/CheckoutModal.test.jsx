@@ -64,6 +64,16 @@ describe('approval-gated checkout', () => {
     expect(screen.getByLabelText('Pay, current step')).toHaveAttribute('aria-current', 'step')
   })
 
+  it('sizes the desktop overlay to the shared workspace sidebar state', () => {
+    const { rerender } = renderCheckout({ sidebarOpen: true })
+    expect(screen.getByRole('dialog').parentElement).toHaveAttribute('data-sidebar-state', 'expanded')
+    expect(screen.getByRole('dialog').parentElement).toHaveClass('lg:left-[288px]')
+
+    rerender(<MemoryRouter><CheckoutModal product={product} onClose={vi.fn()} onOrderPlaced={vi.fn()} sidebarOpen={false} /></MemoryRouter>)
+    expect(screen.getByRole('dialog').parentElement).toHaveAttribute('data-sidebar-state', 'collapsed')
+    expect(screen.getByRole('dialog').parentElement).toHaveClass('lg:left-[72px]')
+  })
+
   it('shows a loading state inside the active progress step', async () => {
     let releaseCart
     apiMocks.createCart.mockReturnValue(new Promise((resolve) => { releaseCart = resolve }))
