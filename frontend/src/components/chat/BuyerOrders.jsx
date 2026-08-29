@@ -275,7 +275,7 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
   if (!user) return null
   return (
     <>
-      <section className="mt-6 border-t border-emerald-950/10 pt-5" aria-labelledby="buyer-orders-title">
+      <section className="flex min-h-0 flex-[2] flex-col border-t border-emerald-950/10 pt-4" aria-labelledby="buyer-orders-title">
         <div className="px-2">
           <p id="buyer-orders-title" className="text-sm font-semibold text-[#17372f]">
             Orders
@@ -287,8 +287,8 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
           </button>
         )}
         {!state.loading && !orders.length && <p className="mt-2 px-2 text-xs leading-5 text-slate-500">No orders yet.</p>}
-        <div className="mt-2 space-y-1">
-          {orders.slice(0, 4).map((order) => (
+        <div className="modal-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          {orders.map((order) => (
             <button key={order.order_id} type="button" onClick={() => setSelected(order)} className="focus-ring flex w-full items-center gap-2 rounded-xl border border-emerald-950/10 bg-white/58 px-2.5 py-2 text-left transition hover:bg-white">
               <Package size={12} className="shrink-0 text-violet-600" />
               <span className="min-w-0 flex-1">

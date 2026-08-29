@@ -45,7 +45,7 @@ export default function ProductRecommendationCard({ product, featured = false, o
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-slate-200 pt-4">
           <div>{product.originalPrice > product.price && <p className="text-xs text-slate-400 line-through">{money(product.originalPrice)}</p>}<p className="mt-0.5 text-lg font-bold tracking-tight text-slate-950">{money(product.price)}</p><p className="mt-1 text-xs text-emerald-700">{product.stock}</p></div>
-          <button type="button" disabled={product.historical} onClick={() => onApprove(product)} className="focus-ring flex items-center gap-1.5 rounded-full border border-[#17372f] bg-[#17372f] px-3 py-2.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(23,55,47,.18)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none">{product.historical ? 'Saved result' : 'Approve & Buy'} {!product.historical && <ArrowUpRight size={13} />}</button>
+          <button type="button" onClick={() => onApprove(product)} className="focus-ring flex items-center gap-1.5 rounded-full border border-[#17372f] bg-[#17372f] px-3 py-2.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(23,55,47,.18)] transition hover:-translate-y-0.5 hover:border-violet-700 hover:bg-violet-700">Approve & Buy <ArrowUpRight size={13} /></button>
         </div>
         {product.addOns?.length > 0 && <p className="mt-3 border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs text-violet-700">{product.addOns.length} optional add-on{product.addOns.length === 1 ? '' : 's'} available</p>}
       </div>

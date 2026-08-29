@@ -243,6 +243,51 @@ describe('live buyer search', () => {
     expect(screen.queryByText('Here is the first answer.')).not.toBeInTheDocument()
   })
 
+  it('copies and regenerates an assistant response from its preceding user message', async () => {
+    const conversationId = '91919191-9191-4191-8191-919191919191'
+    const userMessageId = '92929292-9292-4292-8292-929292929292'
+    apiMocks.searchProducts
+      .mockResolvedValueOnce({ data: { conversation_id: conversationId, user_message_id: userMessageId, assistant_message_id: '93939393-9393-4393-8393-939393939393', summary_reasoning: 'The first grounded answer.', recommendations: [], add_on_suggestions: [] } })
+      .mockResolvedValueOnce({ data: { conversation_id: conversationId, user_message_id: '94949494-9494-4494-8494-949494949494', assistant_message_id: '95959595-9595-4595-8595-959595959595', summary_reasoning: 'The regenerated grounded answer.', recommendations: [], add_on_suggestions: [] } })
+    const user = userEvent.setup()
+    const clipboard = vi.spyOn(navigator.clipboard, 'writeText')
+    renderBuyer()
+
+    await user.type(screen.getByLabelText('Shopping intent'), 'backpack under 6000')
+    await user.click(screen.getByLabelText('Send shopping intent'))
+    await screen.findByLabelText('The first grounded answer.')
+    await user.click(screen.getByRole('button', { name: 'Copy response' }))
+    expect(clipboard).toHaveBeenCalledWith('The first grounded answer.')
+
+    await user.click(screen.getByRole('button', { name: 'Regenerate response' }))
+    await screen.findByLabelText('The regenerated grounded answer.')
+    expect(apiMocks.searchProducts).toHaveBeenLastCalledWith('backpack under 6000', expect.any(AbortSignal), {
+      conversationId,
+      conversationToken: null,
+      editMessageId: userMessageId,
+    })
+    expect(screen.queryByText('The first grounded answer.')).not.toBeInTheDocument()
+  })
+
+  it('keeps recommendations from an owned past chat ready for checkout', async () => {
+    authState.user = { id: 14, display_name: 'Buyer', email: 'buyer@example.test' }
+    const conversation = {
+      conversation_id: '96969696-9696-4696-8696-969696969696',
+      title: 'Saved backpack search',
+      updated_at: '2026-08-29T10:00:00Z',
+      messages: [
+        { message_id: '97979797-9797-4797-8797-979797979797', role: 'USER', content: 'backpack under 6000', metadata: {}, created_at: '2026-08-29T10:00:00Z' },
+        { message_id: '98989898-9898-4898-8898-989898989898', role: 'ASSISTANT', content: 'This backpack fits.', created_at: '2026-08-29T10:00:01Z', metadata: { recommendations: [{ product_id: 71, title: 'Travel Backpack', merchant: 'Nexora Shop', price: '4999.00', stock_quantity: 4, reason: 'Within budget.', tradeoffs: [], decision_id: 'd71', decision_token: 'fresh-private-history-token' }] } },
+      ],
+    }
+    apiMocks.getChatSessions.mockResolvedValue({ data: { results: [conversation] } })
+    apiMocks.getChatSession.mockResolvedValue({ data: conversation })
+    renderBuyer()
+
+    expect(await screen.findByRole('button', { name: /Approve & Buy/ })).toBeEnabled()
+    expect(screen.queryByText('Saved result')).not.toBeInTheDocument()
+  })
+
   it('copies a public share link for the current signed-in chat', async () => {
     authState.user = { id: 10, display_name: 'Buyer', email: 'buyer@example.test' }
     const conversation = { conversation_id: '77777777-7777-4777-8777-777777777777', title: 'Shareable chat', updated_at: '2026-08-28T10:00:00Z', messages: [] }

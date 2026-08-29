@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Clock3, Copy, Pencil, Plus, Search, Share2, SquarePen, Trash2, X } from 'lucide-react'
+import { Check, Clock3, Copy, Pencil, Plus, RefreshCw, Search, Share2, SquarePen, Trash2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
@@ -141,10 +141,7 @@ const restoreMessages = (data) =>
   data.messages.map((message) => {
     const assistant = message.role === 'ASSISTANT'
     const products = assistant
-      ? (message.metadata?.recommendations ?? []).map((item) => ({
-          ...toRecommendationProduct(item),
-          historical: true,
-        }))
+      ? (message.metadata?.recommendations ?? []).map(toRecommendationProduct)
       : undefined
     return {
       id: message.message_id,
@@ -495,6 +492,11 @@ export default function BuyerChat() {
     }
   }
 
+  const regenerateResponse = (previousUserMessage) => {
+    if (!previousUserMessage || previousUserMessage.persisted === false || activeRun) return
+    submitMessage(previousUserMessage.text, { editMessageId: previousUserMessage.id })
+  }
+
   const confirmOrderPlaced = useCallback(
     ({ product, order }) => {
       setMessages((current) => [
@@ -573,10 +575,12 @@ export default function BuyerChat() {
               New search
             </button>
 
-            <div className="modal-scroll mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="mt-3">
-                <p className="px-2 text-xs font-semibold text-[#17372f]/75">Recent searches</p>
-                <div className="mt-2 space-y-1">
+            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden pr-1">
+              <section className="flex min-h-0 flex-[3] flex-col" aria-labelledby="recent-searches-title">
+                <div className="shrink-0">
+                  <p id="recent-searches-title" className="px-2 text-xs font-semibold text-[#17372f]/75">Recent searches</p>
+                </div>
+                <div className="modal-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                   {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-xs leading-5 text-[#31594f]/70">Sign in to save your searches.</div>}
                   {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
                   {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">No saved searches yet.</p>}
@@ -606,7 +610,7 @@ export default function BuyerChat() {
                     ))}
                   {historyError && <p className="px-3 py-2 text-xs leading-5 text-rose-600">{historyError}</p>}
                 </div>
-              </div>
+              </section>
 
               <BuyerOrders user={user} refreshNonce={orderRefreshNonce} onRetry={retryOrderSearch} />
             </div>
@@ -675,6 +679,9 @@ export default function BuyerChat() {
               {visibleMessages.map((message, messageIndex) => {
                 const latestAgent = message.role === 'agent' && !visibleMessages.slice(messageIndex + 1).some((item) => item.role === 'agent')
                 const editing = message.role === 'user' && String(editingMessage?.id) === String(message.id)
+                const previousUserMessage = message.role === 'agent'
+                  ? [...visibleMessages.slice(0, messageIndex)].reverse().find((item) => item.role === 'user')
+                  : null
                 return (
                   <div key={message.id} className={`buyer-message group flex gap-3 ${message.role === 'user' ? 'ml-auto max-w-2xl flex-row-reverse' : 'max-w-full'}`}>
                     {message.role === 'agent' && <AgentMark active={latestAgent} />}
@@ -716,6 +723,16 @@ export default function BuyerChat() {
                               <Pencil size={14} />
                             </button>
                           )}
+                        </div>
+                      )}
+                      {message.role === 'agent' && !message.status && (
+                        <div className="mt-1.5 flex items-center gap-1 text-[#31594f]/65">
+                          <button type="button" onClick={() => copyMessage(message)} aria-label="Copy response" title="Copy response" className="focus-ring grid size-8 place-items-center rounded-lg transition hover:bg-white hover:text-[#17372f]">
+                            {copiedMessageId === message.id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                          </button>
+                          <button type="button" disabled={Boolean(activeRun) || !previousUserMessage || previousUserMessage.persisted === false} onClick={() => regenerateResponse(previousUserMessage)} aria-label="Regenerate response" title="Regenerate response" className="focus-ring grid size-8 place-items-center rounded-lg transition hover:bg-white hover:text-[#17372f] disabled:cursor-not-allowed disabled:opacity-35">
+                            <RefreshCw size={14} />
+                          </button>
                         </div>
                       )}
                       {message.products && <SequentialProductCards products={message.products} ready={!message.animateText || typedMessageIds.has(message.id)} animate={Boolean(message.animateText)} onApprove={setSelectedProduct} />}

@@ -8,13 +8,14 @@ from apps.merchants.management.commands.rebuild_unique_production_catalog import
     UNIQUE_SOURCE,
     _source_key,
 )
+from apps.merchants.management.commands.normalize_catalog_english import english_catalog_title
 from apps.merchants.models import Product
 
 
 def source_product():
     return {
         "code": "8901058895780",
-        "product_name": "Hot & Sweet Sauce",
+        "product_name_en": "Hot & Sweet Sauce",
         "brands": "Maggi",
         "quantity": "500 g",
         "image_front_small_url": "https://images.openfoodfacts.org/example.200.jpg",
@@ -54,3 +55,19 @@ class UniqueProductionCatalogTests(SimpleTestCase):
         self.assertGreater(values["price"], Decimal("0"))
         self.assertLessEqual(values["price"], Decimal("2000"))
         Product(**values).full_clean(exclude=["merchant"])
+
+    def test_english_normalizer_uses_structured_category_not_source_language(self):
+        product = Product(
+            id=42,
+            title="Tartine sans huile de palme",
+            category="Groceries · Margarines",
+            specifications={
+                "brand": "ProActiv",
+                "quantity": "225 g",
+                "barcode": "8719200012608",
+            },
+        )
+
+        title = english_catalog_title(product, set())
+
+        self.assertEqual(title, "ProActiv · Margarines · 225 g")

@@ -25,7 +25,7 @@ def _money(value):
 
 
 def _display_title(product):
-    name = " ".join(str(product.get("product_name") or "").split())
+    name = " ".join(str(product.get("product_name_en") or "").split())
     brand = " ".join(str(product.get("brands") or "").split())
     quantity = " ".join(str(product.get("quantity") or "").split())
     if brand and brand.casefold() not in name.casefold():
@@ -176,7 +176,7 @@ class Command(BaseCommand):
             code = str(product.get("code") or row.get("product_code") or "").strip()
             if not (
                 code
-                and product.get("product_name")
+                and product.get("product_name_en")
                 and product.get("image_url")
                 and row.get("price")
                 and row.get("currency") == "INR"
@@ -252,7 +252,7 @@ class Command(BaseCommand):
             if len(tags) == 30:
                 break
         description = (
-            f"{product.get('product_name')} by {brand}, barcode {product['code']}, "
+            f"{row['_nexora_title']} by {brand}, barcode {product['code']}, "
             f"package {product.get('quantity') or 'not stated'}. {offer_note}"
         )
         return {

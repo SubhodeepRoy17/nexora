@@ -50,6 +50,13 @@ the host-managed `DATABASE_URL` secret.
 
    This command also runs the idempotent demo-account seed, then creates six CC0 demo products and five relationships only under that configured merchant. Use `Find the Nexora Nomad 75 quiet travel keyboard under ₹9000` for the deterministic primary-plus-add-on path and `Find a keyboard under ₹100` for the no-result path. Re-running the command resets only its named `is_demo` products; it refuses to overwrite a colliding non-demo product.
 
+Production Open Food Facts imports require the source's explicit English name.
+For catalogs created before that rule, preview `python manage.py
+normalize_catalog_english`, then run it with `--apply` against the production
+Neon database. The guarded command derives stable English titles from brand,
+English category, and package quantity, preserves global uniqueness, and
+refreshes the optional vector index when available.
+
 ## Browser authentication and CSRF
 
 Nexora uses Django session authentication for the React SPA:

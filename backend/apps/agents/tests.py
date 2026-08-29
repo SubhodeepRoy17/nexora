@@ -12,7 +12,8 @@ from rest_framework.test import APIClient
 
 from apps.merchants.models import Merchant, Product
 
-from .models import AgentSession, ChatConversation, ChatMessage
+from .models import AgentSession, ChatConversation, ChatMessage, RecommendationDecision
+from apps.orders.tokens import read_decision_token
 from .services import (
     AgentServiceError,
     BuyerAgentResponse,
@@ -782,6 +783,70 @@ class ConversationPrivacyTests(TestCase):
             reverse("agents:conversation-detail", kwargs={"conversation_id": conversation_id})
         )
         self.assertEqual(detail.status_code, 404)
+
+    def test_owned_history_reissues_a_fresh_checkout_token(self):
+        merchant_owner = get_user_model().objects.create_user(
+            username="history-merchant", password="test"
+        )
+        merchant = Merchant.objects.create(
+            owner=merchant_owner,
+            name="History Merchant",
+            email="history-merchant@example.test",
+        )
+        product = Product.objects.create(
+            merchant=merchant,
+            title="English Catalog Backpack",
+            description="A durable backpack.",
+            category="Laptop Backpacks",
+            price="4999.00",
+            stock_quantity=4,
+            specifications={},
+            tags=["backpack"],
+        )
+        conversation = ChatConversation.objects.create(
+            buyer=self.user, title="Backpack search"
+        )
+        session = AgentSession.objects.create(
+            buyer=self.user,
+            conversation=conversation,
+            user_request="backpack under 6000",
+            provider_source=AgentSession.Source.FALLBACK,
+            decision_summary="A grounded match.",
+        )
+        decision = RecommendationDecision.objects.create(
+            session=session,
+            product=product,
+            rank=1,
+            explanation="Within budget.",
+        )
+        ChatMessage.objects.create(
+            conversation=conversation,
+            role=ChatMessage.Role.ASSISTANT,
+            content="I found one option.",
+            metadata={
+                "recommendations": [
+                    {
+                        "product_id": product.id,
+                        "decision_id": str(decision.decision_id),
+                        "title": product.title,
+                    }
+                ]
+            },
+        )
+
+        self.client.force_authenticate(self.user)
+        detail = self.client.get(
+            reverse(
+                "agents:conversation-detail",
+                kwargs={"conversation_id": conversation.conversation_id},
+            )
+        )
+
+        self.assertEqual(detail.status_code, 200)
+        recommendation = detail.data["messages"][0]["metadata"]["recommendations"][0]
+        payload = read_decision_token(recommendation["decision_token"])
+        self.assertEqual(payload["decision_id"], str(decision.decision_id))
+        self.assertEqual(payload["product_id"], product.id)
 
     @patch("apps.agents.views.generate_conversation_title", return_value="Quiet Coding Keyboards")
     @patch("apps.agents.views.run_buyer_agent")

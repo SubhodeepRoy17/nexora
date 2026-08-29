@@ -146,7 +146,7 @@ class Command(BaseCommand):
                     {
                         "countries_tags_en": country,
                         "fields": (
-                            "code,product_name,brands,quantity,image_front_small_url,"
+                            "code,product_name_en,brands,quantity,image_front_small_url,"
                             "categories_tags,nutriscore_grade,ecoscore_grade"
                         ),
                         "sort_by": "unique_scans_n",
@@ -174,7 +174,7 @@ class Command(BaseCommand):
                     ) from last_error
                 for product in payload.get("products") or []:
                     code = str(product.get("code") or "").strip()
-                    name = " ".join(str(product.get("product_name") or "").split())
+                    name = " ".join(str(product.get("product_name_en") or "").split())
                     image_url = str(product.get("image_front_small_url") or "").strip()
                     if (
                         code
@@ -197,7 +197,7 @@ class Command(BaseCommand):
         return [selected[code] for code in sorted(selected)[:required]]
 
     def _title(self, product, used_titles):
-        name = " ".join(str(product.get("product_name") or "").split())
+        name = " ".join(str(product.get("product_name_en") or "").split())
         brand = " ".join(str(product.get("brands") or "").split())
         quantity = " ".join(str(product.get("quantity") or "").split())
         if brand and brand.casefold() not in name.casefold():
@@ -241,7 +241,7 @@ class Command(BaseCommand):
         return {
             "title": title,
             "description": (
-                f"{product.get('product_name')} by {brand}, barcode {code}, package "
+                f"{title} by {brand}, barcode {code}, package "
                 f"{product.get('quantity') or 'not stated'}. Price is a bounded Razorpay "
                 "test-mode merchant catalog price."
             ),

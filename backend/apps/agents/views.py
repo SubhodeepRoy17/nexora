@@ -83,6 +83,20 @@ def _history_metadata(result):
     }
 
 
+def _authorized_history_metadata(message, decisions):
+    """Return private history with fresh, owner-scoped checkout credentials."""
+    metadata = dict(message.metadata or {})
+    recommendations = []
+    for stored in metadata.get("recommendations", []):
+        item = dict(stored)
+        decision = decisions.get(str(item.get("decision_id")))
+        if decision and decision.product_id == item.get("product_id"):
+            item["decision_token"] = issue_decision_token(decision.session, decision)
+        recommendations.append(item)
+    metadata["recommendations"] = recommendations
+    return metadata
+
+
 def _conversation_context(conversation, before_message=None):
     messages = conversation.messages.all()
     if before_message is not None:
@@ -341,6 +355,13 @@ class BuyerConversationDetailView(APIView):
             conversation_id=conversation_id,
             buyer=request.user,
         )
+        decisions = {
+            str(decision.decision_id): decision
+            for decision in RecommendationDecision.objects.select_related("session").filter(
+                session__conversation=conversation,
+                session__buyer=request.user,
+            )
+        }
         return Response(
             {
                 "conversation_id": str(conversation.conversation_id),
@@ -351,7 +372,7 @@ class BuyerConversationDetailView(APIView):
                         "message_id": str(message.message_id),
                         "role": message.role,
                         "content": message.content,
-                        "metadata": message.metadata,
+                        "metadata": _authorized_history_metadata(message, decisions),
                         "created_at": message.created_at,
                     }
                     for message in conversation.messages.all()

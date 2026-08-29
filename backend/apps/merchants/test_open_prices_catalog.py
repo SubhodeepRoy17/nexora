@@ -22,7 +22,7 @@ def price_row(*, discounted=False):
         "_nexora_title": "Maggi Hot & Sweet Sauce · 500 g",
         "product": {
             "code": "8901058895780",
-            "product_name": "Hot & Sweet Sauce",
+            "product_name_en": "Hot & Sweet Sauce",
             "brands": "Maggi",
             "quantity": "500 g",
             "image_url": "https://images.openfoodfacts.org/example.400.jpg",
