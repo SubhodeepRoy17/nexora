@@ -723,6 +723,7 @@ class ContextAwareConversationTests(TestCase):
         self.assertEqual(len(result["recommendations"]), 1)
         self.assertEqual(result["recommendations"][0]["product_id"], self.second.id)
         self.assertEqual(result["recommendations"][0]["title"], self.second.title)
+        self.assertNotEqual(result["recommendations"][0]["match_score"], 96)
         self.assertEqual(
             result["_audit_context"]["catalog_candidate_ids"],
             [self.first.id, self.second.id],

@@ -289,6 +289,7 @@ def _parse_recommendations(
     user_prompt: str,
     candidates: list[dict[str, Any]],
     constraints: ProductSearchSchema | None = None,
+    preserve_order: bool = False,
 ) -> BuyerAgentResponse:
     base_prompt = (
         f"Buyer request: {user_prompt}\n\n"
@@ -319,7 +320,13 @@ def _parse_recommendations(
         )
         try:
             parsed = BuyerAgentResponse.model_validate_json(response.text or "")
-            return _ground_recommendations(parsed, candidates, user_prompt, constraints)
+            return _ground_recommendations(
+                parsed,
+                candidates,
+                user_prompt,
+                constraints,
+                preserve_order,
+            )
         except (ValidationError, ValueError) as exc:
             last_error = exc
 
@@ -331,6 +338,7 @@ def _ground_recommendations(
     candidates: list[dict[str, Any]],
     user_prompt: str = "",
     constraints: ProductSearchSchema | None = None,
+    preserve_order: bool = False,
 ) -> BuyerAgentResponse:
     candidates_by_id = {candidate["id"]: candidate for candidate in candidates}
     grounded = []
@@ -376,7 +384,8 @@ def _ground_recommendations(
 
     if candidates and not grounded:
         raise AgentServiceError("Gemini recommendations did not reference catalog products")
-    grounded.sort(key=lambda item: (-item.match_score, -item.rating, item.price))
+    if not preserve_order:
+        grounded.sort(key=lambda item: (-item.match_score, -item.rating, item.price))
     return response.model_copy(
         update={
             "recommendations": grounded,
@@ -813,6 +822,15 @@ def _previous_recommendations(history: list[dict[str, Any]]) -> list[dict[str, A
     return []
 
 
+def _previous_search_prompt(history: list[dict[str, Any]]) -> str:
+    for message in reversed(history):
+        if str(message.get("role") or "").upper() == "USER":
+            content = str(message.get("content") or "").strip()
+            if content:
+                return content
+    return ""
+
+
 def _is_prior_result_follow_up(prompt: str, previous: list[dict[str, Any]]) -> bool:
     if not previous or deterministic_search_arguments(prompt).category:
         return False
@@ -861,7 +879,10 @@ def _looks_like_shopping_request(prompt: str) -> bool:
     )
 
 
-def _live_previous_candidates(previous: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _live_previous_candidates(
+    previous: list[dict[str, Any]],
+    constraints: ProductSearchSchema,
+) -> list[dict[str, Any]]:
     from apps.merchants.models import Product
 
     product_ids = [item.get("product_id") for item in previous if item.get("product_id")]
@@ -879,6 +900,8 @@ def _live_previous_candidates(previous: list[dict[str, Any]]) -> list[dict[str, 
         prior_score = previous_by_id[product_id].get("match_score")
         if isinstance(prior_score, (int, float)):
             candidate["match_score"] = max(0, min(100, round(prior_score)))
+        else:
+            candidate["match_score"] = calculate_match_score(candidate, constraints)
         candidates.append(candidate)
     return candidates
 
@@ -1027,7 +1050,9 @@ def run_buyer_agent(
     previous = _previous_recommendations(history)
 
     if _is_prior_result_follow_up(prompt, previous):
-        candidates = _live_previous_candidates(previous)
+        previous_prompt = _previous_search_prompt(history) or prompt
+        previous_constraints = deterministic_search_arguments(previous_prompt)
+        candidates = _live_previous_candidates(previous, previous_constraints)
         if not candidates:
             fallback_turn = ConversationTurn(
                 turn_type="FOLLOW_UP",
@@ -1043,6 +1068,8 @@ def run_buyer_agent(
                 client,
                 _follow_up_prompt(prompt, history),
                 candidates,
+                previous_constraints,
+                preserve_order=True,
             )
             selected = response.recommendations[:1]
             response = response.model_copy(
