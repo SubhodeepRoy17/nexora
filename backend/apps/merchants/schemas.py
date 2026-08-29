@@ -35,6 +35,12 @@ class ProductSpecifications(BaseModel):
     sku: NonEmptyText | None = None
     shipping_information: NonEmptyText | None = None
     return_policy: NonEmptyText | None = None
+    barcode: NonEmptyText | None = None
+    quantity: NonEmptyText | None = None
+    nutriscore: NonEmptyText | None = None
+    ecoscore: NonEmptyText | None = None
+    price_observed_on: NonEmptyText | None = None
+    price_location: NonEmptyText | None = None
 
     @field_validator("connectivity")
     @classmethod
