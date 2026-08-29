@@ -72,7 +72,13 @@ The client prints the exact quote and pauses until the human types `APPROVE <quo
 
 ## Protocol positioning
 
-This is a Nexora-native commerce contract. Its discovery, structured catalog, quote, explicit human authorization, idempotency, payment handoff, and status concepts are directionally related to patterns discussed in agentic-commerce protocols. Nexora does **not** claim ACP, AP2, x402, UAP, or any other protocol compliance because their exact public specifications and conformance suites have not been implemented and verified here.
+The native v1 contract remains the smallest Nexora integration. Nexora additionally implements the
+version-pinned ACP `2026-04-17` checkout-session compatibility profile documented in
+[ACPCompatibility.md](ACPCompatibility.md). It maps ACP sessions to the same exact quotes, explicit
+human approval, Razorpay Test handoff, idempotency, and authoritative status rules.
+
+The claim is deliberately scoped: Nexora does not claim third-party certification, AP2 mandates,
+x402 settlement, or conformance to an unpublished NPCI UAP schema.
 
 ## Verification
 

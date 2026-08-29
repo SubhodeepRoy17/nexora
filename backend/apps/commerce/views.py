@@ -147,9 +147,28 @@ class CapabilityView(PublicContractView):
                     "PAYMENT_PROVIDER_ERROR",
                 ],
                 "protocol_positioning": {
-                    "status": "nexora_native_contract",
-                    "compliance_claims": [],
-                    "note": "Conceptually aligned with agent commerce discovery and human authorization patterns; no ACP, AP2, x402, UAP, or other protocol compliance is claimed.",
+                    "status": "native_contract_with_acp_compatibility_profile",
+                    "implemented_profiles": ["ACP_CHECKOUT_SESSION_PROFILE_2026-04-17"],
+                    "certification_claims": [],
+                    "acp": {
+                        "version": "2026-04-17",
+                        "discovery_url": _absolute(request, "/.well-known/acp.json"),
+                        "checkout_sessions_url": _absolute(
+                            request, "/api/commerce/v1/acp/checkout_sessions"
+                        ),
+                        "buyer_token_url": _absolute(
+                            request, "/api/commerce/v1/acp/agent-tokens/"
+                        ),
+                        "payment_handler_url": _absolute(
+                            request, "/api/commerce/v1/acp/payment-handler.json"
+                        ),
+                        "profile": "human_present_razorpay_test_handoff",
+                    },
+                    "note": (
+                        "Implements and tests an ACP 2026-04-17 checkout-session compatibility "
+                        "profile with a Nexora Razorpay Test handler. No third-party certification, "
+                        "AP2 mandate, x402 settlement, or unpublished NPCI UAP conformance is claimed."
+                    ),
                 },
                 "base_url": base,
             }

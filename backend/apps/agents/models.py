@@ -93,6 +93,50 @@ class RecommendationDecision(models.Model):
         constraints = [models.UniqueConstraint(fields=["session", "product"], name="unique_session_product_decision")]
 
 
+class GrowthExperimentAssignment(models.Model):
+    """Immutable assignment for the eligible-session growth experiment.
+
+    The assignment exists even for the control arm, where no offer is rendered.
+    This keeps the experiment denominator independent from offer impressions.
+    """
+
+    class Variant(models.TextChoices):
+        CONTROL = "CONTROL", "No add-on offer"
+        TREATMENT = "TREATMENT", "Eligible add-on offer"
+
+    assignment_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.OneToOneField(
+        AgentSession, on_delete=models.PROTECT, related_name="growth_experiment_assignment"
+    )
+    primary_decision = models.OneToOneField(
+        RecommendationDecision,
+        on_delete=models.PROTECT,
+        related_name="growth_experiment_assignment",
+    )
+    merchant = models.ForeignKey(
+        "merchants.Merchant", on_delete=models.PROTECT, related_name="growth_experiment_assignments"
+    )
+    eligible_addon_product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="eligible_growth_experiment_assignments"
+    )
+    experiment_key = models.CharField(max_length=80, db_index=True)
+    variant = models.CharField(max_length=12, choices=Variant.choices, db_index=True)
+    assignment_unit_hash = models.CharField(max_length=64)
+    eligibility_snapshot = models.JSONField(default=dict)
+    offers_shown = models.PositiveSmallIntegerField(default=0)
+    is_synthetic = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(
+                fields=["merchant", "experiment_key", "variant", "is_synthetic"],
+                name="agents_grow_merchan_a015a3_idx",
+            ),
+        ]
+
+
 class GrowthOffer(models.Model):
     class Response(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -111,6 +155,13 @@ class GrowthOffer(models.Model):
         ProductRelationship, on_delete=models.PROTECT, related_name="growth_offers"
     )
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="growth_offers")
+    experiment_assignment = models.ForeignKey(
+        GrowthExperimentAssignment,
+        on_delete=models.PROTECT,
+        related_name="offers",
+        null=True,
+        blank=True,
+    )
     explanation = models.CharField(max_length=800)
     trade_off = models.CharField(max_length=500, blank=True)
     incremental_cost = models.DecimalField(max_digits=12, decimal_places=2)

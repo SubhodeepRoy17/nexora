@@ -28,3 +28,6 @@
 - **Settlement authority:** Only a verified Razorpay webhook or exact server-to-server Razorpay reconciliation can mark an order paid. Browser callbacks never settle, and capture consumes an existing reservation without a second stock mutation.
 - **No dark-pattern growth:** Add-ons are optional, unselected by default, bounded in count, and show exact incremental cost plus an honest trade-off. Rejecting is as easy as accepting; merchant labels cannot imply unverified savings or urgency.
 - **Grounded attribution:** A paid add-on must link `AgentSession -> GrowthOffer -> buyer response -> QuoteItem -> OrderItem -> verified paid order`. Attribution describes recorded behavior, never causal lift.
+- **Causal-claim gate:** A lift estimate must come from persisted eligible-session randomization,
+  include control and zero-revenue outcomes, exclude synthetic traffic, meet both-arm sample minimums,
+  and report its 95% interval. Attribution alone never satisfies this rule.

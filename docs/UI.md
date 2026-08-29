@@ -41,5 +41,7 @@ The public and buyer surfaces use warm white, ink, violet, emerald, sharp grid f
 - Never say a browser callback means paid.
 - Never imply an add-on is automatic or hide its incremental amount.
 - Clearly label illustrative landing-page metrics; live merchant views remain API-backed.
-- Avoid protocol-compliance, causal-revenue, or autonomous-payment claims.
+- Scope ACP wording to the implemented `2026-04-17` compatibility profile. Never imply third-party
+  certification, autonomous payment, or causal revenue from observational attribution; show the
+  randomized experiment's sample status and uncertainty.
 - Preserve visible focus states, semantic headings, labelled controls, reduced-motion behavior, and usable mobile navigation.

@@ -98,8 +98,8 @@ remain separate, and every denominator is documented.”
 **Show:** capability JSON, catalog/OpenAPI links, and reference client.
 
 **Say:** “A separate AI buyer can discover this merchant and reach the same human-approved Razorpay
-handoff using only the published HTTP contract. Nexora does not claim third-party protocol
-compliance without an implemented conformance suite.”
+handoff through either Nexora v1 or our pinned ACP 2026-04-17 checkout-session compatibility profile.
+We claim the implemented profile, not third-party certification or unsupported payment protocols.”
 
 ### 4:50–5:00 — Close
 

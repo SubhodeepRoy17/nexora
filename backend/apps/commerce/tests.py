@@ -77,7 +77,20 @@ class CommerceContractTests(TestCase):
         self.assertEqual(capability.status_code, 200)
         self.assertEqual(capability.json()["contract_version"], CONTRACT_VERSION)
         self.assertTrue(capability.json()["policies"]["human_approval_required"])
-        self.assertEqual(capability.json()["protocol_positioning"]["compliance_claims"], [])
+        self.assertEqual(
+            capability.json()["protocol_positioning"]["implemented_profiles"],
+            ["ACP_CHECKOUT_SESSION_PROFILE_2026-04-17"],
+        )
+        self.assertEqual(
+            capability.json()["protocol_positioning"]["certification_claims"], []
+        )
+        discovery = self.client.get("/.well-known/acp.json")
+        self.assertEqual(discovery.status_code, 200)
+        self.assertEqual(discovery.json()["protocol"]["name"], "acp")
+        self.assertEqual(discovery.json()["protocol"]["version"], "2026-04-17")
+        self.assertEqual(discovery.json()["transports"], ["rest"])
+        self.assertEqual(discovery.json()["capabilities"]["services"], ["checkout"])
+        self.assertEqual(discovery.json()["capabilities"]["supported_currencies"], ["inr"])
         self.assertEqual(capability["X-Nexora-Contract-Version"], CONTRACT_VERSION)
 
         openapi = self.client.get("/api/commerce/v1/openapi.json")
@@ -209,6 +222,134 @@ class CommerceContractTests(TestCase):
             f"/api/commerce/v1/orders/{checkout.json()['order_id']}/"
         )
         self.assertEqual(detail.json()["status"], Order.Status.PAYMENT_PENDING)
+
+    def test_acp_profile_reaches_human_approved_razorpay_handoff(self):
+        self.client.force_login(self.buyer)
+        token_response = self.client.post("/api/commerce/v1/acp/agent-tokens/", {}, format="json")
+        self.assertEqual(token_response.status_code, 201)
+        token = token_response.json()["access_token"]
+        acp = APIClient()
+        acp.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            HTTP_API_VERSION="2026-04-17",
+        )
+        payload = {
+            "line_items": [{"id": str(self.product.pk)}],
+            "currency": "INR",
+            "capabilities": {},
+            "metadata": {"intent": "ACP external keyboard selection"},
+        }
+        checkout = acp.post(
+            "/api/commerce/v1/acp/checkout_sessions",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="acp-create-1",
+            HTTP_REQUEST_ID="acp-request-1",
+        )
+        self.assertEqual(checkout.status_code, 201)
+        self.assertEqual(checkout.json()["protocol"]["version"], "2026-04-17")
+        self.assertEqual(checkout.json()["status"], "pending_approval")
+        self.assertEqual(checkout.json()["currency"], "INR")
+        self.assertEqual(checkout.json()["line_items"][0]["item"]["id"], str(self.product.pk))
+        self.assertEqual(
+            checkout.json()["capabilities"]["payment"]["handlers"][0]["name"],
+            "in.nexora.razorpay_test_checkout",
+        )
+        replay = acp.post(
+            "/api/commerce/v1/acp/checkout_sessions",
+            payload,
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="acp-create-1",
+        )
+        self.assertEqual(replay.status_code, 201)
+        self.assertEqual(replay["Idempotent-Replayed"], "true")
+        checkout_id = checkout.json()["id"]
+        detail = acp.get(f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.json()["id"], checkout_id)
+        missing_update_key = acp.post(
+            f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}",
+            {"line_items": [{"id": str(self.product.pk)}]},
+            format="json",
+        )
+        self.assertEqual(missing_update_key.status_code, 400)
+        approval = acp.post(
+            f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}/approve",
+            {"confirmed": True},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="acp-approval-1",
+        )
+        self.assertEqual(approval.status_code, 201)
+        self.assertEqual(approval.json()["checkout_session"]["status"], "ready_for_payment")
+        with patch("apps.orders.views.get_razorpay_client", return_value=object()), patch(
+            "apps.orders.views.create_razorpay_order",
+            return_value={"id": "order_acp_contract", "amount": 240000, "currency": "INR"},
+        ):
+            completed = acp.post(
+                f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}/complete",
+                {
+                    "payment_data": {
+                        "handler_id": "nexora_razorpay_test",
+                        "instrument": {
+                            "type": "approval_grant",
+                            "credential": {
+                                "type": "nexora_signed_approval",
+                                "token": approval.json()["approval_token"],
+                            },
+                        },
+                    }
+                },
+                format="json",
+                HTTP_IDEMPOTENCY_KEY="acp-complete-1",
+            )
+        self.assertEqual(completed.status_code, 200)
+        self.assertEqual(completed.json()["status"], "complete_in_progress")
+        self.assertEqual(completed.json()["order"]["status"], "processing")
+        self.assertEqual(
+            completed.json()["metadata"]["nexora"]["razorpay_checkout"]["order_id"],
+            "order_acp_contract",
+        )
+        self.assertFalse(completed.json()["metadata"]["nexora"]["browser_callback_can_settle"])
+        missing_cancel_key = acp.post(
+            f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}/cancel",
+            {},
+            format="json",
+        )
+        self.assertEqual(missing_cancel_key.status_code, 400)
+        canceled = acp.post(
+            f"/api/commerce/v1/acp/checkout_sessions/{checkout_id}/cancel",
+            {},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="acp-cancel-1",
+        )
+        self.assertEqual(canceled.status_code, 200)
+        self.assertEqual(canceled.json()["status"], "canceled")
+
+    def test_acp_profile_rejects_missing_version_and_unapproved_completion(self):
+        unauthenticated = APIClient().post(
+            "/api/commerce/v1/acp/checkout_sessions",
+            {"line_items": [{"id": str(self.product.pk)}], "currency": "INR", "capabilities": {}},
+            format="json",
+            HTTP_API_VERSION="2026-04-17",
+            HTTP_IDEMPOTENCY_KEY="acp-no-bearer",
+        )
+        self.assertEqual(unauthenticated.status_code, 401)
+        self.assertEqual(unauthenticated["WWW-Authenticate"], "Bearer")
+        self.assertEqual(unauthenticated.json()["type"], "invalid_request")
+        self.assertEqual(unauthenticated.json()["code"], "authentication_required")
+        self.client.force_login(self.buyer)
+        token = self.client.post("/api/commerce/v1/acp/agent-tokens/", {}, format="json").json()["access_token"]
+        missing_version = APIClient()
+        missing_version.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        response = missing_version.post(
+            "/api/commerce/v1/acp/checkout_sessions",
+            {"line_items": [{"id": str(self.product.pk)}], "currency": "INR", "capabilities": {}},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="acp-no-version",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "unsupported_api_version")
+        self.assertEqual(response.json()["supported_versions"], ["2026-04-17"])
 
 
 @override_settings(

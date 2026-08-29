@@ -33,6 +33,7 @@ env:
   RAZORPAY_KEY_SECRET: phase5-ci-provider-secret
   RAZORPAY_WEBHOOK_SECRET: phase5-ci-webhook-secret
   MONEY_REQUIRE_RAZORPAY_TEST_MODE: "True"
+  GROWTH_EXPERIMENT_ENABLED: "False"
 
 jobs:
   backend:

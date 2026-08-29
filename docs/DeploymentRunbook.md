@@ -23,6 +23,11 @@ database connection details.
    production service.
 3. Add only `rzp_test_...` Razorpay credentials. Use an independently generated webhook secret and
    keep all Razorpay and Gemini values in Render's secret manager.
+   Set `ACP_BUYER_TOKEN_TTL_SECONDS=900`. For the revenue experiment, set
+   `GROWTH_EXPERIMENT_ENABLED=True`, keep one immutable `GROWTH_EXPERIMENT_KEY` for the entire run,
+   use `GROWTH_EXPERIMENT_TREATMENT_BPS=5000`, and choose the predeclared minimum with
+   `GROWTH_EXPERIMENT_MIN_SAMPLE_PER_VARIANT` (100 by default). Changing the key starts a new
+   population; never combine assignments from different keys to manufacture a lift result.
 4. Import `frontend/` as the Vercel project. The checked-in `vercel.json` reverse-proxies
    `/api/*` to the Render API so browser session and CSRF cookies remain first-party. Set
    `VITE_API_BASE_URL` to `/api/` in the Production environment before building and select Node
@@ -50,6 +55,13 @@ database connection details.
 10. Complete the deployed Razorpay evidence checklist in `docs/RazorpayRunbook.md`, including a
     successful test payment, dashboard webhook delivery/redelivery, a delayed-delivery recovery,
     an expired reservation, and an idempotent reconciliation retry.
+11. Verify the live capability document advertises ACP `2026-04-17`, then execute the create,
+    read, approval, complete, and cancel profile calls from `docs/ACPCompatibility.md`. Confirm the
+    completed handoff remains pending until verified provider evidence arrives.
+12. Leave the growth experiment running across real eligible buyer sessions. Report the configured
+    key, dates, arm sizes, revenue per eligible session, interval, and status exactly as displayed.
+    `COLLECTING` or `INCONCLUSIVE` is a valid result; attributed add-on revenue must not be relabeled
+    as causal lift.
 
 No deploy or demo step requires a manual database edit. Catalog/demo setup uses
 `python manage.py seed_track_demo`; all schema/index changes use the release command.

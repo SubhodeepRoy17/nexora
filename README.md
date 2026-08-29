@@ -2,8 +2,9 @@
 
 Nexora is a Track 01 agentic-commerce system that turns a buyer's natural-language intent into a
 grounded product recommendation, an optional buyer-approved add-on, an exact bounded quote, and a
-Razorpay Test Mode checkout. It also publishes a versioned commerce contract so a separate AI buyer
-can discover and transact with a Nexora merchant through public HTTP APIs.
+Razorpay Test Mode checkout. It publishes both a native v1 contract and a pinned ACP `2026-04-17`
+checkout-session compatibility profile so a separate AI buyer can discover and transact with a
+Nexora merchant through public HTTP APIs.
 
 > **Track thesis:** make merchants understandable and safely transactable by AI while creating
 > relevant, explicitly accepted revenue opportunities. No LLM has payment authority.
@@ -62,7 +63,8 @@ The verified Track proof includes:
 - one HTTP-only reference AI buyer that reaches the same human-approved checkout boundary using
   only the published contract.
 
-Recorded add-on revenue is attribution, not a claim of causal revenue lift.
+Recorded add-on revenue remains attribution. A separate randomized eligible-session holdout now
+measures revenue lift and refuses a directional conclusion until its sample and uncertainty gates pass.
 
 ## Architecture at a glance
 
@@ -146,8 +148,10 @@ python -m examples.reference_ai_buyer \
   --query 'USB-C keyboard'
 ```
 
-Nexora publishes its own versioned contract. It does **not** claim ACP, AP2, x402, UAP, or another
-third-party protocol certification.
+Nexora implements an ACP `2026-04-17` checkout-session compatibility profile with its human-present
+Razorpay Test handler. It does **not** claim third-party certification, AP2 mandates, x402 settlement,
+or conformance to an unpublished NPCI UAP schema. See
+[docs/ACPCompatibility.md](docs/ACPCompatibility.md).
 
 ## Stack
 
@@ -224,7 +228,8 @@ answers and the final permissions/deployment/video checklist.
 - The checked-in same-origin Vercel `/api/*` proxy is not active in the currently deployed frontend;
   direct cross-site session cookies can be blocked by browser policy.
 - Evaluation uses a bounded synthetic catalogue and deterministic provider-shaped responses; it
-  does not measure public-network Gemini quality or causal merchant lift.
+  does not measure public-network Gemini quality. The randomized growth experiment still needs
+  meaningful real traffic before it can report a scoped causal estimate.
 - The repository must be made publicly readable and the final five-minute video must be uploaded
   before submitting the official form.
 
@@ -235,8 +240,9 @@ operational: deploy the same-origin proxy, establish both scheduler heartbeats, 
 Razorpay Test Dashboard delivery row and exact manual redelivery evidence, make the repository public, record
 the five-minute video, and perform the final signed-out form/link audit. Track deployment acceptance
 in [docs/Phase7Evidence.md](docs/Phase7Evidence.md) and final submission readiness in
-[docs/Submission.md](docs/Submission.md). Optional protocol adapters and causal-lift experiments
-remain explicitly post-submission work.
+[docs/Submission.md](docs/Submission.md). The ACP adapter and causal-lift experiment infrastructure
+are repository-complete; production must still collect the real experiment sample, and external
+certification cannot be self-issued.
 
 ## License
 

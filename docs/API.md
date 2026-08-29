@@ -118,11 +118,42 @@ The Razorpay browser callback has no settlement authority. The frontend displays
 
 `growth.real.incremental_paid_revenue` is the sum of attributed add-on order lines whose order is webhook-confirmed `PAID`. It does not claim the agent caused revenue that otherwise would not exist.
 
-## 10. Expiry processing
+`growth.experiment` is the separate randomized intent-to-treat report. Eligible agent sessions are
+deterministically assigned to `CONTROL` (no add-on shown) or `TREATMENT` (eligible add-on shown).
+Both arms retain zero-revenue visits in the denominator. The response reports assigned visits,
+exposures, paid visits, total paid revenue, revenue per eligible visit, conversion difference,
+revenue difference, and a 95% confidence interval. It remains `COLLECTING` until both arms reach the
+configured minimum; synthetic sessions are always excluded. See `docs/GrowthExperiment.md`.
+
+## 10. ACP checkout-session compatibility profile
+
+The official discovery document at `/.well-known/acp.json` advertises the pinned ACP `2026-04-17`
+REST checkout service. Nexora's richer native capability document at
+`/.well-known/nexora-commerce.json` links to it. ACP calls use `API-Version: 2026-04-17`, a
+short-lived Bearer token from `POST /api/commerce/v1/acp/agent-tokens/`, and an `Idempotency-Key` on
+mutations.
+
+- `POST /api/commerce/v1/acp/checkout_sessions` — creates an exact quote-backed checkout session.
+- `GET|POST /api/commerce/v1/acp/checkout_sessions/{id}` — reads or refreshes the session; replacing
+  items requires a new session so an old approval can never silently cover changed money terms.
+- `POST /api/commerce/v1/acp/checkout_sessions/{id}/approve` — Nexora's explicit human-approval
+  extension; returns a short-lived grant bound to the exact quote.
+- `POST /api/commerce/v1/acp/checkout_sessions/{id}/complete` — creates the bounded Razorpay Test
+  order and returns a human-present browser handoff. It does not mark payment settled.
+- `POST /api/commerce/v1/acp/checkout_sessions/{id}/cancel` — idempotently ends a cancellable session.
+- `GET /api/commerce/v1/acp/payment-handler.json` and its linked schema describe the Razorpay Test
+  handler and settlement boundary.
+
+Completion returns `complete_in_progress`; only a verified Razorpay webhook or exact server-side
+provider reconciliation can produce `completed`. This is an implemented and tested compatibility
+profile, not third-party ACP certification. Nexora does not claim AP2, x402, or unpublished NPCI UAP
+conformance. See `docs/ACPCompatibility.md`.
+
+## 11. Expiry processing
 
 `python manage.py expire_checkouts [--limit 500]` expires stale active quotes and payment-pending reservations. It is finite and idempotent, so local cron, Render cron, or another scheduler can run it every five minutes safely.
 
-## 11. Audits and stable errors
+## 12. Audits and stable errors
 
 `GET /api/orders/money-audits/` exposes a sanitized buyer/merchant trace. `GET /api/orders/audits/` exposes merchant conversion events. Neither returns secrets, approval tokens, full buyer email, or hidden reasoning.
 

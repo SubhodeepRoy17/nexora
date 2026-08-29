@@ -45,6 +45,14 @@ services:
         value: "1"
       - key: GROWTH_MAX_ADDON_OFFERS
         value: "2"
+      - key: GROWTH_EXPERIMENT_ENABLED
+        value: "True"
+      - key: GROWTH_EXPERIMENT_KEY
+        value: addon-offer-v1
+      - key: GROWTH_EXPERIMENT_TREATMENT_BPS
+        value: "5000"
+      - key: GROWTH_EXPERIMENT_MIN_SAMPLE_PER_VARIANT
+        value: "100"
       - key: MONEY_REQUIRE_RAZORPAY_TEST_MODE
         value: "True"
       - key: OPS_SCHEDULER_MAX_AGE_MINUTES

@@ -14,7 +14,12 @@ from apps.orders.tokens import (
 )
 from apps.orders.webhooks import _capture_payment
 
-from .models import AgentSession, GrowthOffer, RecommendationDecision
+from .models import (
+    AgentSession,
+    GrowthExperimentAssignment,
+    GrowthOffer,
+    RecommendationDecision,
+)
 from .services import BuyerAgentResponse, ProductRecommendation, _attach_growth_suggestions
 
 
@@ -22,6 +27,7 @@ from .services import BuyerAgentResponse, ProductRecommendation, _attach_growth_
     RAZORPAY_KEY_ID="rzp_test_growth",
     RAZORPAY_KEY_SECRET="growth-secret",
     GROWTH_MAX_ADDON_OFFERS=2,
+    GROWTH_EXPERIMENT_ENABLED=False,
 )
 class GrowthLoopTests(TestCase):
     def setUp(self):
@@ -229,6 +235,63 @@ class GrowthLoopTests(TestCase):
         self.assertTrue(payload["add_on_suggestions"][0]["offer_token"])
         self.assertEqual(persisted.primary_decision.product_id, self.primary.pk)
 
+    @override_settings(
+        GROWTH_EXPERIMENT_ENABLED=True,
+        GROWTH_EXPERIMENT_KEY="growth-holdout-test",
+        GROWTH_EXPERIMENT_TREATMENT_BPS=0,
+    )
+    @patch("apps.agents.views.run_buyer_agent")
+    def test_control_assignment_is_persisted_without_rendering_an_offer(self, run_agent):
+        run_agent.return_value = {
+            "thought_process": ["Grounded catalog comparison."],
+            "recommendations": [{
+                "product_id": self.primary.pk,
+                "title": self.primary.title,
+                "merchant": self.merchant.name,
+                "price": 2500.0,
+                "category": self.primary.category,
+                "stock_quantity": 5,
+                "rating": 0,
+                "match_score": 90,
+                "key_specs": self.primary.specifications,
+                "reason": "Matches USB-C requirement.",
+                "tradeoffs": [],
+            }],
+            "add_on_suggestions": [{
+                "relationship_id": self.relationship.pk,
+                "primary_product_id": self.primary.pk,
+                "product_id": self.addon.pk,
+                "title": self.addon.title,
+                "merchant": self.merchant.name,
+                "relationship_type": "COMPLEMENT",
+                "offer_label": "Travel companion",
+                "incremental_cost": 500.0,
+                "stock_quantity": 5,
+                "key_specs": self.addon.specifications,
+                "compatibility": self.relationship.compatibility,
+                "constraint_evidence": ["Compatibility rule checked."],
+                "benefit": self.relationship.benefit,
+                "trade_off": self.relationship.trade_off,
+            }],
+            "summary_reasoning": "One grounded primary with one compatible option.",
+            "_audit_context": {
+                "provider_source": "FALLBACK",
+                "parsed_constraints": {"connector": "usb-c"},
+                "catalog_candidate_ids": [self.primary.pk],
+            },
+        }
+        response = APIClient().post(
+            "/api/agents/search/", {"query": "USB-C keyboard for travel"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["add_on_suggestions"], [])
+        assignment = GrowthExperimentAssignment.objects.get(
+            experiment_key="growth-holdout-test"
+        )
+        self.assertEqual(assignment.variant, GrowthExperimentAssignment.Variant.CONTROL)
+        self.assertEqual(assignment.offers_shown, 0)
+        self.assertEqual(assignment.eligible_addon_product_id, self.addon.pk)
+
     def _respond(self, accepted):
         self.client.force_login(self.buyer)
         return self.client.post(
@@ -358,3 +421,53 @@ class GrowthLoopTests(TestCase):
             Decimal("500.00"),
         )
         self.assertIn("not a causal lift estimate", payload["growth"]["attribution_note"])
+
+    @override_settings(
+        GROWTH_EXPERIMENT_ENABLED=True,
+        GROWTH_EXPERIMENT_KEY="analytics-holdout-test",
+        GROWTH_EXPERIMENT_MIN_SAMPLE_PER_VARIANT=10,
+    )
+    def test_experiment_report_keeps_control_sessions_in_the_denominator(self):
+        GrowthExperimentAssignment.objects.create(
+            session=self.session,
+            primary_decision=self.primary_decision,
+            merchant=self.merchant,
+            eligible_addon_product=self.addon,
+            experiment_key="analytics-holdout-test",
+            variant=GrowthExperimentAssignment.Variant.TREATMENT,
+            assignment_unit_hash="a" * 64,
+            eligibility_snapshot={"randomization_unit": "agent_session"},
+            offers_shown=1,
+        )
+        control_session = AgentSession.objects.create(
+            user_request="Control eligible search",
+            parsed_constraints={},
+            catalog_candidate_ids=[self.primary.pk],
+            provider_source=AgentSession.Source.FALLBACK,
+            decision_summary="Eligible control.",
+        )
+        control_decision = RecommendationDecision.objects.create(
+            session=control_session,
+            product=self.primary,
+            rank=1,
+            explanation="Eligible control.",
+            trade_offs=[],
+            catalog_snapshot={},
+        )
+        GrowthExperimentAssignment.objects.create(
+            session=control_session,
+            primary_decision=control_decision,
+            merchant=self.merchant,
+            eligible_addon_product=self.addon,
+            experiment_key="analytics-holdout-test",
+            variant=GrowthExperimentAssignment.Variant.CONTROL,
+            assignment_unit_hash="b" * 64,
+            eligibility_snapshot={"randomization_unit": "agent_session"},
+        )
+        experiment = merchant_analytics_payload(self.merchant.pk)["growth"]["experiment"]
+        self.assertEqual(experiment["status"], "COLLECTING")
+        self.assertEqual(experiment["arms"]["control"]["assigned_sessions"], 1)
+        self.assertEqual(experiment["arms"]["control"]["offer_exposures"], 0)
+        self.assertEqual(experiment["arms"]["treatment"]["assigned_sessions"], 1)
+        self.assertEqual(experiment["arms"]["treatment"]["offer_exposures"], 1)
+        self.assertIn("at least 10", experiment["interpretation"])

@@ -22,13 +22,23 @@ All merchant analytics are tenant-scoped by the authenticated merchant owner. â€
 
 Top converting complements group paid attached order lines by source/related product and relationship
 type. Rejected offers group explicit rejections by product and relationship type. Refunded orders are
-not counted as paid revenue. A controlled experiment for causal lift remains future work, and the UI
-does not imply that observational attribution proves lift.
+not counted as paid revenue. Observational attribution never becomes causal evidence.
 
 Every growth metric is calculated twice using the identical formula: `real` filters
 `GrowthOffer.is_synthetic=false`, while `synthetic` filters `true`. The two numerators and
 denominators are never combined. Top complements and rejected-offer cards use real traffic only;
 compatibility gaps describe current merchant catalog state rather than buyer behavior.
+
+## Randomized revenue-lift estimate
+
+`growth.experiment` reports the versioned holdout defined in [GrowthExperiment.md](GrowthExperiment.md).
+Unlike offer attribution, its denominator contains every eligible assigned session, including the
+control arm and sessions with zero paid revenue. The primary outcome is owning-merchant paid revenue
+per eligible session; purchase-rate lift is a guardrail. Synthetic assignments are excluded.
+
+The API refuses to present a directional conclusion before both arms reach
+`GROWTH_EXPERIMENT_MIN_SAMPLE_PER_VARIANT`. A 95% interval that crosses zero remains `INCONCLUSIVE`.
+Only this separately randomized experiment may produce a scoped lift estimate.
 
 The canonical P0.6 quality set is `docs/evaluation/buyer_intents.json`; its generated measurements
 are in `docs/Evaluation.md` and `docs/evaluation/results.json`. The smaller

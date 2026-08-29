@@ -132,7 +132,9 @@ DRAFT -> QUOTED -> APPROVED -> PAYMENT_PENDING -> PAID
 - Only `ACCESSORY`, `COMPLEMENT`, and `BUNDLE` links may become add-ons; `SUBSTITUTE` remains discovery metadata. Invalid, inactive, incompatible, over-budget, or out-of-stock links produce no offer.
 - An add-on decision cannot enter a cart without its matching accepted `GrowthOffer`. Each offer can enter at most one cart, and rejected offers cannot be replayed as accepted cart lines.
 - Quote and order snapshots retain the growth-offer correlation. A paid attachment exists only when a verified Razorpay webhook or strict provider reconciliation marks the containing order `PAID`.
-- Analytics expose real and synthetic segments independently. Paid add-on revenue is a recorded attribution total and is never described as causal revenue lift.
+- Analytics expose real and synthetic segments independently. Paid add-on revenue remains recorded
+  attribution. A separate persisted control/treatment assignment measures merchant paid revenue per
+  eligible session and stays non-directional until its sample and uncertainty gates pass.
 
 ## 7. Folder and File Structure
 
@@ -171,7 +173,9 @@ nexora/
 - `python manage.py expire_checkouts` is safe to retry and must run at least every five minutes. The Render Blueprint declares a UTC cron job; another platform may invoke the same finite command from its scheduler.
 - `python manage.py reconcile_razorpay` checks stale pending orders every five minutes. It repairs only an exact single captured payment; ambiguous, mismatched, or provider-error outcomes become durable `ReconciliationException` rows and structured alerts.
 - Agent commerce v1 uses cursor pagination capped at 50 and public conditional caching. Catalog serialization excludes credentials, buyers, private analytics, inactive inventory, and internal search vectors.
-- The published interface is a Nexora-native contract. It does not claim conformance with ACP, AP2, x402, UAP, or another third-party protocol.
+- The published interface includes Nexora v1 plus a pinned ACP `2026-04-17` checkout-session
+  compatibility profile. It does not claim third-party certification, AP2 mandates, x402 settlement,
+  or conformance to an unpublished NPCI UAP schema.
 
 ## 9. Buyer Search and Conversation Pipeline
 

@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, Target, TrendingDown } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, FlaskConical, Lightbulb, Link2, PackageX, Puzzle, Target, TrendingDown } from 'lucide-react'
 import DataFreshness from '../../components/common/DataFreshness'
 import LoadMoreRecords from '../../components/common/LoadMoreRecords'
 import { MerchantInsightsSkeleton } from '../../components/common/LoadingSkeletons'
@@ -49,6 +49,9 @@ const metricConfig = [
 export default function AgentAnalytics({ analytics, state, onRetry }) {
   const losses = analytics?.lost_opportunities?.breakdown ?? []
   const growth = analytics?.growth?.real ?? {}
+  const experiment = analytics?.growth?.experiment ?? {}
+  const experimentControl = experiment?.arms?.control ?? {}
+  const experimentTreatment = experiment?.arms?.treatment ?? {}
   const topComplements = analytics?.growth?.top_converting_complements ?? []
   const rejectedOffers = analytics?.growth?.rejected_offers ?? []
   const compatibilityGaps = analytics?.growth?.compatibility_gaps ?? []
@@ -174,6 +177,44 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
             <LoadMoreRecords shownCount={gapList.shownCount} totalCount={compatibilityGaps.length} remainingCount={gapList.remainingCount} nextBatchCount={gapList.nextBatchCount} onLoadMore={gapList.loadMore} noun="gaps" />
           </div>
         </div>
+      </section>
+
+      <section className="merchant-card merchant-reveal mt-5 rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-lg bg-violet-100 text-violet-700"><FlaskConical size={16} /></span>
+              <h2 className="text-base font-semibold text-[#17372f]">Offer impact test</h2>
+            </div>
+            <p className="mt-2 text-sm text-[#31594f]/65">Compares eligible visits with and without an optional-product offer.</p>
+          </div>
+          <span className={`w-fit rounded-full border px-2.5 py-1.5 text-xs font-semibold ${experiment.status === 'POSITIVE_SIGNAL' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : experiment.status === 'NEGATIVE_SIGNAL' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            {experiment.status === 'NOT_STARTED' ? 'Not started' : experiment.status === 'COLLECTING' ? 'Collecting data' : experiment.status === 'POSITIVE_SIGNAL' ? 'Positive signal' : experiment.status === 'NEGATIVE_SIGNAL' ? 'Negative signal' : 'Inconclusive'}
+          </span>
+        </header>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Visits without offer</p>
+            <p className="mt-2 text-2xl font-semibold text-[#17372f]">{number(experimentControl.assigned_sessions)}</p>
+            <p className="mt-1 text-xs text-slate-500">{money(experimentControl.revenue_per_eligible_session)} revenue per visit</p>
+          </article>
+          <article className="rounded-xl border border-violet-200 bg-violet-50/70 p-4">
+            <p className="text-xs text-slate-500">Visits with offer</p>
+            <p className="mt-2 text-2xl font-semibold text-violet-700">{number(experimentTreatment.assigned_sessions)}</p>
+            <p className="mt-1 text-xs text-slate-500">{money(experimentTreatment.revenue_per_eligible_session)} revenue per visit</p>
+          </article>
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Estimated revenue difference</p>
+            <p className={`mt-2 text-2xl font-semibold ${Number(experiment?.estimate?.absolute_revenue_lift_per_session ?? 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{money(experiment?.estimate?.absolute_revenue_lift_per_session)}</p>
+            <p className="mt-1 text-xs text-slate-500">Per eligible visit</p>
+          </article>
+          <article className="rounded-xl border border-emerald-950/10 bg-[#f7faf5] p-4">
+            <p className="text-xs text-slate-500">Purchase-rate difference</p>
+            <p className="mt-2 text-2xl font-semibold text-[#17372f]">{Number(experiment?.estimate?.conversion_lift_percentage_points ?? 0).toFixed(2)} pts</p>
+            <p className="mt-1 text-xs text-slate-500">Offer group minus no-offer group</p>
+          </article>
+        </div>
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">{experiment.interpretation ?? 'Start the test to measure offer impact.'}</p>
       </section>
 
       <section className="merchant-card merchant-reveal mt-5 rounded-2xl border border-emerald-950/10 bg-white/78 p-5 shadow-[0_12px_36px_rgba(42,81,68,.07)] backdrop-blur">

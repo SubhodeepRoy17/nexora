@@ -25,6 +25,7 @@ from .models import (
     GrowthOffer,
     RecommendationDecision,
 )
+from .experiments import assign_growth_experiment
 from .services import generate_conversation_title, run_buyer_agent
 from apps.merchants.models import Product, ProductRelationship
 from apps.orders.tokens import (
@@ -175,6 +176,13 @@ def _persist_public_decision_trace(
     add_on_payloads = []
     if recommendation_payloads:
         primary_decision = decisions_by_product[recommendation_payloads[0]["product_id"]]
+        experiment_assignment, show_growth_offers = assign_growth_experiment(
+            session=session,
+            primary_decision=primary_decision,
+            suggestions=add_on_suggestions,
+        )
+        if not show_growth_offers:
+            add_on_suggestions = []
         relationship_ids = [item["relationship_id"] for item in add_on_suggestions]
         relationships = ProductRelationship.objects.select_related(
             "source_product", "related_product__merchant"
@@ -217,6 +225,7 @@ def _persist_public_decision_trace(
                 addon_decision=addon_decision,
                 relationship=relationship,
                 product=product,
+                experiment_assignment=experiment_assignment,
                 explanation=suggestion["benefit"],
                 trade_off=suggestion.get("trade_off", ""),
                 incremental_cost=product.price,
@@ -230,6 +239,9 @@ def _persist_public_decision_trace(
                     "decision_token": issue_decision_token(session, addon_decision),
                 }
             )
+        if experiment_assignment is not None and add_on_payloads:
+            experiment_assignment.offers_shown = len(add_on_payloads)
+            experiment_assignment.save(update_fields=["offers_shown"])
     result["add_on_suggestions"] = add_on_payloads
     result["agent_session_id"] = str(session.session_id)
     result["provider_source"] = session.provider_source

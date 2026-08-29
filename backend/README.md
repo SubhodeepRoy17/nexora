@@ -134,7 +134,9 @@ Payment endpoints:
 Analytics endpoint:
 
 - `GET /api/merchants/analytics/` aggregates the signed-in merchant's impressions, paid conversion rate,
-  attributed revenue, trends, price/stock losses, real versus synthetic offer metrics, paid attachment, top complements, rejections, compatibility gaps, and exact paid add-on line revenue. This is recorded attribution, not causal lift.
+  attributed revenue, trends, price/stock losses, real versus synthetic offer metrics, paid attachment,
+  top complements, rejections, compatibility gaps, exact paid add-on line revenue, and the separately
+  randomized eligible-session revenue experiment. Attribution remains distinct from the causal estimate.
 
 Configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and
 `RAZORPAY_WEBHOOK_SECRET` in `.env`. Also configure `RAZORPAY_WEBHOOK_ALERT_ATTEMPTS`, `RAZORPAY_RECONCILIATION_STALE_MINUTES`, and a full-order cap in `RAZORPAY_REFUND_MAX_AMOUNT`. Only use Razorpay test-mode keys during
@@ -226,7 +228,10 @@ Run the HTTP-only reference buyer after exporting `NEXORA_BUYER_USERNAME` and `N
 python -m examples.reference_ai_buyer --base-url http://127.0.0.1:8000 --query "USB-C keyboard"
 ```
 
-The client pauses for exact human approval, never imports Django internals, and treats the verified backend order status—not the Razorpay browser callback—as authoritative. See `docs/AgentCommerceAPI.md` for the complete contract and the explicit no-third-party-protocol-compliance statement.
+The client pauses for exact human approval, never imports Django internals, and treats the verified
+backend order status—not the Razorpay browser callback—as authoritative. The additional ACP
+`2026-04-17` compatibility profile is documented in `docs/ACPCompatibility.md`; it is a scoped
+implementation claim, not third-party certification.
 
 ## Production
 

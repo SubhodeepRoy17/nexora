@@ -35,8 +35,9 @@ an exact expiring quote before opening Razorpay Test Checkout. Deterministic ser
 LLM—enforces ownership, currency, price, quantity, order value, stock, expiry, idempotency, and test
 mode. Signed webhooks or exact provider reconciliation own settlement, while immutable audits and
 merchant analytics trace the complete decision and attribute buyer-approved add-on revenue without
-claiming causal lift. A published v1 HTTP contract lets a separate AI buyer complete the same
-human-approved flow.
+    claiming causal lift from attribution. A randomized holdout separately estimates offer lift once
+    both real-traffic arms pass the sample gate. Native v1 and ACP 2026-04-17 checkout-session APIs let
+    a separate AI buyer complete the same human-approved flow.
 ```
 
 ### GitHub repository URL
@@ -111,7 +112,8 @@ chooses to publish them.
 - [ ] Video is at most five minutes, accessible signed out, and contains no secrets or buyer/payment
   PII.
 - [ ] Architecture and project-objective links render correctly.
-- [ ] No ACP/AP2/x402/UAP compliance or causal-lift claim appears in the form or video.
+- [ ] The video scopes ACP to the implemented 2026-04-17 compatibility profile, does not claim
+  third-party certification/AP2/x402/UAP, and distinguishes randomized lift from attribution.
 - [ ] Final form confirmation is made by the applicant only after reviewing every submitted field.
 
 ## Submission links

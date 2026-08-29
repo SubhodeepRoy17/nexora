@@ -1,14 +1,17 @@
 import logging
+import math
 import re
+import statistics
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.db import DatabaseError
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 
-from apps.agents.models import GrowthOffer
+from apps.agents.models import GrowthExperimentAssignment, GrowthOffer
 from apps.merchants.models import Product, ProductRelationship
 from apps.orders.models import AgentTransactionAudit, Order, OrderItem
 
@@ -95,6 +98,120 @@ def _trend(current: int, previous: int) -> float:
     if previous == 0:
         return 100.0 if current else 0.0
     return round(((current - previous) / previous) * 100, 1)
+
+
+def _growth_experiment_payload(merchant_id: int | None) -> dict[str, Any]:
+    """Estimate intent-to-treat revenue lift for randomized eligible sessions.
+
+    Every assignment contributes one outcome, including zero revenue. This is
+    deliberately different from add-on attribution, whose denominator is shown
+    offers rather than all randomized eligible sessions.
+    """
+
+    assignments = GrowthExperimentAssignment.objects.filter(
+        experiment_key=settings.GROWTH_EXPERIMENT_KEY,
+        is_synthetic=False,
+    )
+    if merchant_id is not None:
+        assignments = assignments.filter(merchant_id=merchant_id)
+    assignments = list(assignments.values("session_id", "variant", "offers_shown"))
+    session_ids = [item["session_id"] for item in assignments]
+    paid_revenue = {
+        item["order__quote__session_id"]: item["revenue"]
+        for item in OrderItem.objects.filter(
+            order__status=Order.Status.PAID,
+            order__quote__session_id__in=session_ids,
+            **({"merchant_id": merchant_id} if merchant_id is not None else {}),
+        )
+        .values("order__quote__session_id")
+        .annotate(revenue=Sum("line_total"))
+    }
+
+    arms: dict[str, dict[str, Any]] = {}
+    samples: dict[str, list[float]] = {}
+    for variant in (
+        GrowthExperimentAssignment.Variant.CONTROL,
+        GrowthExperimentAssignment.Variant.TREATMENT,
+    ):
+        arm_assignments = [item for item in assignments if item["variant"] == variant]
+        values = [float(paid_revenue.get(item["session_id"], Decimal("0"))) for item in arm_assignments]
+        samples[variant] = values
+        conversions = sum(value > 0 for value in values)
+        total_revenue = sum(values)
+        arms[variant.lower()] = {
+            "assigned_sessions": len(values),
+            "offer_exposures": sum(item["offers_shown"] for item in arm_assignments),
+            "paid_sessions": conversions,
+            "conversion_rate_percent": round(100 * conversions / len(values), 2) if values else 0.0,
+            "total_paid_revenue": f"{total_revenue:.2f}",
+            "revenue_per_eligible_session": f"{total_revenue / len(values):.2f}" if values else "0.00",
+        }
+
+    control = samples[GrowthExperimentAssignment.Variant.CONTROL]
+    treatment = samples[GrowthExperimentAssignment.Variant.TREATMENT]
+    control_mean = statistics.fmean(control) if control else 0.0
+    treatment_mean = statistics.fmean(treatment) if treatment else 0.0
+    absolute_lift = treatment_mean - control_mean
+    relative_lift = (absolute_lift / control_mean * 100) if control_mean else None
+    confidence_interval = None
+    if len(control) >= 2 and len(treatment) >= 2:
+        standard_error = math.sqrt(
+            statistics.variance(control) / len(control)
+            + statistics.variance(treatment) / len(treatment)
+        )
+        confidence_interval = {
+            "lower": round(absolute_lift - 1.96 * standard_error, 2),
+            "upper": round(absolute_lift + 1.96 * standard_error, 2),
+            "level_percent": 95,
+        }
+
+    minimum = settings.GROWTH_EXPERIMENT_MIN_SAMPLE_PER_VARIANT
+    if not settings.GROWTH_EXPERIMENT_ENABLED and not assignments:
+        status = "NOT_STARTED"
+        interpretation = "Enable the randomized experiment before making a revenue-lift claim."
+    elif min(len(control), len(treatment)) < minimum:
+        status = "COLLECTING"
+        interpretation = (
+            f"Collect at least {minimum} eligible real sessions in each arm before interpreting lift."
+        )
+    elif confidence_interval and confidence_interval["lower"] > 0:
+        status = "POSITIVE_SIGNAL"
+        interpretation = (
+            "The randomized intent-to-treat estimate is positive at the configured 95% interval; "
+            "keep the experiment running and report its population and time window."
+        )
+    elif confidence_interval and confidence_interval["upper"] < 0:
+        status = "NEGATIVE_SIGNAL"
+        interpretation = (
+            "The randomized intent-to-treat estimate is negative at the configured 95% interval."
+        )
+    else:
+        status = "INCONCLUSIVE"
+        interpretation = "The current randomized estimate does not exclude zero lift."
+
+    control_conversion = arms["control"]["conversion_rate_percent"]
+    treatment_conversion = arms["treatment"]["conversion_rate_percent"]
+    return {
+        "enabled": settings.GROWTH_EXPERIMENT_ENABLED,
+        "experiment_key": settings.GROWTH_EXPERIMENT_KEY,
+        "status": status,
+        "randomization_unit": "eligible agent session",
+        "treatment_allocation_percent": settings.GROWTH_EXPERIMENT_TREATMENT_BPS / 100,
+        "minimum_sample_per_variant": minimum,
+        "metric": "merchant paid revenue per eligible agent session",
+        "arms": arms,
+        "estimate": {
+            "absolute_revenue_lift_per_session": round(absolute_lift, 2),
+            "relative_revenue_lift_percent": round(relative_lift, 2) if relative_lift is not None else None,
+            "conversion_lift_percentage_points": round(treatment_conversion - control_conversion, 2),
+            "confidence_interval": confidence_interval,
+        },
+        "interpretation": interpretation,
+        "claim_boundary": (
+            "This is an intent-to-treat randomized estimate for eligible sessions, not universal proof. "
+            "Synthetic assignments are excluded and zero-revenue sessions remain in the denominator."
+        ),
+    }
 
 
 def merchant_analytics_payload(merchant_id: int | None = None) -> dict[str, Any]:
@@ -233,6 +350,7 @@ def merchant_analytics_payload(merchant_id: int | None = None) -> dict[str, Any]
                 "Incremental revenue is recorded attribution for buyer-approved add-on lines on paid orders; "
                 "it is not a causal lift estimate."
             ),
+            "experiment": _growth_experiment_payload(merchant_id),
         },
         "lost_opportunities": {
             "total": losses.count(),

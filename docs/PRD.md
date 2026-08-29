@@ -22,6 +22,9 @@ Nexora is an AI-native shopping platform transforming e-commerce from manual sea
 - **Real-Time Order & Timeline Audit:** Traceable log showing which AI agent recommended their product and transaction state.
 - **Relationship and Offer Management:** Owner-scoped accessories, complements, substitutes, bundles, compatibility facts, and optional merchant labels.
 - **Honest Growth Attribution:** Offer impressions, explicit accepts/rejects, paid attachment, and paid add-on line revenue with real and synthetic traffic separated. Recorded attribution is never presented as causal lift.
+- **Randomized Growth Measurement:** Eligible real sessions are assigned to offer/no-offer arms before
+  exposure; merchant revenue per eligible session, conversion lift, sample gates, and uncertainty are
+  reported separately from attribution.
 
 ## 4. Growth Experience Requirements
 
@@ -29,3 +32,5 @@ Nexora is an AI-native shopping platform transforming e-commerce from manual sea
 - The buyer must explicitly choose “Add to quote” or “No thanks” for every displayed add-on. Both actions receive equal visual weight, and no savings, scarcity, or countdown claim may be invented.
 - Any basket change creates a new server quote. Approval applies only to the exact products, quantities, prices, and total in that quote.
 - Incremental revenue means the sum of buyer-approved add-on `OrderItem.line_total` values on webhook-confirmed paid orders. It is attribution evidence, not proof of causality.
+- Causal lift means only the scoped intent-to-treat difference produced by the versioned randomized
+  experiment after both arms meet the configured minimum; it is never inferred from paid add-on lines.
