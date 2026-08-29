@@ -44,6 +44,11 @@ class Command(BaseCommand):
             raise CommandError("--apply is restricted to the production Neon database named neondb.")
         if options["apply"] and options["verify_only"]:
             raise CommandError("Choose either --apply or --verify-only.")
+        if options["apply"]:
+            raise CommandError(
+                "This copier is retired because it duplicates products across merchants. "
+                "Use rebuild_unique_production_catalog --apply."
+            )
 
         merchants = list(
             Merchant.objects.filter(owner__is_active=True)
