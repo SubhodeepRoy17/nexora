@@ -32,7 +32,11 @@ class ProductSpecifications(BaseModel):
     material: NonEmptyText | None = None
     warranty_months: int | None = Field(default=None, ge=0, le=240)
     brand: NonEmptyText | None = None
+    model: NonEmptyText | None = None
+    product_type: NonEmptyText | None = None
     sku: NonEmptyText | None = None
+    image_source_url: NonEmptyText | None = None
+    image_note: NonEmptyText | None = None
     shipping_information: NonEmptyText | None = None
     return_policy: NonEmptyText | None = None
     barcode: NonEmptyText | None = None

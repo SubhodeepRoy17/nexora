@@ -22,6 +22,8 @@ python manage.py rebuild_unique_production_catalog --verify-only
 
 Each imported product identity has one active merchant owner globally. The command distributes the older broad catalog across merchants, maintains 500 exclusive image-backed products per active seller (the original replacement batch plus 250 additional products), retains same-category alternatives, and rebalances active inventory to the nearest possible 60% offer ratio. Duplicate rows protected by quote, order, recommendation, or audit history are archived instead of deleted. The older production copy commands reject new `--apply` runs so they cannot recreate shared inventory.
 
+Old deterministic merchant fixtures are repaired in place with `replace_fixture_catalog`. The curated manifest uses real manufacturer model names, manufacturer links, and category-representative Wikimedia Commons images with per-file attribution stored in product specifications. The image is explicitly labelled as representative when it is not an exact-model photograph. Existing product IDs, historical references, test-mode prices, stock, and offer state are preserved.
+
 ## Loading the catalog
 
 ```bash
