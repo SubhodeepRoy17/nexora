@@ -31,6 +31,10 @@ class ProductSpecifications(BaseModel):
     color: NonEmptyText | None = None
     material: NonEmptyText | None = None
     warranty_months: int | None = Field(default=None, ge=0, le=240)
+    brand: NonEmptyText | None = None
+    sku: NonEmptyText | None = None
+    shipping_information: NonEmptyText | None = None
+    return_policy: NonEmptyText | None = None
 
     @field_validator("connectivity")
     @classmethod

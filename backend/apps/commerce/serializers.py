@@ -28,7 +28,7 @@ class RelatedProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "title", "merchant", "category", "price", "currency", "available", "updated_at"]
+        fields = ["id", "title", "merchant", "category", "price", "compare_at_price", "image_url", "currency", "available", "updated_at"]
 
     def get_currency(self, _obj):
         return settings.MONEY_SUPPORTED_CURRENCY
@@ -57,7 +57,8 @@ class PublicProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            "id", "merchant", "title", "description", "category", "price", "currency",
+            "id", "merchant", "title", "description", "category", "price", "compare_at_price",
+            "image_url", "currency",
             "availability", "rating", "specifications", "tags", "relationships", "updated_at",
         ]
 

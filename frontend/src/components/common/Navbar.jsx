@@ -12,19 +12,16 @@ export default function Navbar() {
   const landing = location.pathname === '/'
   const merchantMode = location.pathname.startsWith('/merchant')
   const buyerMode = location.pathname.startsWith('/buyer')
-  const agentMode = location.pathname.startsWith('/ai-shoppers')
   const workspaceMode = merchantMode || buyerMode
   const centerLinks = landing
     ? [
         ['Product', '#product'],
         ['How it works', '#how-it-works'],
         ['Safety', '#safety'],
-        ['For AI shoppers', '/ai-shoppers'],
       ]
     : [
         ['Shopping assistant', '/buyer'],
         ['Seller workspace', '/merchant'],
-        ['For AI shoppers', '/ai-shoppers'],
       ]
 
   const go = (path) => {
@@ -39,7 +36,7 @@ export default function Navbar() {
 
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 lg:flex xl:gap-11" aria-label={landing ? 'Landing navigation' : 'Application navigation'}>
           {centerLinks.map(([label, href]) => {
-            const active = href === '/buyer' ? buyerMode : href === '/merchant' ? merchantMode : href === '/ai-shoppers' ? agentMode : false
+            const active = href === '/buyer' ? buyerMode : href === '/merchant' ? merchantMode : false
             const className = `focus-ring relative py-2 text-[11px] font-semibold text-[#31594f] drop-shadow-[0_1px_0_rgba(255,255,255,.95)] transition after:absolute after:inset-x-0 after:-bottom-0.5 after:h-px after:origin-center after:bg-[#17372f] after:transition-transform hover:text-[#17372f] ${active ? 'text-[#17372f] after:scale-x-100' : 'after:scale-x-0 hover:after:scale-x-100'}`
             return href.startsWith('/') && !href.startsWith('/api/')
               ? <Link key={label} to={href} className={className} aria-current={active ? 'page' : undefined}>{label}</Link>
@@ -60,8 +57,8 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="pointer-events-auto absolute inset-x-0 top-16 border-b border-emerald-950/10 bg-[#f6f8f2]/95 p-4 shadow-xl backdrop-blur-xl lg:hidden">
           <div className="grid gap-2">
-            {landing && <><a href="#product" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Product</a><a href="#how-it-works" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">How it works</a><a href="#safety" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Safety</a><Link to="/ai-shoppers" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">For AI shoppers</Link></>}
-            {!landing && <><button type="button" onClick={() => go('/buyer')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Bot size={14} /> Shopping assistant</button><button type="button" onClick={() => go('/merchant')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Store size={14} /> Seller workspace</button><Link to="/ai-shoppers" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">For AI shoppers</Link></>}
+            {landing && <><a href="#product" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Product</a><a href="#how-it-works" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">How it works</a><a href="#safety" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Safety</a></>}
+            {!landing && <><button type="button" onClick={() => go('/buyer')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Bot size={14} /> Shopping assistant</button><button type="button" onClick={() => go('/merchant')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Store size={14} /> Seller workspace</button></>}
             {!workspaceMode && !loading && !user && <button type="button" onClick={() => go('/login?mode=signup')} className="flex items-center justify-center gap-2 border border-violet-300 bg-violet-50 px-4 py-3 text-xs font-semibold text-violet-700"><UserPlus size={14} /> Sign up</button>}
             {!workspaceMode && !loading && <button type="button" onClick={() => { setMobileOpen(false); user ? signOut() : navigate('/login') }} className="flex items-center justify-center gap-2 bg-slate-950 px-4 py-3 text-xs font-semibold text-white">{user ? <LogOut size={14} /> : <LogIn size={14} />}{user ? 'Sign out' : 'Sign in'}</button>}
           </div>

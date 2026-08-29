@@ -43,6 +43,15 @@ class Product(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0)],
     )
+    compare_at_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Optional reference price; checkout always charges price.",
+    )
+    image_url = models.URLField(max_length=1000, blank=True)
     stock_quantity = models.PositiveIntegerField(default=0)
     rating = models.FloatField(
         default=0,
@@ -69,6 +78,10 @@ class Product(models.Model):
 
     def clean(self):
         super().clean()
+        if self.compare_at_price is not None and self.compare_at_price <= self.price:
+            raise ValidationError(
+                {"compare_at_price": "The reference price must be greater than the selling price."}
+            )
         self.specifications = validate_specifications(self.specifications)
         self.tags = validate_tags(self.tags)
 

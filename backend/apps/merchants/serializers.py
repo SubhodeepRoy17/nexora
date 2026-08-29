@@ -41,6 +41,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "category",
             "price",
+            "compare_at_price",
+            "image_url",
             "stock_quantity",
             "rating",
             "is_active",

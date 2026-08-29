@@ -48,6 +48,8 @@ class ProductRecommendation(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     merchant: str = Field(min_length=1, max_length=200)
     price: float = Field(ge=0)
+    compare_at_price: float | None = Field(default=None, ge=0)
+    image_url: str = ""
     category: str = ""
     stock_quantity: int = Field(default=0, ge=0)
     rating: float = Field(default=0, ge=0, le=5)
@@ -341,6 +343,11 @@ def _ground_recommendations(
                     "title": candidate["title"],
                     "merchant": candidate["merchant"]["name"],
                     "price": float(candidate["price"]),
+                    "compare_at_price": (
+                        float(candidate["compare_at_price"])
+                        if candidate.get("compare_at_price") else None
+                    ),
+                    "image_url": candidate.get("image_url", ""),
                     "category": candidate.get("category", ""),
                     "stock_quantity": candidate.get("stock_quantity", 0),
                     "rating": candidate.get("rating", 0),
@@ -715,6 +722,11 @@ def _fallback_response(
                 title=candidate["title"],
                 merchant=candidate["merchant"]["name"],
                 price=float(candidate["price"]),
+                compare_at_price=(
+                    float(candidate["compare_at_price"])
+                    if candidate.get("compare_at_price") else None
+                ),
+                image_url=candidate.get("image_url", ""),
                 category=candidate["category"],
                 stock_quantity=candidate["stock_quantity"],
                 rating=candidate["rating"],

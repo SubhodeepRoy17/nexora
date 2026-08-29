@@ -30,6 +30,8 @@ class RelatedProductContract(ContractModel):
     merchant: str
     category: str
     price: Decimal = Field(ge=0)
+    compare_at_price: Decimal | None = Field(default=None, ge=0)
+    image_url: str = ""
     currency: str
     available: bool
     updated_at: datetime
@@ -53,6 +55,8 @@ class CatalogProductContract(ContractModel):
     description: str
     category: str
     price: Decimal = Field(ge=0)
+    compare_at_price: Decimal | None = Field(default=None, ge=0)
+    image_url: str = ""
     currency: str
     availability: AvailabilityContract
     rating: float = Field(ge=0, le=5)
