@@ -1,12 +1,13 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { AuthSessionSkeleton } from '../common/LoadingSkeletons'
 
 export default function ProtectedRoute({ role, children }) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
   if (loading) {
-    return <main className="login-grid grid min-h-[calc(100dvh-4rem)] place-items-center bg-white text-slate-700" aria-live="polite"><p className="border border-violet-200 bg-violet-50 px-5 py-3 font-mono text-xs text-violet-700">VERIFYING SECURE SESSION…</p></main>
+    return <AuthSessionSkeleton />
   }
   if (!user) {
     const next = encodeURIComponent(`${location.pathname}${location.search}`)

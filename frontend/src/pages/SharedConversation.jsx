@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, MessageCircle, ShoppingBag } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import LogoMark from '../components/LogoMark'
+import { SharedChatSkeleton } from '../components/common/LoadingSkeletons'
 import { getApiError, getSharedChatSession } from '../services/api'
 
 export default function SharedConversation() {
@@ -23,7 +24,7 @@ export default function SharedConversation() {
   return (
     <main className="min-h-dvh bg-[#f8faf6] px-4 pb-16 pt-24 text-slate-950 sm:px-6 sm:pt-28">
       <div className="mx-auto max-w-3xl">
-        {state.loading && <p className="py-24 text-center text-sm text-[#31594f]">Opening shared chat…</p>}
+        {state.loading && <SharedChatSkeleton />}
         {state.error && (
           <section className="rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-[0_20px_60px_rgba(42,81,68,.08)]">
             <h1 className="text-2xl font-semibold text-[#17372f]">Shared chat unavailable</h1>

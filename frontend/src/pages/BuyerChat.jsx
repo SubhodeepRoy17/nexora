@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import Brand from '../components/Brand'
 import LogoMark from '../components/LogoMark'
 import { WorkspaceAccountMenu, WorkspaceSidebarToggle } from '../components/common/WorkspaceSidebarControls'
+import { ChatListSkeleton, ConversationSkeleton, Skeleton } from '../components/common/LoadingSkeletons'
 import AgentThinkingStep from '../components/chat/AgentThinkingStep'
 import ChatInput from '../components/chat/ChatInput'
 import CheckoutModal from '../components/chat/CheckoutModal'
@@ -169,6 +170,7 @@ export default function BuyerChat() {
   const [conversationToken, setConversationToken] = useState(null)
   const [chatSessions, setChatSessions] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [openingConversationId, setOpeningConversationId] = useState(null)
   const [deletingConversationId, setDeletingConversationId] = useState(null)
   const [historyError, setHistoryError] = useState('')
   const [shareStatus, setShareStatus] = useState('idle')
@@ -299,6 +301,7 @@ export default function BuyerChat() {
   const openChatSession = async (sessionId) => {
     if (activeRun || historyLoading) return
     setHistoryLoading(true)
+    setOpeningConversationId(sessionId)
     setHistoryError('')
     try {
       const { data } = await getChatSession(sessionId)
@@ -316,6 +319,7 @@ export default function BuyerChat() {
       setHistoryError(getApiError(error, 'Could not open this chat.'))
     } finally {
       setHistoryLoading(false)
+      setOpeningConversationId(null)
     }
   }
 
@@ -534,7 +538,7 @@ export default function BuyerChat() {
             </div>
             <div className="modal-scroll max-h-[52vh] min-h-40 overflow-y-auto p-2">
               {!user && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">Sign in to search your saved chats.</p>}
-              {user && chatSearchLoading && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">Searching…</p>}
+              {user && chatSearchLoading && <ChatListSkeleton rows={4} label="Searching saved chats" />}
               {user && !chatSearchLoading && !chatSearchResults.length && <p className="px-4 py-8 text-center text-sm text-[#31594f]/70">No chats found.</p>}
               {user && !chatSearchLoading && chatSearchResults.map((session) => (
                 <button key={session.conversation_id} type="button" onClick={() => openChatSession(session.conversation_id)} className="focus-ring flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white">
@@ -582,7 +586,7 @@ export default function BuyerChat() {
                 </div>
                 <div className="modal-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                   {!user && <div className="rounded-xl border border-emerald-950/10 bg-white/55 px-3 py-3 text-xs leading-5 text-[#31594f]/70">Sign in to save your searches.</div>}
-                  {user && historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">Loading…</p>}
+                  {user && historyLoading && !chatSessions.length && <ChatListSkeleton rows={5} compact />}
                   {user && !historyLoading && !chatSessions.length && <p className="px-3 py-3 text-xs text-slate-500">No saved searches yet.</p>}
                   {user &&
                     chatSessions.map((session) => (
@@ -590,13 +594,13 @@ export default function BuyerChat() {
                         {renamingConversation?.id === session.conversation_id ? (
                           <form onSubmit={saveConversationTitle} className="flex items-center gap-1 rounded-xl border border-violet-200 bg-white p-1.5 shadow-sm">
                             <input autoFocus aria-label="Chat name" maxLength={120} value={renamingConversation.title} onChange={(event) => setRenamingConversation((current) => ({ ...current, title: event.target.value }))} className="focus-ring min-w-0 flex-1 rounded-lg bg-[#f4f7f1] px-2.5 py-2 text-xs text-[#17372f]" />
-                            <button type="submit" disabled={!renamingConversation.title.trim() || renameSaving} aria-label="Save chat name" className="focus-ring grid size-8 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"><Check size={14} /></button>
+                            <button type="submit" disabled={!renamingConversation.title.trim() || renameSaving} aria-label={renameSaving ? 'Saving chat name' : 'Save chat name'} className="focus-ring grid size-8 place-items-center rounded-lg text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">{renameSaving ? <Skeleton className="size-3.5 rounded-full" /> : <Check size={14} />}</button>
                             <button type="button" disabled={renameSaving} onClick={() => setRenamingConversation(null)} aria-label="Cancel renaming" className="focus-ring grid size-8 place-items-center rounded-lg text-[#31594f] hover:bg-slate-100"><X size={14} /></button>
                           </form>
                         ) : (
                           <>
                             <button type="button" aria-label={session.title} disabled={Boolean(activeRun) || historyLoading || deletingConversationId === session.conversation_id} onClick={() => openChatSession(session.conversation_id)} className={`focus-ring flex w-full items-center gap-3 rounded-xl border py-3 pl-3 pr-[4.5rem] text-left text-xs transition disabled:cursor-wait disabled:opacity-50 ${conversationId === session.conversation_id ? 'border-violet-200 bg-white/85 text-violet-900 shadow-sm' : 'border-transparent text-[#31594f]/70 hover:bg-white/65 hover:text-[#17372f]'}`}>
-                              <span className="truncate">{session.title}</span>
+                              {deletingConversationId === session.conversation_id ? <span role="status" aria-label="Deleting chat" className="flex w-full items-center gap-2"><Skeleton className="size-3 rounded-full" /><Skeleton className="h-2.5 w-3/4 rounded-full" /></span> : <span className="truncate">{session.title}</span>}
                             </button>
                             <button type="button" disabled={Boolean(activeRun) || historyLoading || Boolean(deletingConversationId)} onClick={() => setRenamingConversation({ id: session.conversation_id, title: session.title })} aria-label={`Rename ${session.title}`} title="Rename chat" className="focus-ring absolute right-9 top-1/2 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-md text-[#31594f] opacity-100 transition hover:bg-white hover:text-violet-700 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                               <Pencil size={13} />
@@ -655,8 +659,8 @@ export default function BuyerChat() {
             aria-label={shareStatus === 'copied' ? 'Share link copied' : shareStatus === 'error' ? 'Share failed, try again' : 'Share current chat'}
             className={`focus-ring absolute right-3 top-[4.75rem] z-20 flex h-9 items-center gap-2 rounded-full border bg-white/85 px-3 text-xs font-semibold shadow-[0_8px_22px_rgba(42,81,68,.09)] backdrop-blur transition hover:bg-white disabled:cursor-wait sm:right-5 ${shareStatus === 'error' ? 'border-rose-200 text-rose-700' : 'border-emerald-950/10 text-[#17372f]'}`}
           >
-            {shareStatus === 'copied' ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
-            <span className="hidden sm:inline">{shareStatus === 'loading' ? 'Creating link…' : shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Try again' : 'Share'}</span>
+            {shareStatus === 'loading' ? <Skeleton className="size-3.5 rounded-full" /> : shareStatus === 'copied' ? <Check size={14} className="text-emerald-600" /> : <Share2 size={14} />}
+            <span className="hidden sm:inline">{shareStatus === 'loading' ? <Skeleton className="h-2.5 w-16 rounded-full" /> : shareStatus === 'copied' ? 'Link copied' : shareStatus === 'error' ? 'Try again' : 'Share'}</span>
           </button>
         )}
 
@@ -676,7 +680,7 @@ export default function BuyerChat() {
             )}
 
             <div className="space-y-7">
-              {visibleMessages.map((message, messageIndex) => {
+              {openingConversationId ? <ConversationSkeleton /> : <>{visibleMessages.map((message, messageIndex) => {
                 const latestAgent = message.role === 'agent' && !visibleMessages.slice(messageIndex + 1).some((item) => item.role === 'agent')
                 const editing = message.role === 'user' && String(editingMessage?.id) === String(message.id)
                 const previousUserMessage = message.role === 'agent'
@@ -745,7 +749,7 @@ export default function BuyerChat() {
                   </div>
                 )
               })}
-              {activeRun && <AgentThinkingStep />}
+              {activeRun && <AgentThinkingStep />}</>}
             </div>
           </div>
         </div>

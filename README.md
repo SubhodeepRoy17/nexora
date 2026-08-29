@@ -101,6 +101,14 @@ graceful-failure, and order-lifecycle diagrams.
 | --- | --- |
 | ![Live buyer agent workspace](docs/screenshots/buyer-agent-workspace.png) | ![Owner-scoped merchant operations dashboard](docs/screenshots/merchant-operations-dashboard.png) |
 
+| Secure access | Product inventory |
+| --- | --- |
+| ![Nexora sign-in experience](docs/screenshots/nexora-sign-in.png) | ![Merchant product inventory workspace](docs/screenshots/merchant-inventory-workspace.png) |
+
+| Account creation | Sales insights |
+| --- | --- |
+| ![Nexora account creation experience](docs/screenshots/nexora-sign-up.png) | ![Merchant sales insights workspace](docs/screenshots/merchant-sales-insights.png) |
+
 | Safe failure | Merchant audit evidence |
 | --- | --- |
 | ![Quantity-limit action blocked before payment](docs/screenshots/p03-buyer-quantity-block.png) | ![Owner-scoped immutable blocked-action audit](docs/screenshots/p03-merchant-blocked-audit.png) |

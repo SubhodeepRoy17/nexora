@@ -79,11 +79,11 @@ describe('approval-gated checkout', () => {
 
     await user.click(screen.getByRole('button', { name: /See final total/i }))
     const activeReview = screen.getByLabelText('Review, current step')
-    expect(activeReview.querySelector('.animate-spin')).toBeInTheDocument()
+    expect(activeReview.querySelector('.checkout-step-loading .nexora-skeleton')).toBeInTheDocument()
 
     releaseCart({ data: { cart_id: 'cart-1' } })
     expect(await screen.findByRole('heading', { name: 'Review and approve' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Review, current step').querySelector('.animate-spin')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Review, current step').querySelector('.nexora-skeleton')).not.toBeInTheDocument()
   })
 
   it('surfaces a deterministic policy block without opening Razorpay', async () => {

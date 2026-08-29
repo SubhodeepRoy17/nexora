@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock3, CreditCard, Inbox, ShieldAlert } f
 import DataFreshness from '../common/DataFreshness'
 import LoadMoreRecords from '../common/LoadMoreRecords'
 import useProgressiveList from '../../hooks/useProgressiveList'
+import { OperationsSkeleton } from '../common/LoadingSkeletons'
 
 const money = (value, currency = 'INR') => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(Number(value ?? 0))
 
@@ -11,7 +12,7 @@ export default function MerchantOperations({ orders, workspace, state, onRetry }
   const webhookStates = operations.webhooks_by_state ?? {}
   const paidOrders = orders.filter((order) => order.status === 'PAID')
   const { visibleItems: visiblePaidOrders, shownCount, remainingCount, nextBatchCount, loadMore } = useProgressiveList(paidOrders, 5)
-  if (state.loading && !workspace) return <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">Loading payments and orders…</section>
+  if (state.loading && !workspace) return <OperationsSkeleton />
   if (state.error && !workspace)
     return (
       <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5">

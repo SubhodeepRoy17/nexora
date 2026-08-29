@@ -38,4 +38,4 @@ Payment operations display exact order-state counts, processed webhook inbox cou
 
 ## Evidence
 
-Phase 12 captures live in `docs/screenshots/`. They are reproducible with the environment-driven `frontend/scripts/capture-screenshots.mjs`; credentials are never stored by the script.
+Current captures live in `docs/screenshots/`. They are reproducible with the environment-driven `frontend/scripts/capture-screenshots.mjs`; credentials are never stored by the script. Public pages can be captured directly, protected pages can use a synthetic authenticated merchant, and `NEXORA_CAPTURE_UI_FIXTURES=1` provides explicitly non-production, redacted presentation fixtures without changing external data.

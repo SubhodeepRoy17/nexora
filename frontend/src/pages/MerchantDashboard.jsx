@@ -10,6 +10,7 @@ import ProductInventoryTable from '../components/merchant/ProductInventoryTable'
 import ProductRelationshipManager from '../components/merchant/ProductRelationshipManager'
 import MerchantOperations from '../components/merchant/MerchantOperations'
 import DataFreshness from '../components/common/DataFreshness'
+import { ActivityTimelineSkeleton, MerchantInventorySkeleton, MerchantOverviewSkeleton } from '../components/common/LoadingSkeletons'
 import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { createProduct, createProductRelationship, deleteProductRelationship, extractResults, getApiError, getMerchantAnalytics, getMerchantWorkspace, getMoneyAudits, getOrders, getProductRelationships, getProducts, patchProduct, patchProductRelationship, toInventoryProduct, toMoneyTimelineEvent, toProductPayload } from '../services/api'
@@ -250,6 +251,7 @@ export default function MerchantDashboard() {
   }
 
   const openExceptions = workspace?.operations?.open_reconciliation_exceptions ?? 0
+  const overviewLoading = catalogState.loading || (growthState.loading && !analytics) || (operationsState.loading && !workspace)
 
   return (
     <div className="merchant-light merchant-grid flex h-dvh min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
@@ -324,15 +326,13 @@ export default function MerchantDashboard() {
               {catalogState.error || timelineState.error}
             </div>
           )}
-          {catalogState.loading && <p className="mb-4 text-sm text-violet-700">Updating products…</p>}
-          {activeTab === 'overview' && <DashboardOverview analytics={analytics} inventory={inventory} events={auditEvents} onNavigate={navigate} merchantName={workspace?.merchant?.name ?? user?.merchant?.name} analyticsState={growthState} timelineState={timelineState} orders={orders} workspace={workspace} operationsState={operationsState} onRetryOperations={() => refreshOperations()} />}
+          {activeTab === 'overview' && (overviewLoading ? <MerchantOverviewSkeleton /> : <DashboardOverview analytics={analytics} inventory={inventory} events={auditEvents} onNavigate={navigate} merchantName={workspace?.merchant?.name ?? user?.merchant?.name} analyticsState={growthState} timelineState={timelineState} orders={orders} workspace={workspace} operationsState={operationsState} onRetryOperations={() => refreshOperations()} />)}
           {activeTab === 'inventory' && (
             <div>
               <div className="mb-3 flex justify-end">
                 <DataFreshness updatedAt={catalogState.updatedAt} loading={catalogState.loading} staleAfterMs={60000} dark />
               </div>
-              <ProductInventoryTable products={inventory} onToggleActive={toggleProduct} onUpdatePrice={updatePrice} onAdd={() => setProductModal({ open: true, product: null })} onEdit={(product) => setProductModal({ open: true, product })} />
-              <ProductRelationshipManager products={inventory} relationships={relationships} onCreate={addRelationship} onToggle={toggleRelationship} onDelete={removeRelationship} />
+              {catalogState.loading && !inventory.length ? <MerchantInventorySkeleton /> : <><ProductInventoryTable products={inventory} onToggleActive={toggleProduct} onUpdatePrice={updatePrice} onAdd={() => setProductModal({ open: true, product: null })} onEdit={(product) => setProductModal({ open: true, product })} /><ProductRelationshipManager products={inventory} relationships={relationships} onCreate={addRelationship} onToggle={toggleRelationship} onDelete={removeRelationship} /></>}
             </div>
           )}
           {activeTab === 'insights' && (
@@ -342,7 +342,7 @@ export default function MerchantDashboard() {
                 <div className="mb-2 flex justify-end">
                   <DataFreshness updatedAt={timelineState.updatedAt} loading={timelineState.loading} staleAfterMs={20000} dark />
                 </div>
-                <AgentTimelineFeed events={auditEvents} expanded />
+                {timelineState.loading && !auditEvents.length ? <ActivityTimelineSkeleton rows={5} /> : <AgentTimelineFeed events={auditEvents} expanded />}
               </div>
             </div>
           )}

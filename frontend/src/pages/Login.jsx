@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, BadgeCheck, Eye, EyeOff, LockKeyhole, LogIn, Mail, ShieldCheck, Sparkles, Store, UserPlus, UserRound } from 'lucide-react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import Brand from '../components/Brand'
+import { Skeleton } from '../components/common/LoadingSkeletons'
 import { useAuth } from '../context/AuthContext'
 import { getApiError } from '../services/api'
 
@@ -218,9 +219,8 @@ export default function Login() {
               {mode === 'signup' && <p className="mt-3 flex items-center gap-2 text-[10px] leading-5 text-[#31594f]/65"><BadgeCheck size={13} className="text-emerald-700" /> Use at least 8 characters. Weak passwords are rejected securely.</p>}
               {state.error && <p className="mt-4 rounded-2xl border border-rose-300 bg-rose-50/90 p-3 text-xs text-rose-700" role="alert">{state.error}</p>}
 
-              <button type="submit" disabled={state.submitting || loading} className="focus-ring group mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#17372f] bg-[#17372f] py-4 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(23,55,47,.22)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#244b41] disabled:cursor-wait disabled:border-slate-400 disabled:bg-slate-400">
-                {mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}
-                {state.submitting ? (mode === 'signup' ? 'Creating account…' : 'Signing in…') : mode === 'signup' ? 'Create secure account' : 'Sign in securely'} <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+              <button type="submit" disabled={state.submitting || loading} aria-label={state.submitting ? (mode === 'signup' ? 'Creating account' : 'Signing in') : undefined} className="focus-ring group mt-6 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#17372f] bg-[#17372f] py-4 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(23,55,47,.22)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#244b41] disabled:cursor-wait disabled:border-[#17372f] disabled:bg-[#17372f]">
+                {state.submitting || loading ? <span role="status" aria-label={state.submitting ? (mode === 'signup' ? 'Creating account' : 'Signing in') : 'Checking account'} className="flex w-32 items-center gap-2"><Skeleton className="nexora-skeleton-ink size-4 rounded-full" /><Skeleton className="nexora-skeleton-ink h-2.5 flex-1 rounded-full" /></span> : <>{mode === 'signup' ? <UserPlus size={16} /> : <LogIn size={16} />}{mode === 'signup' ? 'Create secure account' : 'Sign in securely'} <ArrowRight size={15} className="transition group-hover:translate-x-1" /></>}
               </button>
             </form>
 

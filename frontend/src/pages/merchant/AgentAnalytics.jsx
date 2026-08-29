@@ -1,6 +1,7 @@
-import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, RefreshCw, Target, TrendingDown } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CircleDollarSign, Eye, Lightbulb, Link2, PackageX, Puzzle, Target, TrendingDown } from 'lucide-react'
 import DataFreshness from '../../components/common/DataFreshness'
 import LoadMoreRecords from '../../components/common/LoadMoreRecords'
+import { MerchantInsightsSkeleton } from '../../components/common/LoadingSkeletons'
 import useProgressiveList from '../../hooks/useProgressiveList'
 
 const money = (value) =>
@@ -57,11 +58,7 @@ export default function AgentAnalytics({ analytics, state, onRetry }) {
   const lossList = useProgressiveList(losses, 4)
 
   if (state.loading && !analytics)
-    return (
-      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-sm text-violet-700">
-        <RefreshCw size={14} className="mr-2 inline animate-spin" /> Calculating sales insights…
-      </div>
-    )
+    return <MerchantInsightsSkeleton />
   if (state.error && !analytics)
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">

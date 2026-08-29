@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AlertTriangle, CheckCircle2, Clock3, CreditCard, Package, RefreshCw, X } from 'lucide-react'
 import useBoundedPolling from '../../hooks/useBoundedPolling'
 import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
+import { OrdersListSkeleton, Skeleton } from '../common/LoadingSkeletons'
 import { cancelOrder, extractResults, getApiError, getOrder, getOrders, loadRazorpayCheckout, verifyCheckoutPayment } from '../../services/api'
 
 const TERMINAL = new Set(['PAID', 'PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED', 'MANUAL_REVIEW'])
@@ -156,10 +157,10 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
         <div className="p-4 sm:p-5">
           <div className={`rounded-2xl border p-4 ${statusStyle}`} role="status" aria-live="polite">
             <div className="flex items-center gap-2">
-              {state.loading ? <RefreshCw size={17} className="animate-spin" /> : successful ? <CheckCircle2 size={17} className="text-emerald-600" /> : terminalFailure ? <AlertTriangle size={17} className="text-rose-600" /> : <Clock3 size={17} className="text-amber-600" />}
-              <p className="text-sm font-semibold">{order.status.replaceAll('_', ' ')}</p>
+              {state.loading ? <Skeleton className="size-4 rounded-full" /> : successful ? <CheckCircle2 size={17} className="text-emerald-600" /> : terminalFailure ? <AlertTriangle size={17} className="text-rose-600" /> : <Clock3 size={17} className="text-amber-600" />}
+              {state.loading ? <Skeleton className="h-3 w-28 rounded-full" /> : <p className="text-sm font-semibold">{order.status.replaceAll('_', ' ')}</p>}
             </div>
-            <p className="mt-2 text-xs leading-5 opacity-75">{statusCopy[order.status] ?? 'We are checking the latest order status.'}</p>
+            {state.loading ? <div className="mt-3 space-y-2"><Skeleton className="h-2.5 w-full rounded-full" /><Skeleton className="h-2.5 w-3/4 rounded-full" /></div> : <p className="mt-2 text-xs leading-5 opacity-75">{statusCopy[order.status] ?? 'We are checking the latest order status.'}</p>}
           </div>
 
           {state.error && (
@@ -198,12 +199,12 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             {order.status === 'PAYMENT_PENDING' && order.key && (
               <button type="button" onClick={resumePayment} disabled={Boolean(state.action)} aria-describedby={state.error ? 'order-action-error' : undefined} className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-700 bg-violet-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:opacity-50">
-                <CreditCard size={15} /> {state.action === 'payment' ? 'Opening…' : 'Resume Razorpay payment'}
+                {state.action === 'payment' ? <span role="status" aria-label="Opening payment" className="flex w-28 items-center gap-2"><Skeleton className="nexora-skeleton-ink size-3.5 rounded-full" /><Skeleton className="nexora-skeleton-ink h-2.5 flex-1 rounded-full" /></span> : <><CreditCard size={15} /> Resume Razorpay payment</>}
               </button>
             )}
             {order.cancellable && (
               <button type="button" onClick={cancel} disabled={Boolean(state.action)} className="focus-ring flex-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
-                Cancel and release stock
+                {state.action === 'cancel' ? <span role="status" aria-label="Cancelling order" className="mx-auto flex w-28 items-center gap-2"><Skeleton className="size-3.5 rounded-full" /><Skeleton className="h-2.5 flex-1 rounded-full" /></span> : 'Cancel and release stock'}
               </button>
             )}
             {['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED'].includes(order.status) && (
@@ -288,6 +289,7 @@ export default function BuyerOrders({ user, refreshNonce = 0, onRetry }) {
         )}
         {!state.loading && !orders.length && <p className="mt-2 px-2 text-xs leading-5 text-slate-500">No orders yet.</p>}
         <div className="modal-scroll mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          {state.loading && !orders.length && <OrdersListSkeleton />}
           {orders.map((order) => (
             <button key={order.order_id} type="button" onClick={() => setSelected(order)} className="focus-ring flex w-full items-center gap-2 rounded-xl border border-emerald-950/10 bg-white/58 px-2.5 py-2 text-left transition hover:bg-white">
               <Package size={12} className="shrink-0 text-violet-600" />

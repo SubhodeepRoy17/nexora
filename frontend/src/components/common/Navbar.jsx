@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import Brand from '../Brand'
+import { Skeleton } from './LoadingSkeletons'
 
 export default function Navbar() {
   const location = useLocation()
@@ -45,10 +46,11 @@ export default function Navbar() {
         </nav>
 
         {!workspaceMode && <div className="hidden items-center gap-2 lg:flex">
+          {loading && <div role="status" aria-label="Checking account" aria-busy="true"><span className="sr-only">Checking account</span><Skeleton className="h-9 w-32 rounded-full" /></div>}
           {!loading && !user && <button type="button" onClick={() => go('/login?mode=signup')} className="focus-ring flex items-center gap-2 rounded-full border border-violet-300 bg-white/55 px-4 py-2.5 text-[10px] font-bold text-violet-700 backdrop-blur-sm transition hover:border-violet-600 hover:bg-white"><UserPlus size={13} /> Sign up</button>}
-          <button type="button" onClick={() => user ? signOut() : go('/login')} title={user ? `Signed in as ${user.display_name}` : 'Sign in'} className="focus-ring flex items-center gap-2 rounded-full border border-black bg-black px-4 py-2.5 text-[10px] font-bold text-white transition hover:border-violet-700 hover:bg-violet-700">
+          {!loading && <button type="button" onClick={() => user ? signOut() : go('/login')} title={user ? `Signed in as ${user.display_name}` : 'Sign in'} className="focus-ring flex items-center gap-2 rounded-full border border-black bg-black px-4 py-2.5 text-[10px] font-bold text-white transition hover:border-violet-700 hover:bg-violet-700">
             {user ? <LogOut size={13} /> : <LogIn size={13} />}<span>{user ? 'Sign out' : 'Sign in'}</span>
-          </button>
+          </button>}
         </div>}
 
         <button type="button" onClick={() => setMobileOpen((open) => !open)} className="focus-ring pointer-events-auto ml-auto grid size-10 place-items-center rounded-full bg-white/70 text-emerald-950 shadow-sm backdrop-blur-sm lg:hidden" aria-expanded={mobileOpen} aria-label="Toggle navigation">{mobileOpen ? <X size={18} /> : <Menu size={18} />}</button>
@@ -59,6 +61,7 @@ export default function Navbar() {
           <div className="grid gap-2">
             {landing && <><a href="#product" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Product</a><a href="#how-it-works" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">How it works</a><a href="#safety" onClick={() => setMobileOpen(false)} className="border border-slate-200 px-4 py-3 text-xs font-semibold">Safety</a></>}
             {!landing && <><button type="button" onClick={() => go('/buyer')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Bot size={14} /> Shopping assistant</button><button type="button" onClick={() => go('/merchant')} className="flex items-center gap-2 border border-slate-200 px-4 py-3 text-left text-xs font-semibold"><Store size={14} /> Seller workspace</button></>}
+            {!workspaceMode && loading && <div role="status" aria-label="Checking account" aria-busy="true" className="flex justify-center py-1"><span className="sr-only">Checking account</span><Skeleton className="h-11 w-full rounded-xl" /></div>}
             {!workspaceMode && !loading && !user && <button type="button" onClick={() => go('/login?mode=signup')} className="flex items-center justify-center gap-2 border border-violet-300 bg-violet-50 px-4 py-3 text-xs font-semibold text-violet-700"><UserPlus size={14} /> Sign up</button>}
             {!workspaceMode && !loading && <button type="button" onClick={() => { setMobileOpen(false); user ? signOut() : navigate('/login') }} className="flex items-center justify-center gap-2 bg-slate-950 px-4 py-3 text-xs font-semibold text-white">{user ? <LogOut size={14} /> : <LogIn size={14} />}{user ? 'Sign out' : 'Sign in'}</button>}
           </div>

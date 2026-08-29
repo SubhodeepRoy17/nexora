@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, ChevronRight, Clock3, CreditCard, LoaderCircle, LockKeyhole, Minus, PackageCheck, Plus, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, ChevronRight, Clock3, CreditCard, LockKeyhole, Minus, PackageCheck, Plus, ShieldCheck, X } from 'lucide-react'
 import { approveQuote, cancelOrder, createCart, createCartQuote, createOrder, getApiError, getOrder, loadRazorpayCheckout, newIdempotencyKey, respondToGrowthOffer, verifyCheckoutPayment } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import DataFreshness from '../common/DataFreshness'
+import { CheckoutProcessingSkeleton } from '../common/LoadingSkeletons'
 import useBoundedPolling from '../../hooks/useBoundedPolling'
 import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
 
@@ -44,9 +45,9 @@ function CheckoutProgress({ steps, activeIndex, paid, loading }) {
               )}
               <span
                 data-step-state={complete ? 'complete' : current ? 'current' : 'upcoming'}
-                className={`checkout-step-node relative z-10 grid size-8 shrink-0 place-items-center rounded-full border-2 text-[11px] font-semibold sm:size-9 ${complete ? 'checkout-step-done border-emerald-600 bg-emerald-600 text-white shadow-[0_0_0_4px_rgba(5,150,105,.1)]' : current ? 'border-[#17372f] bg-white text-[#17372f] shadow-[0_0_0_4px_rgba(23,55,47,.08)]' : 'border-slate-200 bg-white text-slate-400'}`}
+                className={`checkout-step-node relative z-10 grid size-8 shrink-0 place-items-center rounded-full border-2 text-[11px] font-semibold sm:size-9 ${complete ? 'checkout-step-done border-emerald-600 bg-emerald-600 text-white shadow-[0_0_0_4px_rgba(5,150,105,.1)]' : busy ? 'checkout-step-loading shadow-[0_0_0_4px_rgba(109,40,217,.08)]' : current ? 'border-[#17372f] bg-white text-[#17372f] shadow-[0_0_0_4px_rgba(23,55,47,.08)]' : 'border-slate-200 bg-white text-slate-400'}`}
               >
-                {complete ? <Check size={15} strokeWidth={3} /> : busy ? <LoaderCircle size={15} className="animate-spin" /> : index + 1}
+                {complete ? <Check size={15} strokeWidth={3} /> : busy ? <span className="nexora-skeleton size-3 rounded-full" aria-hidden="true" /> : index + 1}
               </span>
               <span className={`mt-2 w-full truncate px-0.5 text-[9px] font-medium sm:text-xs ${complete ? 'text-emerald-700' : current ? 'text-[#17372f]' : 'text-slate-400'}`}>{label}</span>
             </li>
@@ -353,6 +354,7 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         <div className="modal-scroll min-h-0 flex-1 overflow-y-auto">
           <div className="grid lg:min-h-full lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
             <div className="p-5 sm:p-8 lg:border-r lg:border-slate-200">
+            {processing && !order && <CheckoutProcessingSkeleton />}
             {error && (
               <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800" role="alert">
                 <p className="font-semibold">{error}</p>

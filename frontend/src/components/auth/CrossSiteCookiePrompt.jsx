@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { CheckCircle2, Cookie, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import useDialogFocusTrap from '../../hooks/useDialogFocusTrap'
+import { Skeleton } from '../common/LoadingSkeletons'
 
 function browserGuidance(userAgent = '') {
   if (/Edg\//i.test(userAgent)) {
@@ -102,10 +103,10 @@ export default function CrossSiteCookiePrompt() {
               type="button"
               onClick={recheck}
               disabled={checking}
+              aria-label={checking ? 'Checking cookie access' : undefined}
               className="focus-ring inline-flex items-center justify-center gap-2 rounded-full bg-[#17372f] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(23,55,47,.2)] transition hover:bg-[#244b41] disabled:cursor-wait disabled:opacity-65"
             >
-              <RefreshCw size={16} className={checking ? 'animate-spin' : ''} />
-              {checking ? 'Checking…' : 'I’ve enabled cookies'}
+              {checking ? <span role="status" aria-label="Checking cookie access" className="flex w-36 items-center gap-2"><Skeleton className="nexora-skeleton-ink size-4 rounded-full" /><Skeleton className="nexora-skeleton-ink h-2.5 flex-1 rounded-full" /></span> : <><RefreshCw size={16} />I’ve enabled cookies</>}
             </button>
           </div>
 

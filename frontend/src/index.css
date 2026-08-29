@@ -254,12 +254,13 @@
   box-shadow: 12px 0 40px rgba(42,81,68,.04);
 }
 
-.buyer-main { background: rgba(250, 251, 247, .72); }
+.buyer-main { background: #efeae2; }
 
 .buyer-log {
   background:
-    radial-gradient(circle at 52% 4%, rgba(216, 245, 234, .35), transparent 24rem),
-    transparent;
+    linear-gradient(rgba(239, 234, 226, .78), rgba(239, 234, 226, .78)),
+    url('/images/nexora-chat-pattern.svg') repeat;
+  background-size: auto, 360px 360px;
 }
 
 .buyer-welcome { animation: buyer-welcome-enter .7s cubic-bezier(.2,.8,.2,1) both; }
@@ -283,7 +284,7 @@
 }
 
 .buyer-composer {
-  background: linear-gradient(180deg, rgba(248,250,246,0), rgba(248,250,246,.9) 28%, rgba(248,250,246,.98));
+  background: linear-gradient(180deg, rgba(239,234,226,0), rgba(239,234,226,.92) 28%, #efeae2);
 }
 
 .buyer-input { transform-origin: bottom center; }
@@ -1374,6 +1375,46 @@
     linear-gradient(rgba(71, 85, 105, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(71, 85, 105, 0.06) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+
+.nexora-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(110deg, rgba(226, 232, 224, .86) 8%, rgba(246, 248, 243, .98) 18%, rgba(226, 232, 224, .86) 33%);
+  background-size: 220% 100%;
+  box-shadow: inset 0 0 0 1px rgba(49, 89, 79, .035);
+  animation: nexora-shimmer 1.45s linear infinite;
+}
+
+.nexora-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .42), transparent);
+  transform: translateX(-100%);
+  animation: nexora-sheen 1.45s ease-in-out infinite;
+}
+
+.nexora-skeleton-ink {
+  background: linear-gradient(110deg, rgba(49, 89, 79, .14) 8%, rgba(255, 255, 255, .72) 18%, rgba(49, 89, 79, .14) 33%);
+  background-size: 220% 100%;
+}
+
+.checkout-step-loading {
+  overflow: hidden;
+  border-color: rgba(109, 40, 217, .34) !important;
+  background: linear-gradient(110deg, #fff 8%, #ede9fe 20%, #fff 36%);
+  background-size: 220% 100%;
+  color: #6d28d9 !important;
+  animation: nexora-shimmer 1.15s linear infinite;
+}
+
+@keyframes nexora-shimmer {
+  to { background-position-x: -220%; }
+}
+
+@keyframes nexora-sheen {
+  to { transform: translateX(100%); }
 }
 
 .product-grid {

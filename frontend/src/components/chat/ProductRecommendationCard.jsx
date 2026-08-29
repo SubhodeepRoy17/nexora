@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { ArrowUpRight, Star } from 'lucide-react'
+import { Skeleton } from '../common/LoadingSkeletons'
 
 const money = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value)
 
 export default function ProductRecommendationCard({ product, featured = false, onApprove, className = '' }) {
+  const [imageLoading, setImageLoading] = useState(Boolean(product.imageUrl))
   const keySpecs = [
     product.specs.color,
     product.specs.material,
@@ -21,7 +24,7 @@ export default function ProductRecommendationCard({ product, featured = false, o
       <div className="product-grid relative h-44 overflow-hidden border-b border-emerald-950/10 bg-[#f2f6ee]">
         <div className="absolute -left-8 -top-10 size-32 rounded-full bg-violet-500/20 blur-3xl" />
         <div className="absolute -bottom-16 right-0 size-36 rounded-full bg-emerald-500/15 blur-3xl" />
-        {product.imageUrl ? <img src={product.imageUrl} alt={product.name} loading="lazy" className="h-full w-full object-contain p-5 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 grid place-items-center">
+        {product.imageUrl ? <><img src={product.imageUrl} alt={product.name} loading="lazy" onLoad={() => setImageLoading(false)} onError={() => setImageLoading(false)} className={`h-full w-full object-contain p-5 transition duration-500 group-hover:scale-105 ${imageLoading ? 'opacity-0' : 'opacity-100'}`} />{imageLoading && <div role="status" aria-label={`Loading ${product.name} image`} className="absolute inset-0 p-5"><Skeleton className="h-full w-full rounded-2xl" /></div>}</> : <div className="absolute inset-0 grid place-items-center">
           <div className="relative h-[62px] w-[155px] rotate-[-3deg] border border-slate-700 bg-slate-900 p-2 shadow-2xl transition duration-300 group-hover:rotate-0 group-hover:scale-105">
             <div className="grid h-full grid-cols-12 gap-1">
               {Array.from({ length: 48 }, (_, index) => <span key={index} className={`rounded-[2px] border border-slate-600/60 ${index === 35 ? 'col-span-5 bg-indigo-500/70' : 'bg-slate-700'}`} />)}
