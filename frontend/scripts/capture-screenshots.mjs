@@ -6,6 +6,7 @@ const baseUrl = process.env.NEXORA_CAPTURE_URL ?? 'http://localhost:5173'
 const apiUrl = process.env.NEXORA_CAPTURE_API_URL ?? 'http://localhost:8000'
 const executablePath = process.env.NEXORA_CHROME_PATH ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const landingOnly = process.env.NEXORA_CAPTURE_LANDING_ONLY === '1'
+const coreOnly = process.env.NEXORA_CAPTURE_CORE_ONLY === '1'
 const useFixtures = process.env.NEXORA_CAPTURE_UI_FIXTURES === '1'
 const output = resolve(process.cwd(), '../docs/screenshots')
 await mkdir(output, { recursive: true })
@@ -119,28 +120,32 @@ try {
   await page.screenshot({ path: resolve(output, 'nexora-landing-page.png'), fullPage: true })
 
   if (!landingOnly) {
-    await capture('/login', 'nexora-sign-in.png', () => page.getByRole('heading', { name: 'Sign in to Nexora' }).waitFor())
-    await capture('/login?mode=signup', 'nexora-sign-up.png', () => page.getByRole('heading', { name: 'Create your account' }).waitFor())
+    if (!coreOnly) {
+      await capture('/login', 'nexora-sign-in.png', () => page.getByRole('heading', { name: 'Sign in to Nexora' }).waitFor())
+      await capture('/login?mode=signup', 'nexora-sign-up.png', () => page.getByRole('heading', { name: 'Create your account' }).waitFor())
+    }
     await capture('/buyer', 'buyer-agent-workspace.png', () => page.locator('.buyer-welcome').waitFor())
 
-    const username = process.env.NEXORA_CAPTURE_MERCHANT_USERNAME
-    const password = process.env.NEXORA_CAPTURE_MERCHANT_PASSWORD
-    const sessionId = process.env.NEXORA_CAPTURE_MERCHANT_SESSION_ID
-    if (useFixtures) {
-      fixtureRole = 'merchant'
-      await captureMerchantPages()
-    } else if (sessionId) {
-      await page.context().addCookies([{ name: 'sessionid', value: sessionId, url: apiUrl }])
-      await captureMerchantPages()
-    } else if (username && password) {
-      await page.goto(`${baseUrl}/login?role=merchant`, { waitUntil: 'networkidle' })
-      await page.getByLabel('Username').fill(username)
-      await page.getByLabel('Password').fill(password)
-      await page.getByRole('button', { name: /Sign in securely/i }).click()
-      await page.waitForURL('**/merchant')
-      await captureMerchantPages()
-    } else {
-      process.stderr.write('Merchant screenshots skipped: provide capture credentials, a temporary session, or NEXORA_CAPTURE_UI_FIXTURES=1.\n')
+    if (!coreOnly) {
+      const username = process.env.NEXORA_CAPTURE_MERCHANT_USERNAME
+      const password = process.env.NEXORA_CAPTURE_MERCHANT_PASSWORD
+      const sessionId = process.env.NEXORA_CAPTURE_MERCHANT_SESSION_ID
+      if (useFixtures) {
+        fixtureRole = 'merchant'
+        await captureMerchantPages()
+      } else if (sessionId) {
+        await page.context().addCookies([{ name: 'sessionid', value: sessionId, url: apiUrl }])
+        await captureMerchantPages()
+      } else if (username && password) {
+        await page.goto(`${baseUrl}/login?role=merchant`, { waitUntil: 'networkidle' })
+        await page.getByLabel('Username').fill(username)
+        await page.getByLabel('Password').fill(password)
+        await page.getByRole('button', { name: /Sign in securely/i }).click()
+        await page.waitForURL('**/merchant')
+        await captureMerchantPages()
+      } else {
+        process.stderr.write('Merchant screenshots skipped: provide capture credentials, a temporary session, or NEXORA_CAPTURE_UI_FIXTURES=1.\n')
+      }
     }
   }
 } finally {

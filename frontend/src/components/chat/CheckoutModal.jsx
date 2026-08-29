@@ -108,10 +108,12 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
         const { data } = await getOrder(order.order_id, signal)
         setOrder(data)
         setStatusUpdatedAt(new Date().toISOString())
-        if (data.status === 'PAID' && !notifiedPaid.current) {
-          notifiedPaid.current = true
+        if (data.status === 'PAID') {
           setStage('paid')
-          onOrderPlaced({ product, order: data })
+          if (!notifiedPaid.current) {
+            notifiedPaid.current = true
+            onOrderPlaced({ product, order: data })
+          }
         } else if (terminalStates.has(data.status)) {
           setStage('terminal')
         } else if (data.status === 'REFUND_PENDING') {
@@ -262,10 +264,12 @@ export default function CheckoutModal({ product, onClose, onOrderPlaced }) {
             if (data.order) {
               setOrder(data.order)
               setStatusUpdatedAt(new Date().toISOString())
-              if (data.order.status === 'PAID' && !notifiedPaid.current) {
-                notifiedPaid.current = true
+              if (data.order.status === 'PAID') {
                 setStage('paid')
-                onOrderPlaced({ product, order: data.order })
+                if (!notifiedPaid.current) {
+                  notifiedPaid.current = true
+                  onOrderPlaced({ product, order: data.order })
+                }
               }
             }
           } catch (verificationError) {

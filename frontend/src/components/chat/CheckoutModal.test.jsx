@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -158,5 +158,31 @@ describe('approval-gated checkout', () => {
     }
     expect(screen.getByRole('button', { name: 'Finish' })).toHaveClass('checkout-finish-button', 'bg-emerald-600', 'text-white')
     expect(placed).toHaveBeenCalledWith({ product, order: paidOrder })
+  })
+
+  it('keeps Done completed when a paid callback wins a race with an in-flight paid poll', async () => {
+    const paidOrder = { ...pendingOrder, status: 'PAID', cancellable: false, paid_at: new Date().toISOString() }
+    let releasePoll
+    apiMocks.getOrder.mockReturnValue(new Promise((resolve) => { releasePoll = resolve }))
+    apiMocks.verifyCheckoutPayment.mockResolvedValue({ data: { checkout_signature_verified: true, order: paidOrder } })
+    let checkoutOptions
+    window.Razorpay = vi.fn(function Razorpay(options) { checkoutOptions = options; this.on = vi.fn(); this.open = vi.fn() })
+    const placed = vi.fn()
+    const user = userEvent.setup(); renderCheckout({ onOrderPlaced: placed }); await reachQuote(user); await approve(user)
+    await waitFor(() => expect(apiMocks.getOrder).toHaveBeenCalledOnce())
+
+    await act(async () => {
+      await checkoutOptions.handler({ razorpay_order_id: 'order_test_1', razorpay_payment_id: 'pay_test_1', razorpay_signature: 'signed' })
+    })
+    expect(screen.getByLabelText('Done, completed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument()
+
+    await act(async () => {
+      releasePoll({ data: paidOrder })
+      await Promise.resolve()
+    })
+    expect(screen.getByLabelText('Done, completed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeInTheDocument()
+    expect(placed).toHaveBeenCalledTimes(1)
   })
 })
