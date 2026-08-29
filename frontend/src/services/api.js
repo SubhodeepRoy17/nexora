@@ -105,7 +105,37 @@ export const verifyCheckoutPayment = (orderId, payload) => api.post(
   payload,
 )
 
-export const getProducts = (signal) => api.get('merchants/products/', { signal })
+export async function getProducts(signal) {
+  const pageSize = 100
+  const firstResponse = await api.get('merchants/products/', {
+    signal,
+    params: { page: 1, page_size: pageSize },
+  })
+  if (Array.isArray(firstResponse.data)) return firstResponse
+
+  const firstPage = firstResponse.data ?? {}
+  const totalPages = Math.ceil(Number(firstPage.count ?? 0) / pageSize)
+  const remainingResponses = totalPages > 1
+    ? await Promise.all(Array.from({ length: totalPages - 1 }, (_, index) => api.get(
+      'merchants/products/',
+      { signal, params: { page: index + 2, page_size: pageSize } },
+    )))
+    : []
+  const results = [
+    ...(firstPage.results ?? []),
+    ...remainingResponses.flatMap((response) => response.data?.results ?? []),
+  ]
+  return {
+    ...firstResponse,
+    data: {
+      ...firstPage,
+      count: Number(firstPage.count ?? results.length),
+      next: null,
+      previous: null,
+      results,
+    },
+  }
+}
 export const getMerchantWorkspace = (signal) => api.get('merchants/workspace/', { signal })
 export const patchProduct = (productId, payload) => api.patch(`merchants/products/${productId}/`, payload)
 export const createProduct = (payload) => api.post('merchants/products/', payload)

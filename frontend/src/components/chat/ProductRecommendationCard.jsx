@@ -35,7 +35,7 @@ export default function ProductRecommendationCard({ product, featured = false, o
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-center justify-between gap-2 text-xs">
           <span className="truncate text-emerald-700">{product.merchant.name}</span>
-          <span className="flex shrink-0 items-center gap-1 font-semibold text-violet-700"><Star size={12} fill="currentColor" /> {product.matchScore}% match</span>
+          <span title="Based on your request and the product details" className="flex shrink-0 items-center gap-1 font-semibold text-violet-700"><Star size={12} fill="currentColor" /> {product.matchScore}% match</span>
         </div>
 
         <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-950">{product.name}</h3>

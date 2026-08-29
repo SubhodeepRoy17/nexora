@@ -1,5 +1,7 @@
 import re
+from collections.abc import Mapping
 from decimal import Decimal
+from math import fsum
 from typing import Any
 
 from django.db import DatabaseError
@@ -60,15 +62,43 @@ CATEGORY_ALIASES = {
     "jewellery": "Jewellery",
     "handbag": "Bags",
     "handbags": "Bags",
+    "mouse": "Mice",
+    "mice": "Mice",
+    "headphone": "Headphones",
+    "headphones": "Headphones",
+    "headset": "Headphones",
+    "headsets": "Headphones",
+    "monitor": "Monitors",
+    "monitors": "Monitors",
+    "webcam": "Webcams",
+    "webcams": "Webcams",
+    "hub": "USB Hubs",
+    "powerbank": "Power Banks",
+    "lamp": "Desk Lamps",
+    "lamps": "Desk Lamps",
+}
+CATEGORY_PHRASE_ALIASES = {
+    "keyboard accessory": "Keyboard Accessories",
+    "keyboard accessories": "Keyboard Accessories",
+    "laptop backpack": "Laptop Backpacks",
+    "laptop backpacks": "Laptop Backpacks",
+    "laptop stand": "Laptop Stands",
+    "laptop stands": "Laptop Stands",
+    "power bank": "Power Banks",
+    "power banks": "Power Banks",
+    "desk lamp": "Desk Lamps",
+    "desk lamps": "Desk Lamps",
+    "usb hub": "USB Hubs",
+    "usb hubs": "USB Hubs",
 }
 TERM_EXPANSIONS = {
-    "mac": ["macos"],
-    "macos": ["macos", "mac"],
+    "mac": ["mac", "macos", "macbook"],
+    "macos": ["macos", "mac", "macbook"],
     "silent": ["silent", "quiet"],
     "quiet": ["quiet", "silent"],
-    "coding": ["coding", "productivity"],
-    "hot-swappable": ["hot-swap"],
-    "hotswap": ["hot-swap"],
+    "coding": ["coding", "productivity", "programming"],
+    "hot-swappable": ["hot-swappable", "hot-swap", "hotswap"],
+    "hotswap": ["hotswap", "hot-swap", "hot-swappable"],
 }
 COLOR_CANONICAL = {
     color: color.title()
@@ -104,16 +134,19 @@ class ProductSearchSchema(BaseModel):
         return value
 
 
-def _keyword_tokens(search_query: str) -> list[str]:
+def _keyword_concepts(search_query: str) -> list[list[str]]:
     extracted = re.findall(r"[\w+-]+", search_query.lower())
     base_tokens = [
         token for token in dict.fromkeys(extracted)
         if len(token) > 2 and not token.isdigit() and token not in SEARCH_STOP_WORDS
     ][:10]
-    tokens = []
-    for token in base_tokens:
-        tokens.extend(TERM_EXPANSIONS.get(token, [token]))
-    return list(dict.fromkeys(tokens))[:12]
+    return [TERM_EXPANSIONS.get(token, [token]) for token in base_tokens]
+
+
+def _keyword_tokens(search_query: str) -> list[str]:
+    return list(dict.fromkeys(
+        token for concept in _keyword_concepts(search_query) for token in concept
+    ))[:20]
 
 
 def _keyword_query(search_query: str) -> Q:
@@ -161,6 +194,133 @@ def serialize_product(product: Product) -> dict[str, Any]:
     }
 
 
+def _flatten_searchable(value: Any) -> str:
+    if isinstance(value, Mapping):
+        return " ".join(
+            f"{key} {_flatten_searchable(item)}" for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(_flatten_searchable(item) for item in value)
+    return str(value or "")
+
+
+def _contains_term(text: str, term: str) -> bool:
+    normalized_text = re.sub(r"[\W_]+", " ", text.casefold()).strip()
+    normalized_term = re.sub(r"[\W_]+", " ", term.casefold()).strip()
+    if not normalized_term:
+        return False
+    variants = [normalized_term]
+    if " " not in normalized_term and not normalized_term.endswith("s"):
+        variants.extend((f"{normalized_term}s", f"{normalized_term}es"))
+    return any(
+        re.search(rf"(?<!\w){re.escape(variant)}(?!\w)", normalized_text)
+        for variant in variants
+    )
+
+
+def _normalized_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.strip().casefold()
+    if isinstance(value, list):
+        return [_normalized_value(item) for item in value]
+    if isinstance(value, Mapping):
+        return {key: _normalized_value(item) for key, item in value.items()}
+    return value
+
+
+def _specification_match(actual: Any, expected: Any) -> float:
+    normalized_actual = _normalized_value(actual)
+    normalized_expected = _normalized_value(expected)
+    if isinstance(normalized_expected, list):
+        if not isinstance(normalized_actual, list) or not normalized_expected:
+            return 0.0
+        return (
+            sum(item in normalized_actual for item in normalized_expected)
+            / len(normalized_expected)
+        )
+    return 1.0 if normalized_actual == normalized_expected else 0.0
+
+
+def calculate_match_score(
+    candidate: dict[str, Any],
+    arguments: ProductSearchSchema | dict[str, Any],
+) -> int:
+    """Return an explainable prompt-to-product relevance percentage.
+
+    Only requested dimensions enter the denominator. Text intent combines
+    field-weighted token coverage with the same local semantic embedding used
+    by retrieval; explicit category, budget, rating, and specification rules
+    are scored independently.
+    """
+
+    search = (
+        arguments
+        if isinstance(arguments, ProductSearchSchema)
+        else ProductSearchSchema.model_validate(arguments)
+    )
+    components: list[tuple[float, float]] = []
+    concepts = _keyword_concepts(search.search_query)
+    if concepts:
+        fields = (
+            (str(candidate.get("title") or "").casefold(), 1.0),
+            (str(candidate.get("category") or "").casefold(), 0.95),
+            (_flatten_searchable(candidate.get("tags") or []).casefold(), 0.85),
+            (_flatten_searchable(candidate.get("specifications") or {}), 0.8),
+            (str(candidate.get("description") or "").casefold(), 0.65),
+        )
+        lexical_coverage = sum(
+            max(
+                (
+                    weight
+                    for text, weight in fields
+                    if any(_contains_term(text, token) for token in concept)
+                ),
+                default=0.0,
+            )
+            for concept in concepts
+        ) / len(concepts)
+        query_vector = catalog_text_embedding(
+            search.search_query, search.category, search.required_specs
+        )
+        product_vector = catalog_text_embedding(
+            candidate.get("title"), candidate.get("description"),
+            candidate.get("category"), candidate.get("specifications"),
+            candidate.get("tags"),
+        )
+        semantic_similarity = max(
+            0.0,
+            min(
+                1.0,
+                fsum(left * right for left, right in zip(query_vector, product_vector)),
+            ),
+        )
+        components.append((0.75 * lexical_coverage + 0.25 * semantic_similarity, 55.0))
+
+    if search.category:
+        requested = search.category.casefold()
+        actual = str(candidate.get("category") or "").casefold()
+        components.append((1.0 if requested in actual else 0.0, 20.0))
+    if search.max_price is not None:
+        price = Decimal(str(candidate.get("price") or 0))
+        components.append((1.0 if price <= Decimal(str(search.max_price)) else 0.0, 10.0))
+    if search.min_rating is not None:
+        rating = float(candidate.get("rating") or 0)
+        components.append((1.0 if rating >= search.min_rating else 0.0, 5.0))
+    if search.required_specs:
+        specifications = candidate.get("specifications") or {}
+        spec_score = sum(
+            _specification_match(specifications.get(key), expected)
+            for key, expected in search.required_specs.items()
+        ) / len(search.required_specs)
+        components.append((spec_score, 25.0))
+
+    if not components:
+        return 100
+    weighted_score = sum(score * weight for score, weight in components)
+    total_weight = sum(weight for _, weight in components)
+    return max(0, min(100, round(100 * weighted_score / total_weight)))
+
+
 def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) -> list[dict[str, Any]]:
     """Hybrid SQL filtering plus pgvector cosine ranking with a SQL fallback."""
 
@@ -185,12 +345,13 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
     keyword_query = _keyword_query(search.search_query)
     query_embedding = catalog_text_embedding(search.search_query, search.category, search.required_specs)
 
+    pool_limit = max(25, search.limit * 5)
     if not vector_index_available():
         # Never broaden a meaningful product phrase to every item that merely
         # satisfies the budget. Constraint-only queries may still browse all
         # matching inventory.
         ranked_queryset = sql_queryset if search_tokens else queryset
-        products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
+        products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[:pool_limit])
     else:
         try:
             relevant_queryset = sql_queryset if search_tokens else queryset
@@ -207,14 +368,20 @@ def search_merchant_products(arguments: ProductSearchSchema | dict[str, Any]) ->
                     output_field=FloatField(),
                 )
             )
-            products = list(vector_queryset.order_by("-hybrid_score", "-rating", "price")[: search.limit])
+            products = list(vector_queryset.order_by("-hybrid_score", "-rating", "price")[:pool_limit])
             if not products:
                 ranked_queryset = sql_queryset if search_tokens else queryset
-                products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
+                products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[:pool_limit])
         except DatabaseError:
             ranked_queryset = sql_queryset if search_tokens else queryset
-            products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[: search.limit])
-    return [serialize_product(product) for product in products]
+            products = list(ranked_queryset.order_by("-rating", "price", "-stock_quantity")[:pool_limit])
+    candidates = [serialize_product(product) for product in products]
+    for candidate in candidates:
+        candidate["match_score"] = calculate_match_score(candidate, search)
+    return sorted(
+        candidates,
+        key=lambda item: (-item["match_score"], -item["rating"], Decimal(item["price"])),
+    )[: search.limit]
 
 
 def extract_max_price(user_prompt: str) -> float | None:
@@ -239,7 +406,14 @@ def extract_max_price(user_prompt: str) -> float | None:
 
 
 def extract_category(user_prompt: str) -> str | None:
-    tokens = re.findall(r"[\w-]+", user_prompt.lower())
+    lowered = user_prompt.lower()
+    phrase_match = next((
+        category for phrase, category in CATEGORY_PHRASE_ALIASES.items()
+        if re.search(rf"\b{re.escape(phrase)}\b", lowered)
+    ), None)
+    if phrase_match:
+        return phrase_match
+    tokens = re.findall(r"[\w-]+", lowered)
     return next((CATEGORY_ALIASES[token] for token in tokens if token in CATEGORY_ALIASES), None)
 
 
@@ -254,11 +428,15 @@ def extract_required_specs(user_prompt: str) -> dict[str, Any]:
         rf"\b(?P<color>{color_terms})\s+(?:colored?\s+|coloured?\s+)?(?:{category_terms})\b",
         rf"\b(?:{category_terms})\s+(?:in\s+)?(?P<color>{color_terms})\b",
     )
+    specifications = {}
     for pattern in patterns:
         match = re.search(pattern, lowered)
         if match:
-            return {"color": COLOR_CANONICAL[match.group("color")]}
-    return {}
+            specifications["color"] = COLOR_CANONICAL[match.group("color")]
+            break
+    if re.search(r"\b(?:hot[\s-]?swappable|hot[\s-]?swap|hotswap)\b", lowered):
+        specifications["hot_swappable"] = True
+    return specifications
 
 
 def deterministic_search_arguments(user_prompt: str, limit: int = 5) -> ProductSearchSchema:

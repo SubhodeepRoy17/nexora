@@ -29,6 +29,8 @@ from .services import (
 )
 from .tools import (
     ProductSearchSchema,
+    _contains_term,
+    calculate_match_score,
     deterministic_search_arguments,
     fallback_product_search,
     search_merchant_products,
@@ -63,6 +65,23 @@ class ProductSearchSchemaTests(SimpleTestCase):
         self.assertEqual(arguments.max_price, 5000)
         self.assertEqual(arguments.required_specs, {"color": "Red"})
 
+    def test_deterministic_parser_retains_hot_swap_and_multiword_category(self):
+        keyboard = deterministic_search_arguments("Hot-swappable keyboard under 10000")
+        stand = deterministic_search_arguments("Laptop stand under 3000")
+
+        self.assertEqual(keyboard.required_specs, {"hot_swappable": True})
+        self.assertEqual(stand.category, "Laptop Stands")
+
+    def test_deterministic_parser_recognizes_common_accessory_categories(self):
+        self.assertEqual(
+            deterministic_search_arguments("wireless mouse under 5000").category,
+            "Mice",
+        )
+        self.assertEqual(
+            deterministic_search_arguments("noise cancelling headphones").category,
+            "Headphones",
+        )
+
     @patch("apps.agents.services._record_search")
     @patch("apps.agents.services.fallback_product_search")
     def test_fallback_summary_describes_matches_instead_of_provider_failure(
@@ -85,6 +104,66 @@ class ProductSearchSchemaTests(SimpleTestCase):
         self.assertIn("in keyboards", response.summary_reasoning.lower())
         self.assertIn("₹8,000 budget", response.summary_reasoning)
         self.assertNotIn("fallback", response.summary_reasoning.lower())
+
+
+class PromptMatchScoreTests(SimpleTestCase):
+    def candidate(self, **overrides):
+        candidate = {
+            "title": "Standard Office Keyboard",
+            "description": "A full-size keyboard for everyday office work.",
+            "category": "Keyboards",
+            "price": "4999.00",
+            "rating": 4.2,
+            "tags": ["keyboard", "office"],
+            "specifications": {"connectivity": ["USB"], "hot_swappable": False},
+        }
+        candidate.update(overrides)
+        return candidate
+
+    def test_prompt_terms_change_the_score_for_products_in_the_same_category(self):
+        search = ProductSearchSchema(
+            search_query="quiet keyboard for coding",
+            category="Keyboards",
+            max_price=8000,
+        )
+        close_match = self.candidate(
+            title="Quiet Coding Keyboard",
+            description="Silent keyboard designed for programming and productivity.",
+            tags=["keyboard", "quiet", "coding", "productivity"],
+        )
+
+        self.assertGreater(
+            calculate_match_score(close_match, search),
+            calculate_match_score(self.candidate(), search),
+        )
+
+    def test_explicit_specifications_and_budget_are_scored_independently(self):
+        search = ProductSearchSchema(
+            search_query="hot-swappable keyboard under 6000",
+            category="Keyboards",
+            max_price=6000,
+            required_specs={"hot_swappable": True},
+        )
+
+        matching = calculate_match_score(
+            self.candidate(
+                title="Hot-Swappable Mechanical Keyboard",
+                specifications={"hot_swappable": True},
+            ),
+            search,
+        )
+        failing = calculate_match_score(
+            self.candidate(price="7000.00"),
+            search,
+        )
+
+        self.assertGreater(matching, failing)
+        self.assertLessEqual(matching, 100)
+
+    def test_lexical_matching_uses_word_boundaries(self):
+        self.assertFalse(_contains_term("wired keyboard", "red"))
+        self.assertTrue(_contains_term("hot_swappable keyboard", "hot-swappable"))
+        self.assertTrue(_contains_term("Keyboards", "keyboard"))
 
 
 class CatalogRelevanceTests(TestCase):
@@ -159,6 +238,7 @@ class RecommendationGroundingTests(SimpleTestCase):
                 "title": "Keychron K2 Pro",
                 "price": "7999.00",
                 "merchant": {"name": "Verified Keyboards"},
+                "match_score": 42,
                 "specifications": {"switches": "Brown tactile"},
             }
         ]
@@ -167,6 +247,7 @@ class RecommendationGroundingTests(SimpleTestCase):
 
         self.assertEqual(grounded.recommendations[0].title, "Keychron K2 Pro")
         self.assertEqual(grounded.recommendations[0].price, 7999.0)
+        self.assertEqual(grounded.recommendations[0].match_score, 42)
         self.assertEqual(grounded.recommendations[0].stock_quantity, 0)
 
     def test_buyer_facing_copy_hides_internal_ids_and_addresses_person_directly(self):
@@ -358,6 +439,7 @@ class GeminiProviderTests(SimpleTestCase):
         self.assertEqual(parsed.recommendations[0].title, "Live Keyboard")
         self.assertEqual(parsed.recommendations[0].merchant, "Live Merchant")
         self.assertEqual(parsed.recommendations[0].price, 7999.0)
+        self.assertNotEqual(parsed.recommendations[0].match_score, 90)
         self.assertEqual(captured["config"].thinking_config.thinking_level.value, "LOW")
         self.assertTrue(captured["config"].automatic_function_calling.disable)
 

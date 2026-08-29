@@ -16,6 +16,8 @@ The response identifies the first grounded result in `primary_recommendation_id`
 
 When no product satisfies the hard constraints, the response includes `no_result` diagnostics and a `suggested_query`. The server derives category counts, the cheapest eligible category product, budget shortfall, requested structured specifications, and available catalog values directly from active inventory. Gemini may phrase those bounded facts into `summary_reasoning`; if Gemini is unavailable, a deterministic formatter explains the same specific constraint. The model never determines prices, availability, or the failure reason itself.
 
+Recommendation `match_score` is server-authoritative; Gemini cannot set the displayed percentage. The scorer reranks a bounded retrieval pool using prompt-token concepts and the local semantic embedding (55 weight), requested category (20), maximum price (10), minimum rating (5), and required specifications (25). Only dimensions present in the request enter the denominator. Text intent is 75% field-weighted lexical coverage and 25% cosine similarity; title, category, tags, specifications, and description carry decreasing evidence weights. Synonyms such as quiet/silent count as one concept. Explicit requirements such as hot-swappability are parsed as hard catalog filters before scoring. Follow-up comparisons retain the prior server-computed score.
+
 ## 2. Record add-on choice
 
 `POST /api/agents/growth-offers/{offer_id}/respond/` requires an authenticated buyer:

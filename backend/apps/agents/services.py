@@ -21,6 +21,7 @@ from .prompts import (
 from .tools import (
     SEARCH_MERCHANT_PRODUCTS_FUNCTION,
     ProductSearchSchema,
+    calculate_match_score,
     deterministic_search_arguments,
     extract_max_price,
     fallback_product_search,
@@ -287,6 +288,7 @@ def _parse_recommendations(
     client: genai.Client,
     user_prompt: str,
     candidates: list[dict[str, Any]],
+    constraints: ProductSearchSchema | None = None,
 ) -> BuyerAgentResponse:
     base_prompt = (
         f"Buyer request: {user_prompt}\n\n"
@@ -317,7 +319,7 @@ def _parse_recommendations(
         )
         try:
             parsed = BuyerAgentResponse.model_validate_json(response.text or "")
-            return _ground_recommendations(parsed, candidates)
+            return _ground_recommendations(parsed, candidates, user_prompt, constraints)
         except (ValidationError, ValueError) as exc:
             last_error = exc
 
@@ -327,6 +329,8 @@ def _parse_recommendations(
 def _ground_recommendations(
     response: BuyerAgentResponse,
     candidates: list[dict[str, Any]],
+    user_prompt: str = "",
+    constraints: ProductSearchSchema | None = None,
 ) -> BuyerAgentResponse:
     candidates_by_id = {candidate["id"]: candidate for candidate in candidates}
     grounded = []
@@ -337,6 +341,15 @@ def _ground_recommendations(
         if not candidate or recommendation.product_id in seen_ids:
             continue
         seen_ids.add(recommendation.product_id)
+        match_score = candidate.get("match_score")
+        if not isinstance(match_score, (int, float)):
+            match_score = calculate_match_score(
+                candidate,
+                constraints or ProductSearchSchema(
+                    search_query=user_prompt or candidate.get("title") or "product"
+                ),
+            )
+        match_score = max(0, min(100, round(match_score)))
         grounded.append(
             recommendation.model_copy(
                 update={
@@ -351,6 +364,7 @@ def _ground_recommendations(
                     "category": candidate.get("category", ""),
                     "stock_quantity": candidate.get("stock_quantity", 0),
                     "rating": candidate.get("rating", 0),
+                    "match_score": match_score,
                     "key_specs": candidate["specifications"],
                     "reason": _public_facing_text(recommendation.reason),
                     "tradeoffs": [
@@ -362,9 +376,11 @@ def _ground_recommendations(
 
     if candidates and not grounded:
         raise AgentServiceError("Gemini recommendations did not reference catalog products")
+    grounded.sort(key=lambda item: (-item.match_score, -item.rating, item.price))
     return response.model_copy(
         update={
             "recommendations": grounded,
+            "primary_recommendation_id": grounded[0].product_id if grounded else None,
             "summary_reasoning": _public_facing_text(response.summary_reasoning),
         }
     )
@@ -714,7 +730,10 @@ def _fallback_response(
 
     recommendations = []
     for candidate in candidates[:3]:
-        score = min(96, round(68 + (candidate["rating"] * 5)))
+        score = candidate.get("match_score")
+        if not isinstance(score, (int, float)):
+            score = calculate_match_score(candidate, constraints)
+        score = max(0, min(100, round(score)))
         evidence_reason, tradeoffs = _evidence_reason(candidate, constraints)
         recommendations.append(
             ProductRecommendation(
@@ -772,6 +791,7 @@ def _bounded_conversation_history(
                 "title": item.get("title"),
                 "price": item.get("price"),
                 "reason": item.get("reason"),
+                "match_score": item.get("match_score"),
             }
             for item in (metadata.get("recommendations") or [])[:5]
         ]
@@ -850,7 +870,17 @@ def _live_previous_candidates(previous: list[dict[str, Any]]) -> list[dict[str, 
         is_active=True,
         stock_quantity__gt=0,
     ).in_bulk()
-    return [serialize_product(products[product_id]) for product_id in product_ids if product_id in products]
+    candidates = []
+    previous_by_id = {item.get("product_id"): item for item in previous}
+    for product_id in product_ids:
+        if product_id not in products:
+            continue
+        candidate = serialize_product(products[product_id])
+        prior_score = previous_by_id[product_id].get("match_score")
+        if isinstance(prior_score, (int, float)):
+            candidate["match_score"] = max(0, min(100, round(prior_score)))
+        candidates.append(candidate)
+    return candidates
 
 
 def _gemini_conversation_turn(
@@ -1116,7 +1146,7 @@ def run_buyer_agent(
     try:
         client = client or _gemini_client()
         response = _attach_growth_suggestions(
-            _parse_recommendations(client, effective_prompt, candidates),
+            _parse_recommendations(client, effective_prompt, candidates, arguments),
             arguments.model_dump(mode="json"),
         )
         recommended_ids = {item.product_id for item in response.recommendations}

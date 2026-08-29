@@ -30,6 +30,8 @@ No 21st.dev private registry code, paid template source, imagery, customer logos
 - `/login` — session sign-in plus public buyer-and-merchant registration; `?mode=signup` creates an isolated owner-scoped merchant workspace while merchant-role links remain sign-in only.
 - `/merchant`, `/merchant/inventory`, `/merchant/analytics` — protected merchant workspace.
 
+The merchant inventory view loads every owner-scoped API page in bounded batches of 100, then progressively renders rows in the browser. Search, status filters, totals, editing, and relationship selection therefore operate across the complete merchant inventory rather than only the API's default 25-row page.
+
 The public and buyer surfaces use warm white, ink, violet, emerald, sharp grid frames, DM Sans, and IBM Plex Mono. The merchant OS uses the same geometry and signal colors on an ink workspace to distinguish operational data from marketing content.
 
 ## Content rules
