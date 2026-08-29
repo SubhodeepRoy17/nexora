@@ -621,7 +621,7 @@ export default function BuyerChat() {
           </>
         ) : (
           <div className="hidden h-full w-full flex-col items-center lg:flex">
-            <Link to="/" aria-label="Nexora home" className="focus-ring mt-1 rounded-xl"><LogoMark className="size-8 shrink-0" alt="" /></Link>
+            <Link to="/" aria-label="Nexora home" className="focus-ring mt-1 rounded-xl"><LogoMark className="size-7 shrink-0" alt="" /></Link>
             <div className="mt-3">
               <WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="buyer-history-sidebar" label="Expand sidebar" />
             </div>
