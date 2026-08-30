@@ -4,15 +4,9 @@ import { onboardingMessages } from '../data/onboarding'
 const NexoraContext = createContext(null)
 
 export function NexoraProvider({ children }) {
-  const [inventory, setInventory] = useState([])
-  const [auditEvents, setAuditEvents] = useState([])
   const [buyerMessages, setBuyerMessages] = useState(onboardingMessages)
 
   const value = {
-    inventory,
-    setInventory,
-    auditEvents,
-    setAuditEvents,
     buyerMessages,
     setBuyerMessages,
   }

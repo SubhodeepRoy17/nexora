@@ -553,12 +553,12 @@ export default function BuyerChat() {
           </section>
         </div>
       )}
-      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <aside
         id="buyer-history-sidebar"
         aria-label="Buyer conversations"
-        className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'w-[288px] translate-x-0 p-3' : 'w-[288px] -translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}
+        className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex w-[min(288px,calc(100vw-2.5rem))] shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'translate-x-0 p-3 lg:w-[288px]' : '-translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}
       >
         {sidebarOpen ? (
           <>
@@ -696,7 +696,7 @@ export default function BuyerChat() {
                             event.preventDefault()
                             submitMessage(editingMessage.text, { editMessageId: message.id })
                           }}
-                          className="w-[min(78vw,38rem)] rounded-2xl border border-[#17372f]/15 bg-white p-3 shadow-[0_16px_38px_rgba(42,81,68,.12)]"
+                          className="w-[min(76vw,38rem)] max-w-full rounded-2xl border border-[#17372f]/15 bg-white p-3 shadow-[0_16px_38px_rgba(42,81,68,.12)]"
                         >
                           <textarea
                             autoFocus

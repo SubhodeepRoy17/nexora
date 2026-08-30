@@ -11,9 +11,8 @@
   button, input, select, textarea { @apply outline-none; }
   button { -webkit-tap-highlight-color: transparent; }
   ::selection { @apply bg-violet-500/25 text-violet-950; }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-400; }
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  ::-webkit-scrollbar { display: none; width: 0; height: 0; }
   :is(button, a):focus-visible { outline: 2px solid #8b5cf6; outline-offset: 2px; }
   :is(input, select, textarea):focus-visible { outline: 2px solid #94a3b8; outline-offset: 1px; }
 }
@@ -185,6 +184,45 @@
 
 .auth-field:focus-within > svg:first-child { color: #17372f; }
 
+.auth-page-simple {
+  background:
+    radial-gradient(circle at 8% 18%, rgba(186, 230, 253, .4), transparent 28%),
+    radial-gradient(circle at 90% 82%, rgba(196, 181, 253, .34), transparent 30%),
+    linear-gradient(145deg, #eff8f3 0%, #f8f5ed 50%, #f4effa 100%);
+}
+
+.auth-simple-shell {
+  display: grid;
+  min-height: 620px;
+  animation: auth-shell-enter .65s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-simple-story-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(110,231,183,.28), transparent 34%),
+    radial-gradient(circle at 88% 82%, rgba(167,139,250,.3), transparent 38%),
+    linear-gradient(145deg, transparent, rgba(255,255,255,.03));
+}
+
+.auth-simple-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  pointer-events: none;
+  opacity: .5;
+}
+
+.auth-simple-orb-one { left: -8rem; top: 24%; width: 22rem; height: 22rem; background: rgba(110,231,183,.38); }
+.auth-simple-orb-two { right: -7rem; bottom: 8%; width: 20rem; height: 20rem; background: rgba(196,181,253,.4); }
+
+/* The compact auth layout intentionally opts out of the legacy switch-panel positioning. */
+.auth-switch-shell.auth-simple-shell {
+  display: grid;
+  min-height: 620px;
+}
+
 @media (max-width: 1199px) and (min-width: 1024px) {
   .auth-switch-story-content {
     padding-left: 4.5rem !important;
@@ -198,6 +236,11 @@
 }
 
 @media (max-width: 1023px) {
+  .auth-switch-shell.auth-simple-shell {
+    display: grid;
+    min-height: 0;
+  }
+
   .auth-switch-shell {
     display: flex;
     min-height: 0;
@@ -232,6 +275,8 @@
 }
 
 @media (max-width: 639px) {
+  .auth-page-simple { padding-top: 5.25rem; }
+  .auth-switch-shell.auth-simple-shell { display: grid; border-radius: 1.4rem; }
   .auth-page { align-items: start; }
   .auth-page-note { display: none; }
   .auth-switch-shell { border-radius: 1.8rem; }
@@ -1586,4 +1631,49 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+@media (max-width: 639px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
+
+  .product-bento-card {
+    min-height: auto !important;
+    border-radius: 1.25rem;
+  }
+
+  .journey-step-copy {
+    min-height: auto;
+  }
+
+  .journey-step-reveal {
+    min-height: 76px;
+  }
+
+  .journey-step-signal {
+    display: none;
+  }
+
+  .journey-step-detail {
+    position: static;
+    opacity: 1;
+    transform: none !important;
+  }
+
+  .journey-step-hint {
+    display: none;
+  }
+
+  .journey-illustration {
+    min-height: 210px;
+  }
 }

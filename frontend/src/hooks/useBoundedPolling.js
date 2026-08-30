@@ -6,6 +6,7 @@ export default function useBoundedPolling(callback, {
   intervalMs = 5000,
   maxCycles = 120,
   immediate = true,
+  resetKey,
 } = {}) {
   const callbackRef = useRef(callback)
   callbackRef.current = callback
@@ -53,5 +54,5 @@ export default function useBoundedPolling(callback, {
       controller?.abort()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [enabled, intervalMs, maxCycles, immediate])
+  }, [enabled, intervalMs, maxCycles, immediate, resetKey])
 }

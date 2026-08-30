@@ -40,7 +40,7 @@ export default function ChatInput({ value, onChange, onSubmit, presets, disabled
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-3 flex items-center justify-center gap-2 overflow-x-auto pb-1" aria-label="Suggested shopping prompts">
+      <div className="mb-3 flex items-center justify-start gap-2 overflow-x-auto px-0.5 pb-1 sm:justify-center" aria-label="Suggested shopping prompts">
         {presets.map((preset) => (
           <button
             key={preset.id}

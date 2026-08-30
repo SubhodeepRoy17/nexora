@@ -139,8 +139,8 @@ function OrderDetail({ summary, onClose, onChanged, onRetry }) {
       ? 'border-rose-200 bg-rose-50 text-rose-950'
       : 'border-amber-200 bg-amber-50 text-amber-950'
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-[#17372f]/30 px-4 pt-[12vh] backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="buyer-order-dialog modal-scroll max-h-[76vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/70 bg-[#f7f9f4] shadow-[0_30px_90px_rgba(23,55,47,.24)]">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-[#17372f]/30 px-3 pt-[12vh] backdrop-blur-sm sm:px-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="order-detail-title" className="buyer-order-dialog modal-scroll max-h-[calc(100dvh-5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/70 bg-[#f7f9f4] shadow-[0_30px_90px_rgba(23,55,47,.24)] sm:max-h-[76vh]">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-emerald-950/10 bg-[#f7f9f4]/95 px-4 py-3 backdrop-blur sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#17372f] text-white"><Package size={18} /></span>

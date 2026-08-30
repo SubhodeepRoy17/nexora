@@ -58,4 +58,61 @@ describe('owner-scoped merchant workspace', () => {
     expect(await screen.findByText('No completed payments yet.')).toBeInTheDocument()
     expect(screen.getByText('No shopper activity yet. New searches and order updates will appear automatically.')).toBeInTheDocument()
   })
+
+  it('renders no catalog data when the workspace belongs to another merchant', async () => {
+    apiMocks.getProducts.mockResolvedValue({
+      data: {
+        results: [{
+          id: 901,
+          merchant: 99,
+          merchant_name: 'Another Shop',
+          title: 'Another Merchant Product',
+          description: 'Must never appear in this workspace.',
+          category: 'Accessories',
+          price: '999.00',
+          stock_quantity: 4,
+          is_active: true,
+          rating: '4.5',
+          tags: [],
+          specifications: {},
+        }],
+      },
+    })
+    apiMocks.getMerchantWorkspace.mockResolvedValue({
+      data: { ...workspace, merchant: { ...workspace.merchant, id: 99, name: 'Another Shop' } },
+    })
+
+    renderMerchant('/merchant/inventory')
+
+    expect(await screen.findByText('Unable to verify this seller workspace. No store data is being shown.')).toBeInTheDocument()
+    expect(screen.queryByText('Another Merchant Product')).not.toBeInTheDocument()
+    expect(screen.queryByText('Another Shop')).not.toBeInTheDocument()
+  })
+
+  it('filters mixed API records to the signed-in merchant before rendering', async () => {
+    const product = (id, merchant, title) => ({
+      id, merchant, merchant_name: merchant === 11 ? 'Authenticated Shop' : 'Another Shop', title,
+      description: 'Catalog item', category: 'Accessories', price: '999.00', stock_quantity: 4,
+      is_active: true, rating: '4.5', tags: [], specifications: {},
+    })
+    apiMocks.getProducts.mockResolvedValue({ data: { results: [product(101, 11, 'Owned Product'), product(901, 99, 'Foreign Product')] } })
+    apiMocks.getOrders.mockResolvedValue({
+      data: {
+        results: [{
+          order_id: '12345678-1234-1234-1234-123456789012', status: 'PAID', currency: 'INR',
+          total_amount: '3498.00', paid_at: new Date().toISOString(), items: [
+            { product: 101, merchant: 11, product_title: 'Owned Product', line_total: '999.00' },
+            { product: 901, merchant: 99, product_title: 'Foreign Product', line_total: '2499.00' },
+          ],
+        }],
+      },
+    })
+
+    renderMerchant('/merchant')
+
+    expect(await screen.findByText('Owned Product')).toBeInTheDocument()
+    expect(screen.queryByText('Foreign Product')).not.toBeInTheDocument()
+    expect(screen.getByText('₹999.00')).toBeInTheDocument()
+    expect(screen.queryByText('₹3,498.00')).not.toBeInTheDocument()
+  })
 })

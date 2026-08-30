@@ -114,7 +114,48 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
           </div>
         </header>
 
-        <div className="overflow-x-auto">
+        <div className="space-y-3 p-3 md:hidden">
+          {visibleProducts.map((product) => (
+            <article key={product.id} className="rounded-2xl border border-emerald-950/10 bg-white p-4 shadow-[0_8px_24px_rgba(42,81,68,.06)]">
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#eef4ed] text-violet-700"><Package size={16} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#17372f]">{product.name}</p>
+                  <p className="mt-1 truncate text-[11px] text-slate-500">{product.sku} · {product.category}</p>
+                </div>
+                <button type="button" onClick={() => onEdit(product)} aria-label={`Edit ${product.name}`} className="focus-ring grid size-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700"><Edit3 size={15} /></button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl bg-[#f7faf5] p-3">
+                  <p className="text-[10px] text-slate-500">Price</p>
+                  {editingPriceId === product.id ? (
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-xs text-slate-500">₹</span>
+                      <input autoFocus aria-label={`New price for ${product.name}`} type="number" min="1" value={draftPrice} onChange={(event) => setDraftPrice(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && savePrice(product)} className="min-w-0 flex-1 rounded-lg border border-violet-300 bg-white px-2 py-1.5 text-xs" />
+                      <button type="button" aria-label={`Save price for ${product.name}`} onClick={() => savePrice(product)} className="focus-ring grid size-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><Check size={13} /></button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => beginPriceEdit(product)} className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-[#17372f]">{money(product.price)} <Pencil size={11} /></button>
+                  )}
+                </div>
+                <div className="rounded-xl bg-[#f7faf5] p-3">
+                  <p className="text-[10px] text-slate-500">Availability</p>
+                  <p className={`mt-1 text-xs font-semibold ${product.stock === 0 ? 'text-rose-700' : product.stock < 8 ? 'text-amber-700' : 'text-emerald-700'}`}>{product.stock === 0 ? 'Out of stock' : `${product.stock} in stock`}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-950/10 px-3 py-2.5">
+                <div><p className="text-xs font-semibold text-[#17372f]">Visible to shoppers</p><p className="mt-0.5 text-[10px] text-slate-500">{product.agentViews.toLocaleString()} views · {product.conversions} purchases</p></div>
+                <button type="button" role="switch" aria-label={`${product.active ? 'Hide' : 'Show'} ${product.name} to shoppers`} aria-checked={product.active} onClick={() => onToggleActive(product.id)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${product.active ? 'bg-emerald-500' : 'bg-slate-500'}`}><span className={`absolute top-1 size-5 rounded-full bg-white shadow transition ${product.active ? 'left-6' : 'left-1'}`} /></button>
+              </div>
+
+              <button type="button" onClick={() => setSpecProduct(product)} className="focus-ring mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 text-xs font-semibold text-violet-700"><Package size={13} /> View product details</button>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[900px] border-collapse text-left">
             <thead>
               <tr className="inventory-table-head border-b border-emerald-950/10 bg-[#eef4ed] text-xs text-[#31594f]">
@@ -193,11 +234,11 @@ export default function ProductInventoryTable({ products, onToggleActive, onUpda
               ))}
             </tbody>
           </table>
-          {!filtered.length && <div className="grid h-44 place-items-center text-sm text-slate-500">No products match this view.</div>}
         </div>
+        {!filtered.length && <div className="grid h-44 place-items-center px-5 text-center text-sm text-slate-500">No products match this view.</div>}
         <footer className="border-t border-emerald-950/10 px-5 py-3">
           <LoadMoreRecords shownCount={shownCount} totalCount={filtered.length} remainingCount={remainingCount} nextBatchCount={nextBatchCount} onLoadMore={loadMore} noun="products" />
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-slate-500">
               {filtered.length} matching · {products.length} total
             </p>

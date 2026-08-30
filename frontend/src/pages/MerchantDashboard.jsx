@@ -11,7 +11,6 @@ import ProductRelationshipManager from '../components/merchant/ProductRelationsh
 import MerchantOperations from '../components/merchant/MerchantOperations'
 import DataFreshness from '../components/common/DataFreshness'
 import { ActivityTimelineSkeleton, MerchantInventorySkeleton, MerchantOverviewSkeleton } from '../components/common/LoadingSkeletons'
-import { useNexora } from '../context/NexoraContext'
 import { useAuth } from '../context/AuthContext'
 import { createProduct, createProductRelationship, deleteProductRelationship, extractResults, getApiError, getMerchantAnalytics, getMerchantWorkspace, getMoneyAudits, getOrders, getProductRelationships, getProducts, patchProduct, patchProductRelationship, toInventoryProduct, toMoneyTimelineEvent, toProductPayload } from '../services/api'
 import useBoundedPolling from '../hooks/useBoundedPolling'
@@ -40,11 +39,22 @@ const tabCopy = {
   },
 }
 
+const scopeOrderToMerchant = (order, merchantId) => {
+  const items = (order.items ?? []).filter((item) => Number(item.merchant) === merchantId)
+  if (!items.length) return null
+  return {
+    ...order,
+    items,
+    total_amount: items.reduce((total, item) => total + Number(item.line_total ?? 0), 0).toFixed(2),
+  }
+}
+
 export default function MerchantDashboard() {
   const location = useLocation()
   const routerNavigate = useNavigate()
-  const { inventory, setInventory, auditEvents, setAuditEvents } = useNexora()
   const { user } = useAuth()
+  const [inventory, setInventory] = useState([])
+  const [auditEvents, setAuditEvents] = useState([])
   const { open: sidebarOpen, setOpen: setSidebarOpen, closeOnMobile: closeSidebarOnMobile } = useWorkspaceSidebar()
   const [productModal, setProductModal] = useState({
     open: false,
@@ -73,13 +83,16 @@ export default function MerchantDashboard() {
   const [analytics, setAnalytics] = useState(null)
   const [orders, setOrders] = useState([])
   const [workspace, setWorkspace] = useState(null)
+  const [scopeVerified, setScopeVerified] = useState(false)
+  const merchantScopeKey = `${user?.id ?? 'anonymous'}:${user?.merchant?.id ?? 'none'}`
   const activeTab = location.pathname === '/merchant/inventory' ? 'inventory' : location.pathname === '/merchant/analytics' ? 'insights' : 'overview'
 
   const refreshCatalog = useCallback(
     async (signal) => {
       try {
         const { data } = await getProducts(signal)
-        setInventory(extractResults(data).map(toInventoryProduct))
+        const authenticatedMerchantId = Number(user?.merchant?.id)
+        setInventory(extractResults(data).map(toInventoryProduct).filter((product) => product.merchantId === authenticatedMerchantId))
         setCatalogState({
           loading: false,
           error: '',
@@ -93,7 +106,7 @@ export default function MerchantDashboard() {
         })
       }
     },
-    [setInventory],
+    [merchantScopeKey, user?.merchant?.id],
   )
 
   const refreshAudits = useCallback(
@@ -115,7 +128,7 @@ export default function MerchantDashboard() {
         }))
       }
     },
-    [setAuditEvents],
+    [merchantScopeKey],
   )
 
   const refreshGrowth = useCallback(async (signal) => {
@@ -136,13 +149,22 @@ export default function MerchantDashboard() {
           error: getApiError(error, 'Unable to refresh growth data.'),
         }))
     }
-  }, [])
+  }, [merchantScopeKey])
 
   const refreshOperations = useCallback(async (signal) => {
     try {
       const [workspaceResponse, orderResponse] = await Promise.all([getMerchantWorkspace(signal), getOrders(signal)])
+      const responseMerchantId = Number(workspaceResponse.data?.merchant?.id)
+      const authenticatedMerchantId = Number(user?.merchant?.id)
+      if (!authenticatedMerchantId || responseMerchantId !== authenticatedMerchantId) {
+        throw new Error('The seller workspace did not match the signed-in store.')
+      }
+      const scopedOrders = extractResults(orderResponse.data)
+        .map((order) => scopeOrderToMerchant(order, authenticatedMerchantId))
+        .filter(Boolean)
       setWorkspace(workspaceResponse.data)
-      setOrders(extractResults(orderResponse.data))
+      setOrders(scopedOrders)
+      setScopeVerified(true)
       setOperationsState({
         loading: false,
         error: '',
@@ -156,7 +178,21 @@ export default function MerchantDashboard() {
           error: getApiError(error, 'Unable to refresh payment operations.'),
         }))
     }
-  }, [])
+  }, [merchantScopeKey, user?.merchant?.id])
+
+  useEffect(() => {
+    setInventory([])
+    setAuditEvents([])
+    setRelationships([])
+    setAnalytics(null)
+    setOrders([])
+    setWorkspace(null)
+    setScopeVerified(false)
+    setCatalogState({ loading: true, error: '' })
+    setTimelineState({ loading: true, error: '', updatedAt: null })
+    setGrowthState({ loading: true, error: '', updatedAt: null })
+    setOperationsState({ loading: true, error: '', updatedAt: null })
+  }, [merchantScopeKey])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -164,9 +200,9 @@ export default function MerchantDashboard() {
     return () => controller.abort()
   }, [refreshCatalog])
 
-  useBoundedPolling(refreshAudits, { intervalMs: 5000, maxCycles: 120 })
-  useBoundedPolling(refreshGrowth, { intervalMs: 15000, maxCycles: 120 })
-  useBoundedPolling(refreshOperations, { intervalMs: 10000, maxCycles: 120 })
+  useBoundedPolling(refreshAudits, { intervalMs: 5000, maxCycles: 120, resetKey: merchantScopeKey })
+  useBoundedPolling(refreshGrowth, { intervalMs: 15000, maxCycles: 120, resetKey: merchantScopeKey })
+  useBoundedPolling(refreshOperations, { intervalMs: 10000, maxCycles: 120, resetKey: merchantScopeKey })
 
   const navigate = (tab) => {
     const routes = {
@@ -252,11 +288,13 @@ export default function MerchantDashboard() {
 
   const openExceptions = workspace?.operations?.open_reconciliation_exceptions ?? 0
   const overviewLoading = catalogState.loading || (growthState.loading && !analytics) || (operationsState.loading && !workspace)
+  const scopedProductIds = new Set(inventory.map((product) => product.id))
+  const scopedRelationships = relationships.filter((relationship) => scopedProductIds.has(Number(relationship.source_product)) && scopedProductIds.has(Number(relationship.related_product)))
 
   return (
     <div className="merchant-light merchant-grid flex h-dvh min-h-[576px] overflow-hidden bg-[#f6f5f1] text-slate-950">
-      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed bottom-0 left-[288px] right-0 top-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside id="merchant-workspace-sidebar" aria-label="Merchant navigation" className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'w-[288px] translate-x-0 p-3' : 'w-[288px] -translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}>
+      {sidebarOpen && <button type="button" aria-label="Close navigation" className="fixed inset-0 z-[65] bg-[#17372f]/25 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      <aside id="merchant-workspace-sidebar" aria-label="Merchant navigation" className={`buyer-sidebar fixed bottom-0 left-0 top-0 z-[70] flex w-[min(288px,calc(100vw-2.5rem))] shrink-0 flex-col overflow-visible border-r border-emerald-950/10 transition-[transform,width,padding] duration-300 ease-out lg:static lg:inset-auto ${sidebarOpen ? 'translate-x-0 p-3 lg:w-[288px]' : '-translate-x-full p-2 lg:w-[72px] lg:translate-x-0'}`}>
         {sidebarOpen ? (
           <>
             <div className="flex items-center justify-between gap-3 px-1">
@@ -311,6 +349,7 @@ export default function MerchantDashboard() {
               <div className="flex items-start gap-3">
                 {!sidebarOpen && <div className="mt-0.5 lg:hidden"><WorkspaceSidebarToggle open={false} onToggle={() => setSidebarOpen(true)} controls="merchant-workspace-sidebar" /></div>}
                 <div>
+                  {scopeVerified && workspace?.merchant?.name && <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.14em] text-violet-700">{workspace.merchant.name}</p>}
                   <h1 className="text-3xl font-semibold tracking-[-.045em] text-[#17372f] md:text-4xl">{tabCopy[activeTab].title}</h1>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-[#31594f]/75">{tabCopy[activeTab].detail}</p>
                 </div>
@@ -326,16 +365,18 @@ export default function MerchantDashboard() {
               {catalogState.error || timelineState.error}
             </div>
           )}
-          {activeTab === 'overview' && (overviewLoading ? <MerchantOverviewSkeleton /> : <DashboardOverview analytics={analytics} inventory={inventory} events={auditEvents} onNavigate={navigate} merchantName={workspace?.merchant?.name ?? user?.merchant?.name} analyticsState={growthState} timelineState={timelineState} orders={orders} workspace={workspace} operationsState={operationsState} onRetryOperations={() => refreshOperations()} />)}
-          {activeTab === 'inventory' && (
+          {!scopeVerified && operationsState.loading && <MerchantOverviewSkeleton />}
+          {!scopeVerified && operationsState.error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700" role="alert">Unable to verify this seller workspace. No store data is being shown.</div>}
+          {scopeVerified && activeTab === 'overview' && (overviewLoading ? <MerchantOverviewSkeleton /> : <DashboardOverview analytics={analytics} inventory={inventory} events={auditEvents} onNavigate={navigate} merchantName={workspace?.merchant?.name} analyticsState={growthState} timelineState={timelineState} orders={orders} workspace={workspace} operationsState={operationsState} onRetryOperations={() => refreshOperations()} />)}
+          {scopeVerified && activeTab === 'inventory' && (
             <div>
               <div className="mb-3 flex justify-end">
                 <DataFreshness updatedAt={catalogState.updatedAt} loading={catalogState.loading} staleAfterMs={60000} dark />
               </div>
-              {catalogState.loading && !inventory.length ? <MerchantInventorySkeleton /> : <><ProductInventoryTable products={inventory} onToggleActive={toggleProduct} onUpdatePrice={updatePrice} onAdd={() => setProductModal({ open: true, product: null })} onEdit={(product) => setProductModal({ open: true, product })} /><ProductRelationshipManager products={inventory} relationships={relationships} onCreate={addRelationship} onToggle={toggleRelationship} onDelete={removeRelationship} /></>}
+              {catalogState.loading && !inventory.length ? <MerchantInventorySkeleton /> : <><ProductInventoryTable products={inventory} onToggleActive={toggleProduct} onUpdatePrice={updatePrice} onAdd={() => setProductModal({ open: true, product: null })} onEdit={(product) => setProductModal({ open: true, product })} /><ProductRelationshipManager products={inventory} relationships={scopedRelationships} onCreate={addRelationship} onToggle={toggleRelationship} onDelete={removeRelationship} /></>}
             </div>
           )}
-          {activeTab === 'insights' && (
+          {scopeVerified && activeTab === 'insights' && (
             <div>
               <AgentAnalytics analytics={analytics} state={growthState} onRetry={() => refreshGrowth()} />
               <div className="mt-5">
