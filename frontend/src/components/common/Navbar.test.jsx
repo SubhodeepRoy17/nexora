@@ -17,7 +17,10 @@ describe('workspace navigation', () => {
 
     expect(screen.getByRole('link', { name: 'Shopping assistant' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Seller workspace' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveClass('lg:hidden')
+    const mobileBrand = screen.getByRole('link', { name: 'Nexora home' })
+    expect(mobileBrand).toHaveClass('lg:hidden')
+    expect(mobileBrand.querySelector('img')).toHaveAttribute('src', expect.stringContaining('Monogram'))
+    expect(mobileBrand).not.toHaveTextContent('NEXORA')
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
   })
 })
