@@ -34,6 +34,7 @@ export default function Navbar() {
     <header className={`${landing ? 'fixed backdrop-blur-md' : workspaceMode ? 'pointer-events-none fixed' : 'sticky backdrop-blur-md'} top-0 z-[60] h-16 w-full bg-transparent px-3 text-slate-950 sm:px-5`}>
       <div className="relative mx-auto flex h-full max-w-[1440px] items-center justify-between gap-4">
         {!workspaceMode && <Link to="/" className="focus-ring shrink-0" aria-label="Nexora home"><Brand /></Link>}
+        {workspaceMode && <Link to="/" className="focus-ring pointer-events-auto shrink-0 lg:hidden" aria-label="Nexora home"><Brand /></Link>}
 
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 lg:flex xl:gap-11" aria-label={landing ? 'Landing navigation' : 'Application navigation'}>
           {centerLinks.map(([label, href]) => {

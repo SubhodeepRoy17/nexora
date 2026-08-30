@@ -12,12 +12,12 @@ vi.mock('../../context/AuthContext', () => ({
 }))
 
 describe('workspace navigation', () => {
-  it('keeps application links while removing workspace branding and top-level sign out', () => {
+  it('keeps application links and mobile branding without a top-level sign out', () => {
     render(<MemoryRouter initialEntries={['/buyer']}><Navbar /></MemoryRouter>)
 
     expect(screen.getByRole('link', { name: 'Shopping assistant' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Seller workspace' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Nexora home' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Nexora home' })).toHaveClass('lg:hidden')
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
   })
 })
