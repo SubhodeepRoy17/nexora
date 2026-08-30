@@ -10,11 +10,7 @@ completed claim.
   architecture, measured results, setup, verification, and limitations.
 - `docs/ArchitectureDiagrams.md` — system authority boundaries, successful payment, deliberate
   failure, and order/inventory state diagrams.
-- `docs/Pitch.md` — exact five-minute narration, operator preflight, and honest fallback pivots.
-- `docs/Submission.md` — official-source audit, copy-ready form content, observed fields, links, and
-  final signed-out checklist.
-- `LICENSE` — MIT project license. Catalog fixtures continue to carry their own source/license
-  metadata under `docs/CatalogData.md`.
+- `LICENSE` — MIT project license. Catalog records retain their own source and license metadata.
 
 The package links rather than duplicates the authoritative paid transaction, graceful failure,
 browser E2E, CI, evaluation, and deployment evidence in Phases 2–7.
@@ -26,9 +22,8 @@ the public-repository, five-minute-video, architecture, Track 01, bounded-money,
 failure requirements. The form requests applicant identity/eligibility, Track, project title and
 objectives, repository, video, technical obstacles, and final confirmation.
 
-Neither rendered source displayed a deadline. `docs/Submission.md` therefore requires a fresh
-official check immediately before submission and intentionally does not promote an aggregator date
-to an official fact.
+Neither rendered source displayed a deadline, so a fresh official check is required immediately
+before submission; aggregator dates must not be promoted as official facts.
 
 ## Hygiene and claim-boundary changes
 

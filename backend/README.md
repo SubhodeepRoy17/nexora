@@ -19,8 +19,8 @@ Django REST Framework backend for Nexora's merchant catalog, buyer agents, order
    python manage.py runserver
    ```
 
-For a shared Neon database, follow `docs/NeonRunbook.md`. Nexora accepts Neon's
-direct `DATABASE_URL`, including `sslmode` and `channel_binding`, and keeps the
+For a shared Neon database, provide Neon's direct `DATABASE_URL`, including
+`sslmode` and `channel_binding`. Nexora keeps the
 individual `POSTGRES_*` settings as the local fallback. Never commit a real
 connection string. Local cutovers may keep the ignored credential in
 `backend/.env.neon` as `NEON_DIRECT_DATABASE_URL`; deployed services must use
@@ -40,7 +40,7 @@ the host-managed `DATABASE_URL` secret.
    python manage.py seed_open_catalog --external-limit 60
    ```
 
-   The command imports a pinned MIT-licensed DummyJSON subset and the CC0 Nexora keyboard scenarios documented in `docs/CatalogData.md`. It is idempotent; `--skip-external` works offline.
+   The command imports a pinned MIT-licensed DummyJSON subset and self-authored CC0 Nexora keyboard scenarios. Source and license metadata are stored on every product. It is idempotent; `--skip-external` works offline.
 
 7. Seed the login-ready Track demo merchant after configuring the `DEMO_*` variables:
 
@@ -160,7 +160,7 @@ Run stale-payment reconciliation separately:
 python manage.py reconcile_razorpay --stale-minutes 10 --limit 250
 ```
 
-It is idempotent and repairs only one exact Razorpay-captured payment. Its JSON output and admin `ReconciliationException` list expose ambiguous cases. For an already captured order that cannot be fulfilled, follow `docs/RazorpayRunbook.md`; the refund command requires the order UUID twice, an enumerated reason, test credentials, exact full amount, and the configured cap.
+It is idempotent and repairs only one exact Razorpay-captured payment. Its JSON output and admin `ReconciliationException` list expose ambiguous cases. For an already captured order that cannot be fulfilled, the refund command requires the order UUID twice, an enumerated reason, test credentials, exact full amount, and the configured cap.
 
 For deployed Test Mode acceptance, `frontend/scripts/run-deployed-razorpay-webhook-proof.mjs`
 drives the public buyer approval path and deliberately withholds the browser payment-status callback,
@@ -168,8 +168,7 @@ so only a real signed webhook can settle the order. The narrower
 `frontend/scripts/complete-existing-razorpay-test-order.mjs` completes an already approved exact Test
 order. Both helpers require environment-provided values, reject non-Test public keys, and print only
 short identifier suffixes, amounts, and states. They are evidence aids, not substitutes for the
-Razorpay Dashboard delivery row or its manual **Redeliver** action. See
-`docs/RazorpayRunbook.md` for the active event allowlist, redaction rules, and acceptance checklist.
+Razorpay Dashboard delivery row or its manual **Redeliver** action.
 
 See `docs/API.md` for request/response contracts and stable money-action reason codes.
 

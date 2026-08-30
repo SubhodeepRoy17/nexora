@@ -4,7 +4,7 @@
 
 Nexora uses a warm editorial buyer surface and a dense dark merchant operations surface. DM Sans is the primary typeface and IBM Plex Mono identifies IDs, provenance, status, limits, and timestamps. Violet represents agent/policy activity, emerald is reserved for backend-confirmed success, amber means pending or stale, and rose means stopped, failed, or operator attention. Color is never the only status signal.
 
-The system adapts layout ideas documented in `docs/UI.md`; it does not copy private assets. Sharp borders, offset shadows, structured grids, and restrained motion make state boundaries visible at desktop and mobile widths.
+Sharp borders, offset shadows, structured grids, and restrained motion make state boundaries visible at desktop and mobile widths.
 
 ## Data truth rules
 

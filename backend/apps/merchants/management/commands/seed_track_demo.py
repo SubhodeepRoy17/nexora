@@ -9,7 +9,7 @@ from apps.merchants.models import Merchant, Product, ProductRelationship
 
 
 SOURCE_NAME = "Nexora Track Demo Catalog"
-SOURCE_URL = "https://github.com/SubhodeepRoy17/nexora/blob/soumya/docs/CatalogData.md"
+SOURCE_URL = "https://creativecommons.org/publicdomain/zero/1.0/"
 SOURCE_LICENSE = "CC0-1.0"
 DEMO_PROMPT = "Find the Nexora Nomad 75 quiet travel keyboard under ₹9000"
 NO_RESULT_PROMPT = "Find a keyboard under ₹100"

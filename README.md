@@ -193,9 +193,8 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:5173`. For detailed database, authentication, catalog, payment, and deployment
-setup, use [backend/README.md](backend/README.md), [frontend/README.md](frontend/README.md), and
-[docs/DeploymentRunbook.md](docs/DeploymentRunbook.md).
+Open `http://localhost:5173`. For detailed database, authentication, catalog, and payment setup, use
+[backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md).
 
 ## Verification
 
@@ -213,38 +212,3 @@ npm run test:e2e
 
 CI additionally installs hash-locked Python dependencies, provisions PostgreSQL/pgvector, runs the
 versioned evaluation, audits both dependency graphs, and scans Git history for secrets.
-
-## Five-minute evaluation path
-
-Use [docs/Pitch.md](docs/Pitch.md) for the timed narration, exact clicks, graceful-failure pivot, and
-provider-outage fallback. [docs/Submission.md](docs/Submission.md) contains copy-ready official-form
-answers and the final permissions/deployment/video checklist.
-
-## Current limitations
-
-- A redacted Razorpay Dashboard delivery-row capture and account-owner redelivery of that exact
-  successful event remain required before webhook operational acceptance is complete. Real signed
-  delivery, delayed reconciliation, and invalid-signature no-mutation behavior are verified.
-- The checked-in same-origin Vercel `/api/*` proxy is not active in the currently deployed frontend;
-  direct cross-site session cookies can be blocked by browser policy.
-- Evaluation uses a bounded synthetic catalogue and deterministic provider-shaped responses; it
-  does not measure public-network Gemini quality. The randomized growth experiment still needs
-  meaningful real traffic before it can report a scoped causal estimate.
-- The repository must be made publicly readable and the final five-minute video must be uploaded
-  before submitting the official form.
-
-## Roadmap to submission
-
-Repository-controlled implementation and packaging are complete. The remaining gates are
-operational: deploy the same-origin proxy, establish both scheduler heartbeats, capture the
-Razorpay Test Dashboard delivery row and exact manual redelivery evidence, make the repository public, record
-the five-minute video, and perform the final signed-out form/link audit. Track deployment acceptance
-in [docs/Phase7Evidence.md](docs/Phase7Evidence.md) and final submission readiness in
-[docs/Submission.md](docs/Submission.md). The ACP adapter and causal-lift experiment infrastructure
-are repository-complete; production must still collect the real experiment sample, and external
-certification cannot be self-issued.
-
-## License
-
-Nexora is available under the [MIT License](LICENSE). Seeded catalog records retain their individual
-source and license metadata as documented in [docs/CatalogData.md](docs/CatalogData.md).

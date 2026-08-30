@@ -103,8 +103,8 @@ Razorpay login screen and cannot perform that account-owner action.
   redelivery/idempotency result; registration and real signed delivery are verified.
 - [x] Verify delayed webhook recovery and reconciliation retry on the deployed environment.
 - [ ] Confirm Render health/deploy/scheduler alerts and operational admin visibility.
-- [ ] Complete the deployed test-mode payment and graceful-failure checklist in
-  `docs/RazorpayRunbook.md`.
+- [ ] Complete the deployed test-mode payment and graceful-failure acceptance checks described in
+  the backend README and Phase 2–3 evidence.
 
 P0.7 must not be labelled fully accepted until every unchecked operational item has deployment
 evidence. The application is publicly deployed and connected; the remaining gap is production

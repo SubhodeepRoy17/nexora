@@ -9,7 +9,7 @@ The route map is:
 - `/login` — buyer/merchant session login.
 - `/merchant`, `/merchant/inventory`, and `/merchant/analytics` — protected merchant OS.
 
-The current visual system adapts the editorial grid and analytics hierarchy of the 21st.dev Cypon Analytics template, plus selected 21st.dev commerce, AI-state, process-card, stats-card, button, and navigation patterns. See `docs/UI.md` for the exact source mapping, licensing boundary, content rules, and responsive surface guidance.
+The visual system combines an editorial buyer surface with a compact operations-oriented merchant workspace. Shared primitives keep navigation, loading, empty, error, and responsive states consistent.
 
 ## Run locally
 
