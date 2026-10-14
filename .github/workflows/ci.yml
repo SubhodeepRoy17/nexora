@@ -96,7 +96,7 @@ jobs:
             2>&1 | tee ../artifacts/evaluation/run.log
       - name: Publish backend evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase5-backend-${{ github.run_attempt }}
           path: artifacts/backend
@@ -104,7 +104,7 @@ jobs:
           retention-days: 14
       - name: Publish evaluation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase6-evaluation-${{ github.run_attempt }}
           path: artifacts/evaluation
@@ -137,7 +137,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high --json > ../artifacts/frontend/npm-audit.json
       - name: Publish frontend evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase5-frontend-${{ github.run_attempt }}
           path: artifacts/frontend
@@ -191,7 +191,7 @@ jobs:
           npm run test:e2e 2>&1 | tee ../artifacts/e2e/critical-browser.log
       - name: Publish browser evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase5-e2e-${{ github.run_attempt }}
           path: artifacts/e2e
@@ -220,7 +220,7 @@ jobs:
           pip-audit -r backend/requirements.lock --format json --output artifacts/security/pip-audit.json
       - name: Publish security evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: phase5-security-${{ github.run_attempt }}
           path: artifacts/security
